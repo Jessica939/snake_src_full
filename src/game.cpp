@@ -17,16 +17,8 @@ Game::Game()
 {
     // Separate the screen to three windows
     this->mWindows.resize(3);
-    initscr();
-    // If there wasn't any key pressed don't wait for keypress
-    nodelay(stdscr, true);
-    // Turn on keypad control
-    keypad(stdscr, true);
-    // No echo for the key pressed
-    noecho();
-    // No cursor show
-    curs_set(0);
-    // Get screen and board parameters
+    
+    // 获取屏幕尺寸
     getmaxyx(stdscr, this->mScreenHeight, this->mScreenWidth);
     this->mGameBoardWidth = this->mScreenWidth - this->mInstructionWidth;
     this->mGameBoardHeight = this->mScreenHeight - this->mInformationHeight;
@@ -38,8 +30,129 @@ Game::Game()
     // Initialize the leader board to be all zeros
     this->mLeaderBoard.assign(this->mNumLeaders, 0);
     
+    // 初始化关卡状态列表
+    this->mLevelStatus.assign(this->mMaxLevel, LevelStatus::Locked);
+    // 第一关默认解锁
+    this->mLevelStatus[0] = LevelStatus::Unlocked;
+    
+    // 加载已保存的关卡进度
+    this->loadLevelProgress();
+    
     // Create maps directory if it doesn't exist
     std::filesystem::create_directory("maps");
+    
+    // 创建默认的关卡地图文件
+    createDefaultLevelMaps();
+}
+
+// 创建默认的关卡地图文件（如果不存在）
+void Game::createDefaultLevelMaps()
+{
+    // 确保每个关卡都有对应的地图文件
+    for (int level = 1; level <= mMaxLevel; level++) {
+        std::string mapFilePath = "maps/level" + std::to_string(level) + ".txt";
+        
+        // 检查文件是否存在
+        std::ifstream checkFile(mapFilePath);
+        if (!checkFile.good()) {
+            // 如果文件不存在，则创建一个默认地图
+            // 根据关卡特点创建不同的默认地图
+            std::ofstream mapFile(mapFilePath);
+            if (mapFile.is_open()) {
+                int width = mGameBoardWidth;
+                int height = mGameBoardHeight;
+                
+                // 写入地图尺寸
+                mapFile << width << " " << height << std::endl;
+                
+                // 根据关卡类型创建不同的地图布局
+                switch (level) {
+                    case 1: // 第一关：简单边界
+                        for (int y = 0; y < height; y++) {
+                            for (int x = 0; x < width; x++) {
+                                if (x == 0 || y == 0 || x == width - 1 || y == height - 1) {
+                                    mapFile << "1 ";
+                                } else {
+                                    mapFile << "0 ";
+                                }
+                            }
+                            mapFile << std::endl;
+                        }
+                        break;
+                    case 2: // 第二关：速度挑战，简单布局
+                        for (int y = 0; y < height; y++) {
+                            for (int x = 0; x < width; x++) {
+                                if (x == 0 || y == 0 || x == width - 1 || y == height - 1) {
+                                    mapFile << "1 ";
+                                } else {
+                                    mapFile << "0 ";
+                                }
+                            }
+                            mapFile << std::endl;
+                        }
+                        break;
+                    case 3: // 第三关：迷宫布局
+                        for (int y = 0; y < height; y++) {
+                            for (int x = 0; x < width; x++) {
+                                if (x == 0 || y == 0 || x == width - 1 || y == height - 1 || 
+                                    (x % 10 == 5 && y % 8 != 0) || 
+                                    (y % 8 == 4 && x % 10 != 0)) {
+                                    mapFile << "1 ";
+                                } else {
+                                    mapFile << "0 ";
+                                }
+                            }
+                            mapFile << std::endl;
+                        }
+                        break;
+                    case 4: // 第四关：自定义关卡1
+                        for (int y = 0; y < height; y++) {
+                            for (int x = 0; x < width; x++) {
+                                if (x == 0 || y == 0 || x == width - 1 || y == height - 1 || 
+                                    (x == width/2 && y < height/2) ||
+                                    (y == height/2 && x > width/2)) {
+                                    mapFile << "1 ";
+                                } else {
+                                    mapFile << "0 ";
+                                }
+                            }
+                            mapFile << std::endl;
+                        }
+                        break;
+                    case 5: // 第五关：自定义关卡2
+                        for (int y = 0; y < height; y++) {
+                            for (int x = 0; x < width; x++) {
+                                if (x == 0 || y == 0 || x == width - 1 || y == height - 1 || 
+                                    (x == width/4 && y < height*3/4) ||
+                                    (x == width*3/4 && y > height/4) ||
+                                    (y == height/4 && x > width/4 && x < width*3/4) ||
+                                    (y == height*3/4 && x > width/4 && x < width*3/4)) {
+                                    mapFile << "1 ";
+                                } else {
+                                    mapFile << "0 ";
+                                }
+                            }
+                            mapFile << std::endl;
+                        }
+                        break;
+                    default:
+                        // 默认情况：简单边界
+                        for (int y = 0; y < height; y++) {
+                            for (int x = 0; x < width; x++) {
+                                if (x == 0 || y == 0 || x == width - 1 || y == height - 1) {
+                                    mapFile << "1 ";
+                                } else {
+                                    mapFile << "0 ";
+                                }
+                            }
+                            mapFile << std::endl;
+                        }
+                }
+                
+                mapFile.close();
+            }
+        }
+    }
 }
 
 Game::~Game()
@@ -48,7 +161,6 @@ Game::~Game()
     {
         delwin(this->mWindows[i]);
     }
-    endwin();
 }
 
 void Game::createInformationBoard()
@@ -302,6 +414,14 @@ void Game::renderDifficulty() const
     wrefresh(this->mWindows[2]);
 }
 
+void Game::renderLevel() const
+{
+    mvwprintw(this->mWindows[2], 15, 1, "Level");
+    std::string levelString = std::to_string(this->mCurrentLevel);
+    mvwprintw(this->mWindows[2], 16, 1, levelString.c_str());
+    wrefresh(this->mWindows[2]);
+}
+
 void Game::initializeGame()
 {
     // 先选择地图
@@ -539,6 +659,8 @@ void Game::runGame()
         this->renderFood();
         this->renderDifficulty();
         this->renderPoints();
+        // 即使在普通模式下，也显示当前为第1关
+        this->renderLevel();
 
         std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
 
@@ -550,18 +672,272 @@ void Game::startGame()
 {
     refresh();
     bool choice;
-    while (true)
-    {
+    
+    if (mIsLevelMode) {
+        // 关卡模式
         this->readLeaderBoard();
         this->renderBoards();
-        this->initializeGame();
-        this->runGame();
-        this->updateLeaderBoard();
-        this->writeLeaderBoard();
-        choice = this->renderRestartMenu();
-        if (choice == false)
+        
+        // 先让用户选择一个已解锁的关卡
+        if (!this->selectLevelInLevelMode()) {
+            // 用户选择退出
+            return;
+        }
+        
+        // 运行选择的关卡
+        while (true) {
+            // 初始化并运行当前关卡
+            this->initializeLevel(mCurrentLevel);
+            this->runLevel();
+            
+            // 检查是否通过当前关卡
+            if (this->isLevelCompleted()) {
+                // 标记当前关卡为已完成
+                this->mLevelStatus[mCurrentLevel - 1] = LevelStatus::Completed;
+                
+                // 如果不是最后一关，解锁下一关
+                if (mCurrentLevel < mMaxLevel) {
+                    this->unlockLevel(mCurrentLevel + 1);
+                }
+                
+                // 保存关卡进度
+                this->saveLevelProgress();
+                
+                // 显示通关信息
+                WINDOW* levelCompleteWin;
+                int width = this->mGameBoardWidth * 0.5;
+                int height = 5;
+                int startX = this->mGameBoardWidth * 0.25;
+                int startY = this->mGameBoardHeight * 0.25 + this->mInformationHeight;
+                
+                levelCompleteWin = newwin(height, width, startY, startX);
+                box(levelCompleteWin, 0, 0);
+                
+                mvwprintw(levelCompleteWin, 1, 1, "Level %d Completed!", mCurrentLevel);
+                mvwprintw(levelCompleteWin, 2, 1, "Your Score: %d", this->mPoints);
+                
+                // 根据是否是最后一关显示不同的提示
+                if (mCurrentLevel < mMaxLevel) {
+                    mvwprintw(levelCompleteWin, 3, 1, "Level %d Unlocked!", mCurrentLevel + 1);
+                } else {
+                    mvwprintw(levelCompleteWin, 3, 1, "You completed all levels!");
+                }
+                
+                mvwprintw(levelCompleteWin, 4, 1, "Press Space to continue...");
+                wrefresh(levelCompleteWin);
+                
+                // 等待用户按空格继续
+                int key;
+                while (true) {
+                    key = getch();
+                    if (key == ' ' || key == 10)
+                        break;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                }
+                
+                delwin(levelCompleteWin);
+                
+                // 如果所有关卡都完成了，显示胜利信息
+                if (mCurrentLevel >= mMaxLevel) {
+                    WINDOW* gameCompleteWin;
+                    gameCompleteWin = newwin(height, width, startY, startX);
+                    box(gameCompleteWin, 0, 0);
+                    
+                    mvwprintw(gameCompleteWin, 1, 1, "Congratulations!");
+                    mvwprintw(gameCompleteWin, 2, 1, "You completed all levels!");
+                    mvwprintw(gameCompleteWin, 3, 1, "Final Score: %d", this->mPoints);
+                    wrefresh(gameCompleteWin);
+                    
+                    // 等待用户按空格继续
+                    while (true) {
+                        key = getch();
+                        if (key == ' ' || key == 10)
+                            break;
+                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    }
+                    
+                    delwin(gameCompleteWin);
+                }
+                
+                // 返回关卡选择界面
+                if (!this->selectLevelInLevelMode()) {
+                    // 用户选择退出
+                    break;
+                }
+                
+            } else {
+                // 关卡失败，显示游戏结束信息
+                this->updateLeaderBoard();
+                this->writeLeaderBoard();
+                WINDOW * menu;
+                int width = this->mGameBoardWidth * 0.5;
+                int height = this->mGameBoardHeight * 0.5;
+                int startX = this->mGameBoardWidth * 0.25;
+                int startY = this->mGameBoardHeight * 0.25 + this->mInformationHeight;
+
+                menu = newwin(height, width, startY, startX);
+                box(menu, 0, 0);
+                std::vector<std::string> menuItems = {"Retry Level", "Select Level", "Mode Select", "Quit"};
+
+                int index = 0;
+                int offset = 4;
+                mvwprintw(menu, 1, 1, "Your Final Score:");
+                std::string pointString = std::to_string(this->mPoints);
+                mvwprintw(menu, 2, 1, pointString.c_str());
+                wattron(menu, A_STANDOUT);
+                mvwprintw(menu, 0 + offset, 1, menuItems[0].c_str());
+                wattroff(menu, A_STANDOUT);
+                mvwprintw(menu, 1 + offset, 1, menuItems[1].c_str());
+                mvwprintw(menu, 2 + offset, 1, menuItems[2].c_str());
+                mvwprintw(menu, 3 + offset, 1, menuItems[3].c_str());
+
+                wrefresh(menu);
+
+                int key;
+                while (true)
+                {
+                    key = getch();
+                    switch(key)
+                    {
+                        case 'W':
+                        case 'w':
+                        case KEY_UP:
+                        {
+                            mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                            index --;
+                            index = (index < 0) ? menuItems.size() - 1 : index;
+                            wattron(menu, A_STANDOUT);
+                            mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                            wattroff(menu, A_STANDOUT);
+                            break;
+                        }
+                        case 'S':
+                        case 's':
+                        case KEY_DOWN:
+                        {
+                            mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                            index ++;
+                            index = (index > menuItems.size() - 1) ? 0 : index;
+                            wattron(menu, A_STANDOUT);
+                            mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                            wattroff(menu, A_STANDOUT);
+                            break;
+                        }
+                    }
+                    wrefresh(menu);
+                    if (key == ' ' || key == 10)
+                    {
+                        break;
+                    }
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                }
+                delwin(menu);
+
+                if (index == 0) {
+                    // 重新尝试当前关卡，不做任何改变
+                    continue;
+                } else if (index == 1) {
+                    // 返回关卡选择界面
+                    if (!this->selectLevelInLevelMode()) {
+                        // 用户选择退出
+                        break;
+                    }
+                } else if (index == 2) {
+                    // 返回到模式选择
+                    mReturnToModeSelect = true;
+                    break;
+                } else {
+                    // 退出游戏
+                    break;
+                }
+            }
+        }
+    } else {
+        // 原始游戏模式
+        while (true)
         {
-            break;
+            this->readLeaderBoard();
+            this->renderBoards();
+            this->initializeGame();
+            this->runGame();
+            this->updateLeaderBoard();
+            this->writeLeaderBoard();
+            
+            // 修改重新开始菜单，添加返回模式选择的选项
+            WINDOW * menu;
+            int width = this->mGameBoardWidth * 0.5;
+            int height = this->mGameBoardHeight * 0.5;
+            int startX = this->mGameBoardWidth * 0.25;
+            int startY = this->mGameBoardHeight * 0.25 + this->mInformationHeight;
+
+            menu = newwin(height, width, startY, startX);
+            box(menu, 0, 0);
+            std::vector<std::string> menuItems = {"Restart", "Mode Select", "Quit"};
+
+            int index = 0;
+            int offset = 4;
+            mvwprintw(menu, 1, 1, "Your Final Score:");
+            std::string pointString = std::to_string(this->mPoints);
+            mvwprintw(menu, 2, 1, pointString.c_str());
+            wattron(menu, A_STANDOUT);
+            mvwprintw(menu, 0 + offset, 1, menuItems[0].c_str());
+            wattroff(menu, A_STANDOUT);
+            mvwprintw(menu, 1 + offset, 1, menuItems[1].c_str());
+            mvwprintw(menu, 2 + offset, 1, menuItems[2].c_str());
+
+            wrefresh(menu);
+
+            int key;
+            while (true)
+            {
+                key = getch();
+                switch(key)
+                {
+                    case 'W':
+                    case 'w':
+                    case KEY_UP:
+                    {
+                        mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                        index --;
+                        index = (index < 0) ? menuItems.size() - 1 : index;
+                        wattron(menu, A_STANDOUT);
+                        mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                        wattroff(menu, A_STANDOUT);
+                        break;
+                    }
+                    case 'S':
+                    case 's':
+                    case KEY_DOWN:
+                    {
+                        mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                        index ++;
+                        index = (index > menuItems.size() - 1) ? 0 : index;
+                        wattron(menu, A_STANDOUT);
+                        mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                        wattroff(menu, A_STANDOUT);
+                        break;
+                    }
+                }
+                wrefresh(menu);
+                if (key == ' ' || key == 10)
+                {
+                    break;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+            delwin(menu);
+
+            if (index == 0) {
+                // 重新开始游戏
+                continue;
+            } else if (index == 1) {
+                // 返回到模式选择
+                mReturnToModeSelect = true;
+                break;
+            } else {
+                // 退出游戏
+                break;
+            }
         }
     }
 }
@@ -616,6 +992,545 @@ bool Game::writeLeaderBoard()
     {
         fhand.write(reinterpret_cast<char*>(&this->mLeaderBoard[i]), sizeof(this->mLeaderBoard[i]));;
     }
+    fhand.close();
+    return true;
+}
+
+bool Game::selectLevel()
+{
+    // 清除屏幕并刷新，以确保界面正确显示
+    clear();
+    refresh();
+    
+    WINDOW * menu;
+    int width = this->mGameBoardWidth * 0.6;
+    int height = this->mGameBoardHeight * 0.6;
+    int startX = this->mGameBoardWidth * 0.2;
+    int startY = this->mGameBoardHeight * 0.2 + this->mInformationHeight;
+
+    menu = newwin(height, width, startY, startX);
+    box(menu, 0, 0);
+    
+    std::vector<std::string> menuItems = {
+        "Classic Mode", 
+        "Level Mode",
+        "Exit Game"
+    };
+
+    int index = 0;
+    int offset = 3;
+    mvwprintw(menu, 1, 1, "Select Game Mode:");
+    
+    wattron(menu, A_STANDOUT);
+    mvwprintw(menu, 0 + offset, 1, menuItems[0].c_str());
+    wattroff(menu, A_STANDOUT);
+    
+    for (int i = 1; i < menuItems.size(); i++) {
+        mvwprintw(menu, i + offset, 1, menuItems[i].c_str());
+    }
+
+    wrefresh(menu);
+
+    int key;
+    while (true)
+    {
+        key = getch();
+        switch(key)
+        {
+            case 'W':
+            case 'w':
+            case KEY_UP:
+            {
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                index--;
+                index = (index < 0) ? menuItems.size() - 1 : index;
+                wattron(menu, A_STANDOUT);
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                wattroff(menu, A_STANDOUT);
+                break;
+            }
+            case 'S':
+            case 's':
+            case KEY_DOWN:
+            {
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                index++;
+                index = (index > menuItems.size() - 1) ? 0 : index;
+                wattron(menu, A_STANDOUT);
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                wattroff(menu, A_STANDOUT);
+                break;
+            }
+        }
+        wrefresh(menu);
+        if (key == ' ' || key == 10)
+        {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    delwin(menu);
+    
+    // 如果选择退出
+    if (index == 2) {
+        return false;
+    }
+    
+    // 设置游戏模式
+    mIsLevelMode = (index == 1);
+    mReturnToModeSelect = false; // 重置返回标志
+    
+    return true;
+}
+
+void Game::initializeLevel(int level)
+{
+    mCurrentLevel = level;
+    
+    // 根据关卡设置关卡类型
+    switch (level) {
+        case 1:
+            mCurrentLevelType = LevelType::Normal;
+            mLevelTargetPoints = 5;
+            break;
+        case 2:
+            mCurrentLevelType = LevelType::Speed;
+            mLevelTargetPoints = 8;
+            break;
+        case 3:
+            mCurrentLevelType = LevelType::Maze;
+            mLevelTargetPoints = 10;
+            break;
+        case 4:
+            mCurrentLevelType = LevelType::Custom1;
+            mLevelTargetPoints = 12;
+            break;
+        case 5:
+            mCurrentLevelType = LevelType::Custom2;
+            mLevelTargetPoints = 15;
+            break;
+        default:
+            mCurrentLevelType = LevelType::Normal;
+            mLevelTargetPoints = 5;
+            break;
+    }
+    
+    // 加载关卡对应的地图
+    std::string mapFilePath;
+    if (level >= 1 && level <= mMaxLevel) {
+        mapFilePath = mLevelMapFiles[level - 1];
+    } else {
+        mapFilePath = mLevelMapFiles[0];
+    }
+    
+    // 创建地图
+    mPtrMap = std::make_unique<Map>(mGameBoardWidth, mGameBoardHeight);
+    
+    // 检查地图文件是否存在
+    std::ifstream mapFile(mapFilePath);
+    if (mapFile.good()) {
+        mapFile.close();
+        mPtrMap->loadMapFromFile(mapFilePath);
+    } else {
+        // 如果地图文件不存在，加载默认地图
+        mPtrMap->loadDefaultMap();
+    }
+    
+    // 创建蛇
+    this->mPtrSnake.reset(new Snake(this->mGameBoardWidth, this->mGameBoardHeight, this->mInitialSnakeLength));
+    this->mPtrSnake->setMap(this->mPtrMap.get());
+    
+    // 尝试寻找合适的蛇初始位置
+    bool snakeInitialized = false;
+    std::vector<std::pair<SnakeBody, InitialDirection>> validPositions = 
+        this->mPtrMap->getValidSnakePositions(this->mInitialSnakeLength, 6);
+    
+    if (!validPositions.empty()) {
+        int idx = std::rand() % validPositions.size();
+        auto [startPos, direction] = validPositions[idx];
+        this->mPtrSnake->initializeSnake(startPos.getX(), startPos.getY(), direction);
+        snakeInitialized = true;
+    }
+    
+    // 如果没有找到理想的位置，尝试降低空间要求
+    if (!snakeInitialized) {
+        validPositions = this->mPtrMap->getValidSnakePositions(this->mInitialSnakeLength, 3);
+        
+        if (!validPositions.empty()) {
+            int idx = std::rand() % validPositions.size();
+            auto [startPos, direction] = validPositions[idx];
+            this->mPtrSnake->initializeSnake(startPos.getX(), startPos.getY(), direction);
+            snakeInitialized = true;
+        }
+    }
+    
+    if (!snakeInitialized) {
+        this->mPtrSnake->initializeSnake();
+    }
+    
+    // 创建食物
+    this->createRamdonFood();
+    this->mPtrSnake->senseFood(this->mFood);
+    
+    // 设置难度参数（不同关卡可以有不同的初始难度）
+    switch (mCurrentLevelType) {
+        case LevelType::Speed:
+            this->mDifficulty = 2;  // 速度关卡初始难度更高
+            break;
+        case LevelType::Custom1:
+        case LevelType::Custom2:
+            this->mDifficulty = 1;  // 自定义关卡初始难度
+            break;
+        default:
+            this->mDifficulty = 0;  // 普通关卡初始难度
+            break;
+    }
+    
+    this->mPoints = 0;
+    this->mDelay = this->mBaseDelay * pow(0.75, this->mDifficulty);
+}
+
+void Game::loadNextLevel()
+{
+    if (mCurrentLevel < mMaxLevel) {
+        mCurrentLevel++;
+        initializeLevel(mCurrentLevel);
+    }
+}
+
+bool Game::isLevelCompleted()
+{
+    // 当前关卡完成条件：达到目标分数
+    return (mPoints >= mLevelTargetPoints);
+}
+
+void Game::runLevel()
+{
+    bool moveSuccess;
+    int key;
+    
+    // 显示关卡信息
+    WINDOW* levelInfoWin;
+    int width = this->mGameBoardWidth * 0.5;
+    int height = 5;
+    int startX = this->mGameBoardWidth * 0.25;
+    int startY = this->mGameBoardHeight * 0.25 + this->mInformationHeight;
+    
+    levelInfoWin = newwin(height, width, startY, startX);
+    box(levelInfoWin, 0, 0);
+    
+    mvwprintw(levelInfoWin, 1, 1, "Level %d", mCurrentLevel);
+    mvwprintw(levelInfoWin, 2, 1, "Target: %d points", mLevelTargetPoints);
+    mvwprintw(levelInfoWin, 3, 1, "Press Space to start...");
+    wrefresh(levelInfoWin);
+    
+    // 等待用户按空格开始
+    int startKey;
+    while (true) {
+        startKey = getch();
+        if (startKey == ' ' || startKey == 10)
+            break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    
+    delwin(levelInfoWin);
+    
+    // 开始关卡游戏循环
+    while (true)
+    {
+        this->controlSnake();
+        werase(this->mWindows[1]);
+        box(this->mWindows[1], 0, 0);
+        
+        // 渲染地图
+        this->renderMap();
+        
+        bool eatFood = this->mPtrSnake->moveFoward();
+        bool collision = this->mPtrSnake->checkCollision();
+        
+        if (collision == true)
+        {
+            // 如果碰撞，关卡失败
+            break;
+        }
+        
+        this->renderSnake();
+        if (eatFood == true)
+        {
+            this->mPoints += 1;
+            this->createRamdonFood();
+            this->mPtrSnake->senseFood(this->mFood);
+            this->adjustDelay();
+            
+            // 检查是否完成关卡目标
+            if (this->isLevelCompleted())
+            {
+                // 如果达到目标分数，关卡通过
+                this->renderFood();
+                this->renderDifficulty();
+                this->renderPoints();
+                this->renderLevel();
+                refresh();
+                break;
+            }
+        }
+        
+        this->renderFood();
+        this->renderDifficulty();
+        this->renderPoints();
+        this->renderLevel();
+        
+        // 根据关卡类型调整游戏逻辑
+        switch (mCurrentLevelType) {
+            case LevelType::Speed:
+                // 速度挑战：延迟更短
+                std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(this->mDelay * 0.8)));
+                break;
+            case LevelType::Custom1:
+                // 第四关特殊逻辑
+                std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
+                break;
+            case LevelType::Custom2:
+                // 第五关特殊逻辑
+                std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
+                break;
+            default:
+                // 普通关卡
+                std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
+                break;
+        }
+        
+        refresh();
+    }
+}
+
+bool Game::selectLevelInLevelMode()
+{
+    // 清除屏幕并刷新，以确保界面正确显示
+    clear();
+    refresh();
+    
+    WINDOW * menu;
+    int width = this->mGameBoardWidth * 0.6;
+    int height = this->mGameBoardHeight * 0.6;
+    int startX = this->mGameBoardWidth * 0.2;
+    int startY = this->mGameBoardHeight * 0.2 + this->mInformationHeight;
+
+    menu = newwin(height, width, startY, startX);
+    box(menu, 0, 0);
+    
+    std::vector<std::string> menuItems;
+    
+    // 添加已解锁的关卡到菜单
+    for (int i = 0; i < mMaxLevel; i++) {
+        if (mLevelStatus[i] != LevelStatus::Locked) {
+            std::string itemText = "Level " + std::to_string(i + 1);
+            
+            // 如果关卡已完成，添加完成标记
+            if (mLevelStatus[i] == LevelStatus::Completed) {
+                itemText += " (Completed)";
+            }
+            
+            menuItems.push_back(itemText);
+        } else {
+            // 锁定的关卡显示为锁定状态
+            menuItems.push_back("Level " + std::to_string(i + 1) + " (Locked)");
+        }
+    }
+    
+    // 添加返回选项
+    menuItems.push_back("Back to Mode Selection");
+    menuItems.push_back("Quit Game");
+
+    int index = 0;
+    int offset = 3;
+    mvwprintw(menu, 1, 1, "Select Level:");
+    
+    // 渲染菜单项
+    for (int i = 0; i < menuItems.size(); i++) {
+        if (i == 0) {
+            wattron(menu, A_STANDOUT);
+        }
+        
+        // 如果是已锁定的关卡，显示为灰色
+        if (i < mMaxLevel && mLevelStatus[i] == LevelStatus::Locked) {
+            wattron(menu, A_DIM);
+        }
+        
+        mvwprintw(menu, i + offset, 1, menuItems[i].c_str());
+        
+        if (i < mMaxLevel && mLevelStatus[i] == LevelStatus::Locked) {
+            wattroff(menu, A_DIM);
+        }
+        
+        if (i == 0) {
+            wattroff(menu, A_STANDOUT);
+        }
+    }
+
+    wrefresh(menu);
+
+    int key;
+    while (true)
+    {
+        key = getch();
+        switch(key)
+        {
+            case 'W':
+            case 'w':
+            case KEY_UP:
+            {
+                // 移除当前选项的高亮
+                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                    wattron(menu, A_DIM);
+                }
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                    wattroff(menu, A_DIM);
+                }
+                
+                // 选择前一个选项
+                index--;
+                index = (index < 0) ? menuItems.size() - 1 : index;
+                
+                // 高亮新选项
+                wattron(menu, A_STANDOUT);
+                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                    wattron(menu, A_DIM);
+                }
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                    wattroff(menu, A_DIM);
+                }
+                wattroff(menu, A_STANDOUT);
+                break;
+            }
+            case 'S':
+            case 's':
+            case KEY_DOWN:
+            {
+                // 移除当前选项的高亮
+                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                    wattron(menu, A_DIM);
+                }
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                    wattroff(menu, A_DIM);
+                }
+                
+                // 选择下一个选项
+                index++;
+                index = (index > menuItems.size() - 1) ? 0 : index;
+                
+                // 高亮新选项
+                wattron(menu, A_STANDOUT);
+                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                    wattron(menu, A_DIM);
+                }
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                    wattroff(menu, A_DIM);
+                }
+                wattroff(menu, A_STANDOUT);
+                break;
+            }
+        }
+        wrefresh(menu);
+        if (key == ' ' || key == 10)
+        {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    delwin(menu);
+    
+    // 如果选择了返回模式选择
+    if (index == menuItems.size() - 2) {
+        mReturnToModeSelect = true;
+        return false;
+    }
+    // 如果选择了退出游戏
+    else if (index == menuItems.size() - 1) {
+        return false;
+    }
+    // 如果选择了一个锁定的关卡
+    else if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+        // 显示提示信息
+        WINDOW* lockedWin;
+        int lockWidth = this->mGameBoardWidth * 0.4;
+        int lockHeight = 4;
+        int lockStartX = this->mGameBoardWidth * 0.3;
+        int lockStartY = this->mGameBoardHeight * 0.4 + this->mInformationHeight;
+        
+        lockedWin = newwin(lockHeight, lockWidth, lockStartY, lockStartX);
+        box(lockedWin, 0, 0);
+        
+        mvwprintw(lockedWin, 1, 1, "Level %d is locked!", index + 1);
+        mvwprintw(lockedWin, 2, 1, "Complete previous level first.");
+        wrefresh(lockedWin);
+        
+        // 等待用户按任意键继续
+        getch();
+        
+        delwin(lockedWin);
+        
+        // 递归调用自身，让用户重新选择关卡
+        return selectLevelInLevelMode();
+    }
+    // 选择了有效的关卡
+    else {
+        mCurrentLevel = index + 1;
+        return true;
+    }
+}
+
+void Game::unlockLevel(int level)
+{
+    if (level > 0 && level <= mMaxLevel) {
+        mLevelStatus[level - 1] = LevelStatus::Unlocked;
+    }
+}
+
+bool Game::saveLevelProgress()
+{
+    std::fstream fhand(this->mLevelProgressFilePath, std::ios::binary | std::ios::trunc | std::ios::out);
+    if (!fhand.is_open())
+    {
+        return false;
+    }
+    
+    // 保存所有关卡状态
+    for (int i = 0; i < mMaxLevel; i++)
+    {
+        int status = static_cast<int>(mLevelStatus[i]);
+        fhand.write(reinterpret_cast<char*>(&status), sizeof(status));
+    }
+    
+    fhand.close();
+    return true;
+}
+
+bool Game::loadLevelProgress()
+{
+    std::fstream fhand(this->mLevelProgressFilePath, std::ios::binary | std::ios::in);
+    if (!fhand.is_open())
+    {
+        // 如果文件不存在，第一关默认解锁
+        this->mLevelStatus[0] = LevelStatus::Unlocked;
+        return false;
+    }
+    
+    int status;
+    int i = 0;
+    while ((!fhand.eof()) && (i < mMaxLevel))
+    {
+        fhand.read(reinterpret_cast<char*>(&status), sizeof(status));
+        if (!fhand.eof()) {
+            this->mLevelStatus[i] = static_cast<LevelStatus>(status);
+        }
+        i++;
+    }
+    
     fhand.close();
     return true;
 }
