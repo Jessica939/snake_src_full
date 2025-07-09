@@ -3,6 +3,10 @@
 
 #include <vector>
 
+// 前向声明
+class Map;
+enum class InitialDirection;
+
 enum class Direction
 {
     Up = 0,
@@ -34,11 +38,17 @@ public:
     void setRandomSeed();
     // Initialize snake
     void initializeSnake();
+    // Initialize snake at specific position
+    void initializeSnake(int startX, int startY);
+    // Initialize snake at specific position with specific direction
+    void initializeSnake(int startX, int startY, InitialDirection direction);
     // Check if the snake is on the coordinate
     // bool isSnakeOn(int x, int y);
     // Checking API for generating random food
     bool isPartOfSnake(int x, int y);
     void senseFood(SnakeBody food);
+    // Set map for collision detection
+    void setMap(Map* map);
     // Check if hit wall
     bool hitWall();
     bool touchFood();
@@ -58,6 +68,11 @@ private:
     Direction mDirection;
     SnakeBody mFood;
     std::vector<SnakeBody> mSnake;
+    // Map pointer for collision detection
+    Map* mMap;
+    
+    // Convert InitialDirection to Direction
+    Direction convertInitialDirection(InitialDirection dir);
 };
 
 #endif
