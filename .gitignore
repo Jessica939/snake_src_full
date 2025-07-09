@@ -1,0 +1,28 @@
+# C++ build artifacts
+*.o
+*.a
+*.so
+*.dll
+*.exe
+*.out
+
+# Build system directories
+build/
+bin/
+dist/
+
+# IDE and editor specific files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.vsproj
+*.user
+
+# macOS specific
+.DS_Store
+
+# Log files
+*.log
