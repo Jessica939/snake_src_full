@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "snake.h"
+#include "map.h"
 
 
 class Game
@@ -15,37 +16,39 @@ public:
     Game();
     ~Game();
     
-		void createInformationBoard();
+    void createInformationBoard();
     void renderInformationBoard() const;
 
     void createGameBoard();
     void renderGameBoard() const;
     
-		void createInstructionBoard();
+    void createInstructionBoard();
     void renderInstructionBoard() const;
-		
-		void loadLeadBoard();
+    
+    void loadLeadBoard();
     void updateLeadBoard();
     bool readLeaderBoard();
     bool updateLeaderBoard();
     bool writeLeaderBoard();
     void renderLeaderBoard() const;
     
-		void renderBoards() const;
+    void renderBoards() const;
     
-		void initializeGame();
+    void initializeGame();
     void runGame();
     void renderPoints() const;
     void renderDifficulty() const;
     
-		void createRamdonFood();
+    void createRamdonFood();
     void renderFood() const;
     void renderSnake() const;
+    void renderMap() const;
     void controlSnake() const;
     
-		void startGame();
+    void startGame();
     bool renderRestartMenu() const;
     void adjustDelay();
+    bool selectMap();
     
 
 private:
@@ -63,6 +66,9 @@ private:
     const int mInitialSnakeLength = 2;
     const char mSnakeSymbol = '@';
     std::unique_ptr<Snake> mPtrSnake;
+    // Map information
+    std::unique_ptr<Map> mPtrMap;
+    const char mWallSymbol = '+';
     // Food information
     SnakeBody mFood;
     const char mFoodSymbol = '#';
@@ -73,6 +79,9 @@ private:
     const std::string mRecordBoardFilePath = "record.dat";
     std::vector<int> mLeaderBoard;
     const int mNumLeaders = 3;
+    // Map file paths
+    const std::string mDefaultMapName = "default";
+    std::vector<std::string> mMapFiles = {"maps/map1.txt", "maps/map2.txt", "maps/map3.txt"};
 };
 
 #endif

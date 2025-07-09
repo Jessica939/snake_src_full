@@ -8,8 +8,10 @@
 
 #include <fstream>
 #include <algorithm> 
+#include <filesystem>
 
 #include "game.h"
+#include "map.h"
 
 Game::Game()
 {
@@ -35,6 +37,9 @@ Game::Game()
 
     // Initialize the leader board to be all zeros
     this->mLeaderBoard.assign(this->mNumLeaders, 0);
+    
+    // Create maps directory if it doesn't exist
+    std::filesystem::create_directory("maps");
 }
 
 Game::~Game()
@@ -192,6 +197,97 @@ bool Game::renderRestartMenu() const
     
 }
 
+bool Game::selectMap()
+{
+    WINDOW * menu;
+    int width = this->mGameBoardWidth * 0.6;
+    int height = this->mGameBoardHeight * 0.6;
+    int startX = this->mGameBoardWidth * 0.2;
+    int startY = this->mGameBoardHeight * 0.2 + this->mInformationHeight;
+
+    menu = newwin(height, width, startY, startX);
+    box(menu, 0, 0);
+    
+    std::vector<std::string> menuItems;
+    menuItems.push_back(mDefaultMapName);
+    
+    // Check which map files exist
+    for (const auto& mapFile : mMapFiles) {
+        std::ifstream file(mapFile);
+        if (file.good()) {
+            menuItems.push_back(mapFile);
+        }
+    }
+
+    int index = 0;
+    int offset = 3;
+    mvwprintw(menu, 1, 1, "Select a Map:");
+    
+    wattron(menu, A_STANDOUT);
+    mvwprintw(menu, 0 + offset, 1, menuItems[0].c_str());
+    wattroff(menu, A_STANDOUT);
+    
+    for (int i = 1; i < menuItems.size(); i++) {
+        mvwprintw(menu, i + offset, 1, menuItems[i].c_str());
+    }
+
+    wrefresh(menu);
+
+    int key;
+    while (true)
+    {
+        key = getch();
+        switch(key)
+        {
+            case 'W':
+            case 'w':
+            case KEY_UP:
+            {
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                index --;
+                index = (index < 0) ? menuItems.size() - 1 : index;
+                wattron(menu, A_STANDOUT);
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                wattroff(menu, A_STANDOUT);
+                break;
+            }
+            case 'S':
+            case 's':
+            case KEY_DOWN:
+            {
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                index ++;
+                index = (index > menuItems.size() - 1) ? 0 : index;
+                wattron(menu, A_STANDOUT);
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                wattroff(menu, A_STANDOUT);
+                break;
+            }
+        }
+        wrefresh(menu);
+        if (key == ' ' || key == 10)
+        {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    delwin(menu);
+    
+    // 创建地图
+    mPtrMap = std::make_unique<Map>(mGameBoardWidth, mGameBoardHeight);
+    
+    // 如果选择默认地图
+    if (index == 0) {
+        mPtrMap->loadDefaultMap();
+    }
+    // 否则加载指定的地图文件
+    else {
+        mPtrMap->loadMapFromFile(menuItems[index]);
+    }
+    
+    return true;
+}
+
 void Game::renderPoints() const
 {
     std::string pointString = std::to_string(this->mPoints);
@@ -208,9 +304,73 @@ void Game::renderDifficulty() const
 
 void Game::initializeGame()
 {
+    // 先选择地图
+    this->selectMap();
+    
+    // 然后创建蛇
     this->mPtrSnake.reset(new Snake(this->mGameBoardWidth, this->mGameBoardHeight, this->mInitialSnakeLength));
+    
+    // 为蛇设置地图
+    this->mPtrSnake->setMap(this->mPtrMap.get());
+    
+    // 尝试寻找合适的蛇初始位置，使用逐步降低要求的策略
+    bool snakeInitialized = false;
+    
+    // 首先尝试最理想的空间要求 (6格)
+    std::vector<std::pair<SnakeBody, InitialDirection>> validPositions = 
+        this->mPtrMap->getValidSnakePositions(this->mInitialSnakeLength, 6);
+    
+    if (!validPositions.empty()) {
+        int idx = std::rand() % validPositions.size();
+        auto [startPos, direction] = validPositions[idx];
+        this->mPtrSnake->initializeSnake(startPos.getX(), startPos.getY(), direction);
+        snakeInitialized = true;
+    }
+    
+    // 如果没有找到理想的位置，尝试降低空间要求（3格）
+    if (!snakeInitialized) {
+        validPositions = this->mPtrMap->getValidSnakePositions(this->mInitialSnakeLength, 3);
+        
+        if (!validPositions.empty()) {
+            int idx = std::rand() % validPositions.size();
+            auto [startPos, direction] = validPositions[idx];
+            this->mPtrSnake->initializeSnake(startPos.getX(), startPos.getY(), direction);
+            snakeInitialized = true;
+        }
+    }
+    
+    // 如果仍然没有找到合适位置，再降低要求（2格）
+    if (!snakeInitialized) {
+        validPositions = this->mPtrMap->getValidSnakePositions(this->mInitialSnakeLength, 2);
+        
+        if (!validPositions.empty()) {
+            int idx = std::rand() % validPositions.size();
+            auto [startPos, direction] = validPositions[idx];
+            this->mPtrSnake->initializeSnake(startPos.getX(), startPos.getY(), direction);
+            snakeInitialized = true;
+        }
+    }
+    
+    // 如果实在找不到任何合适位置，使用最小要求（1格）
+    if (!snakeInitialized) {
+        validPositions = this->mPtrMap->getValidSnakePositions(this->mInitialSnakeLength, 1);
+        
+        if (!validPositions.empty()) {
+            int idx = std::rand() % validPositions.size();
+            auto [startPos, direction] = validPositions[idx];
+            this->mPtrSnake->initializeSnake(startPos.getX(), startPos.getY(), direction);
+            snakeInitialized = true;
+        }
+        else {
+            // 如果即使最低要求都满足不了，使用默认初始化
+            this->mPtrSnake->initializeSnake();
+        }
+    }
+    
+    // 创建食物
     this->createRamdonFood();
     this->mPtrSnake->senseFood(this->mFood);
+    
     this->mDifficulty = 0;
     this->mPoints = 0;
     this->mDelay = this->mBaseDelay;
@@ -218,20 +378,31 @@ void Game::initializeGame()
 
 void Game::createRamdonFood()
 {
+    // 使用地图提供的空白位置生成食物
     std::vector<SnakeBody> availableGrids;
-    for (int i = 1; i < this->mGameBoardHeight - 1; i ++)
-    {
-        for (int j = 1; j < this->mGameBoardWidth - 1; j ++)
+    if (this->mPtrMap) {
+        availableGrids = this->mPtrMap->getEmptyPositions(this->mPtrSnake->getSnake());
+    } else {
+        // 回退到原来的生成方法
+        for (int i = 1; i < this->mGameBoardHeight - 1; i ++)
         {
-            if(this->mPtrSnake->isPartOfSnake(j, i))
+            for (int j = 1; j < this->mGameBoardWidth - 1; j ++)
             {
-                continue;
-            }
-            else
-            {
-                availableGrids.push_back(SnakeBody(j, i));
+                if(this->mPtrSnake->isPartOfSnake(j, i))
+                {
+                    continue;
+                }
+                else
+                {
+                    availableGrids.push_back(SnakeBody(j, i));
+                }
             }
         }
+    }
+
+    // 如果没有可用的格子，游戏结束
+    if (availableGrids.empty()) {
+        return;
     }
 
     // Randomly select a grid that is not occupied by the snake
@@ -242,6 +413,20 @@ void Game::createRamdonFood()
 void Game::renderFood() const
 {
     mvwaddch(this->mWindows[1], this->mFood.getY(), this->mFood.getX(), this->mFoodSymbol);
+    wrefresh(this->mWindows[1]);
+}
+
+void Game::renderMap() const
+{
+    if (!mPtrMap) return;
+    
+    for (int y = 0; y < mGameBoardHeight; y++) {
+        for (int x = 0; x < mGameBoardWidth; x++) {
+            if (mPtrMap->isWall(x, y)) {
+                mvwaddch(this->mWindows[1], y, x, this->mWallSymbol);
+            }
+        }
+    }
     wrefresh(this->mWindows[1]);
 }
 
@@ -333,6 +518,9 @@ void Game::runGame()
         this->controlSnake();
         werase(this->mWindows[1]);
         box(this->mWindows[1], 0, 0);
+        
+        // 渲染地图
+        this->renderMap();
         
         bool eatFood = this->mPtrSnake->moveFoward();
         bool collision = this->mPtrSnake->checkCollision();
