@@ -903,7 +903,9 @@ void Game::renderMoneyAndInventory(int& currentY) const
 
     if (hasItems) {
         mvwprintw(this->mWindows[2], currentY++, 1, "Inventory:");
-        for (auto const& [itemType, count] : mInventory) {
+        for (auto const& pair : mInventory) {
+            ItemType itemType = pair.first;
+            int count = pair.second;
             if (count > 0) {
                 std::string itemName;
                 switch(itemType) {
