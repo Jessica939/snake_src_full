@@ -889,6 +889,11 @@ void Game::startGame()
                 
     
             }
+            if (mReturnToModeSelect) {
+                continue;  // 回到模式选择
+            } else {
+                break;     // 完全退出 
+            }
 
         }
     
