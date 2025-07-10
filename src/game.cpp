@@ -671,275 +671,225 @@ void Game::runGame()
 void Game::startGame()
 {
     refresh();
-    bool choice;
     
-    if (mIsLevelMode) {
-        // 关卡模式
-        this->readLeaderBoard();
-        this->renderBoards();
-        
-        // 先让用户选择一个已解锁的关卡
-        if (!this->selectLevelInLevelMode()) {
-            // 用户选择退出
-            return;
+    
+    while(true){
+        mReturnToModeSelect = false;
+        if (!selectLevel()) {
+            break; //用户选择退出
         }
-        
-        // 运行选择的关卡
-        while (true) {
-            // 初始化并运行当前关卡
-            this->initializeLevel(mCurrentLevel);
-            this->runLevel();
-            
-            // 检查是否通过当前关卡
-            if (this->isLevelCompleted()) {
-                // 标记当前关卡为已完成
-                this->mLevelStatus[mCurrentLevel - 1] = LevelStatus::Completed;
-                
-                // 如果不是最后一关，解锁下一关
-                if (mCurrentLevel < mMaxLevel) {
-                    this->unlockLevel(mCurrentLevel + 1);
-                }
-                
-                // 保存关卡进度
-                this->saveLevelProgress();
-                
-                // 显示通关信息
-                WINDOW* levelCompleteWin;
-                int width = this->mGameBoardWidth * 0.5;
-                int height = 5;
-                int startX = this->mGameBoardWidth * 0.25;
-                int startY = this->mGameBoardHeight * 0.25 + this->mInformationHeight;
-                
-                levelCompleteWin = newwin(height, width, startY, startX);
-                box(levelCompleteWin, 0, 0);
-                
-                mvwprintw(levelCompleteWin, 1, 1, "Level %d Completed!", mCurrentLevel);
-                mvwprintw(levelCompleteWin, 2, 1, "Your Score: %d", this->mPoints);
-                
-                // 根据是否是最后一关显示不同的提示
-                if (mCurrentLevel < mMaxLevel) {
-                    mvwprintw(levelCompleteWin, 3, 1, "Level %d Unlocked!", mCurrentLevel + 1);
-                } else {
-                    mvwprintw(levelCompleteWin, 3, 1, "You completed all levels!");
-                }
-                
-                mvwprintw(levelCompleteWin, 4, 1, "Press Space to continue...");
-                wrefresh(levelCompleteWin);
-                
-                // 等待用户按空格继续
-                int key;
-                while (true) {
-                    key = getch();
-                    if (key == ' ' || key == 10)
-                        break;
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                }
-                
-                delwin(levelCompleteWin);
-                
-                // 如果所有关卡都完成了，显示胜利信息
-                if (mCurrentLevel >= mMaxLevel) {
-                    WINDOW* gameCompleteWin;
-                    gameCompleteWin = newwin(height, width, startY, startX);
-                    box(gameCompleteWin, 0, 0);
-                    
-                    mvwprintw(gameCompleteWin, 1, 1, "Congratulations!");
-                    mvwprintw(gameCompleteWin, 2, 1, "You completed all levels!");
-                    mvwprintw(gameCompleteWin, 3, 1, "Final Score: %d", this->mPoints);
-                    wrefresh(gameCompleteWin);
-                    
-                    // 等待用户按空格继续
-                    while (true) {
-                        key = getch();
-                        if (key == ' ' || key == 10)
-                            break;
-                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                    }
-                    
-                    delwin(gameCompleteWin);
-                }
-                
-                // 返回关卡选择界面
-                if (!this->selectLevelInLevelMode()) {
-                    // 用户选择退出
-                    break;
-                }
-                
-            } else {
-                // 关卡失败，显示游戏结束信息
+        switch(mCurrentMode) {
+            case GameMode::Classic:
+                // 经典模式流程
+                this->readLeaderBoard();
+                this->renderBoards();
+                this->initializeGame();
+                this->runGame();
                 this->updateLeaderBoard();
                 this->writeLeaderBoard();
-                WINDOW * menu;
-                int width = this->mGameBoardWidth * 0.5;
-                int height = this->mGameBoardHeight * 0.5;
-                int startX = this->mGameBoardWidth * 0.25;
-                int startY = this->mGameBoardHeight * 0.25 + this->mInformationHeight;
+                if (!renderRestartMenu()) break; // 如果不重启，则退出循环
+                break;
 
-                menu = newwin(height, width, startY, startX);
-                box(menu, 0, 0);
-                std::vector<std::string> menuItems = {"Retry Level", "Select Level", "Mode Select", "Quit"};
-
-                int index = 0;
-                int offset = 4;
-                mvwprintw(menu, 1, 1, "Your Final Score:");
-                std::string pointString = std::to_string(this->mPoints);
-                mvwprintw(menu, 2, 1, pointString.c_str());
-                wattron(menu, A_STANDOUT);
-                mvwprintw(menu, 0 + offset, 1, menuItems[0].c_str());
-                wattroff(menu, A_STANDOUT);
-                mvwprintw(menu, 1 + offset, 1, menuItems[1].c_str());
-                mvwprintw(menu, 2 + offset, 1, menuItems[2].c_str());
-                mvwprintw(menu, 3 + offset, 1, menuItems[3].c_str());
-
-                wrefresh(menu);
-
-                int key;
-                while (true)
-                {
-                    key = getch();
-                    switch(key)
-                    {
-                        case 'W':
-                        case 'w':
-                        case KEY_UP:
-                        {
-                            mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                            index --;
-                            index = (index < 0) ? menuItems.size() - 1 : index;
-                            wattron(menu, A_STANDOUT);
-                            mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                            wattroff(menu, A_STANDOUT);
-                            break;
-                        }
-                        case 'S':
-                        case 's':
-                        case KEY_DOWN:
-                        {
-                            mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                            index ++;
-                            index = (index > menuItems.size() - 1) ? 0 : index;
-                            wattron(menu, A_STANDOUT);
-                            mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                            wattroff(menu, A_STANDOUT);
-                            break;
-                        }
-                    }
-                    wrefresh(menu);
-                    if (key == ' ' || key == 10)
-                    {
-                        break;
-                    }
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            case GameMode::Timed:
+                this->readLeaderBoard();
+                this->renderBoards();
+                this->initializeTimeAttack();
+                this->runTimeAttack();
+                this->updateLeaderBoard();
+                this->writeLeaderBoard();
+                if (!renderRestartMenu()) break; // 如果不重启，则退出循环
+                break;
+               
+            case GameMode::Level:
+                // 关卡模式
+                this->readLeaderBoard();
+                this->renderBoards();
+        
+                // 先让用户选择一个已解锁的关卡
+                if (!this->selectLevelInLevelMode()) {
+                // 用户选择退出
+                  return;
                 }
-                delwin(menu);
-
-                if (index == 0) {
-                    // 重新尝试当前关卡，不做任何改变
-                    continue;
-                } else if (index == 1) {
-                    // 返回关卡选择界面
-                    if (!this->selectLevelInLevelMode()) {
-                        // 用户选择退出
-                        break;
-                    }
-                } else if (index == 2) {
-                    // 返回到模式选择
-                    mReturnToModeSelect = true;
-                    break;
-                } else {
-                    // 退出游戏
-                    break;
-                }
-            }
-        }
-    } else {
-        // 原始游戏模式
-        while (true)
-        {
-            this->readLeaderBoard();
-            this->renderBoards();
-            this->initializeGame();
-            this->runGame();
-            this->updateLeaderBoard();
-            this->writeLeaderBoard();
+        
+                // 运行选择的关卡
+                while (true) {
+                // 初始化并运行当前关卡
+                    this->initializeLevel(mCurrentLevel);
+                    this->runLevel();
             
-            // 修改重新开始菜单，添加返回模式选择的选项
-            WINDOW * menu;
-            int width = this->mGameBoardWidth * 0.5;
-            int height = this->mGameBoardHeight * 0.5;
-            int startX = this->mGameBoardWidth * 0.25;
-            int startY = this->mGameBoardHeight * 0.25 + this->mInformationHeight;
+                    // 检查是否通过当前关卡
+                    if (this->isLevelCompleted()) {
+                    // 标记当前关卡为已完成
+                        this->mLevelStatus[mCurrentLevel - 1] = LevelStatus::Completed;
+                
+                        // 如果不是最后一关，解锁下一关
+                        if (mCurrentLevel < mMaxLevel) {
+                            this->unlockLevel(mCurrentLevel + 1);
+                        }
+                
+                        // 保存关卡进度
+                        this->saveLevelProgress();
+                
+                        // 显示通关信息
+                        WINDOW* levelCompleteWin;
+                        int width = this->mGameBoardWidth * 0.5;
+                        int height = 5;
+                        int startX = this->mGameBoardWidth * 0.25;
+                        int startY = this->mGameBoardHeight * 0.25 + this->mInformationHeight;
+                
+                        levelCompleteWin = newwin(height, width, startY, startX);
+                        box(levelCompleteWin, 0, 0);
+                
+                        mvwprintw(levelCompleteWin, 1, 1, "Level %d Completed!", mCurrentLevel);
+                        mvwprintw(levelCompleteWin, 2, 1, "Your Score: %d", this->mPoints);
+                
+                        // 根据是否是最后一关显示不同的提示
+                        if (mCurrentLevel < mMaxLevel) {
+                            mvwprintw(levelCompleteWin, 3, 1, "Level %d Unlocked!", mCurrentLevel + 1);
+                        } else {
+                            mvwprintw(levelCompleteWin, 3, 1, "You completed all levels!");
+                        }
+                
+                        mvwprintw(levelCompleteWin, 4, 1, "Press Space to continue...");
+                        wrefresh(levelCompleteWin);
+                
+                        // 等待用户按空格继续
+                        int key;
+                        while (true) {
+                            key = getch();
+                            if (key == ' ' || key == 10)
+                                break;
+                            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                        }
+                
+                        delwin(levelCompleteWin);
+                
+                        // 如果所有关卡都完成了，显示胜利信息
+                        if (mCurrentLevel >= mMaxLevel) {
+                            WINDOW* gameCompleteWin;
+                            gameCompleteWin = newwin(height, width, startY, startX);
+                            box(gameCompleteWin, 0, 0);
+                    
+                            mvwprintw(gameCompleteWin, 1, 1, "Congratulations!");
+                            mvwprintw(gameCompleteWin, 2, 1, "You completed all levels!");
+                            mvwprintw(gameCompleteWin, 3, 1, "Final Score: %d", this->mPoints);
+                            wrefresh(gameCompleteWin);
+                    
+                            // 等待用户按空格继续
+                            while (true) {
+                                key = getch();
+                                if (key == ' ' || key == 10)
+                                    break;
+                                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                            }
+                    
+                            delwin(gameCompleteWin);
+                        }
+                
+                        // 返回关卡选择界面
+                        if (!this->selectLevelInLevelMode()) {
+                            // 用户选择退出
+                            break;
+                        }
+                
+                    } else {
+                        // 关卡失败，显示游戏结束信息
+                        this->updateLeaderBoard();
+                        this->writeLeaderBoard();
+                        WINDOW * menu;
+                        int width = this->mGameBoardWidth * 0.5;
+                        int height = this->mGameBoardHeight * 0.5;
+                        int startX = this->mGameBoardWidth * 0.25;
+                        int startY = this->mGameBoardHeight * 0.25 + this->mInformationHeight;
 
-            menu = newwin(height, width, startY, startX);
-            box(menu, 0, 0);
-            std::vector<std::string> menuItems = {"Restart", "Mode Select", "Quit"};
+                        menu = newwin(height, width, startY, startX);
+                        box(menu, 0, 0);
+                        std::vector<std::string> menuItems = {"Retry Level", "Select Level", "Mode Select", "Quit"};
 
-            int index = 0;
-            int offset = 4;
-            mvwprintw(menu, 1, 1, "Your Final Score:");
-            std::string pointString = std::to_string(this->mPoints);
-            mvwprintw(menu, 2, 1, pointString.c_str());
-            wattron(menu, A_STANDOUT);
-            mvwprintw(menu, 0 + offset, 1, menuItems[0].c_str());
-            wattroff(menu, A_STANDOUT);
-            mvwprintw(menu, 1 + offset, 1, menuItems[1].c_str());
-            mvwprintw(menu, 2 + offset, 1, menuItems[2].c_str());
-
-            wrefresh(menu);
-
-            int key;
-            while (true)
-            {
-                key = getch();
-                switch(key)
-                {
-                    case 'W':
-                    case 'w':
-                    case KEY_UP:
-                    {
-                        mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                        index --;
-                        index = (index < 0) ? menuItems.size() - 1 : index;
+                        int index = 0;
+                        int offset = 4;
+                        mvwprintw(menu, 1, 1, "Your Final Score:");
+                        std::string pointString = std::to_string(this->mPoints);
+                        mvwprintw(menu, 2, 1, pointString.c_str());
                         wattron(menu, A_STANDOUT);
-                        mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                        mvwprintw(menu, 0 + offset, 1, menuItems[0].c_str());
                         wattroff(menu, A_STANDOUT);
-                        break;
-                    }
-                    case 'S':
-                    case 's':
-                    case KEY_DOWN:
-                    {
-                        mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                        index ++;
-                        index = (index > menuItems.size() - 1) ? 0 : index;
-                        wattron(menu, A_STANDOUT);
-                        mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                        wattroff(menu, A_STANDOUT);
-                        break;
+                        mvwprintw(menu, 1 + offset, 1, menuItems[1].c_str());
+                        mvwprintw(menu, 2 + offset, 1, menuItems[2].c_str());
+                        mvwprintw(menu, 3 + offset, 1, menuItems[3].c_str());
+
+                        wrefresh(menu);
+
+                        int key;
+                        while (true)
+                        {
+                            key = getch();
+                            switch(key)
+                            {
+                                case 'W':
+                                case 'w':
+                                case KEY_UP:
+                                {
+                                    mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                                    index --;
+                                    index = (index < 0) ? menuItems.size() - 1 : index;
+                                    wattron(menu, A_STANDOUT);
+                                    mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                                    wattroff(menu, A_STANDOUT);
+                                    break;
+                                }       
+                                case 'S':
+                                case 's':
+                                case KEY_DOWN:
+                                {
+                                    mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                                    index ++;
+                                    index = (index > menuItems.size() - 1) ? 0 : index;
+                                    wattron(menu, A_STANDOUT);
+                                    mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                                    wattroff(menu, A_STANDOUT);
+                                    break;
+                                }
+                            }
+                            wrefresh(menu);
+                            if (key == ' ' || key == 10)
+                            {
+                                break;
+                            }
+                            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                        }
+                        delwin(menu);
+
+                        if (index == 0) {
+                            // 重新尝试当前关卡，不做任何改变
+                            continue;
+                        } else if (index == 1) {
+                            // 返回关卡选择界面
+                            if (!this->selectLevelInLevelMode()) {
+                                // 用户选择退出
+                                break;
+                            }
+                        } else if (index == 2) {
+                            // 返回到模式选择
+                            mReturnToModeSelect = true;
+                            break;
+                        } else {
+                            // 退出游戏
+                            break;
+                        }
                     }
                 }
-                wrefresh(menu);
-                if (key == ' ' || key == 10)
-                {
-                    break;
-                }
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                
+    
             }
-            delwin(menu);
-
-            if (index == 0) {
-                // 重新开始游戏
+            if (mReturnToModeSelect) {
                 continue;
-            } else if (index == 1) {
-                // 返回到模式选择
-                mReturnToModeSelect = true;
-                break;
             } else {
-                // 退出游戏
-                break;
-            }
+            // 对于经典和限时模式，重启会直接开始新一局
+            // 如果不想重启，上面的 break 会退出循环
         }
-    }
+    
+    }       
 }
 
 // https://en.cppreference.com/w/cpp/io/basic_fstream
@@ -1014,6 +964,7 @@ bool Game::selectLevel()
     std::vector<std::string> menuItems = {
         "Classic Mode", 
         "Level Mode",
+        "Timed Mode",
         "Exit Game"
     };
 
@@ -1072,12 +1023,12 @@ bool Game::selectLevel()
     delwin(menu);
     
     // 如果选择退出
-    if (index == 2) {
+    if (index == 3) {
         return false;
     }
     
     // 设置游戏模式
-    mIsLevelMode = (index == 1);
+    mCurrentMode = static_cast<GameMode>(index);
     mReturnToModeSelect = false; // 重置返回标志
     
     return true;
@@ -1537,8 +1488,72 @@ bool Game::loadLevelProgress()
 
 
 
+void Game::initializeTimeAttack()
+{
+    // 调用经典的初始化函数来完成大部分工作
+    initializeGame();
+    
+    // 设置限时模式的特定参数
+    mTimeAttackDurationSeconds = 120; // 设定120秒
+    mTimeRemaining = mTimeAttackDurationSeconds;
+    mTimeAttackStartTime = std::chrono::steady_clock::now(); // 开始计时！
+}
 
+// 在侧边栏渲染计时器
+void Game::renderTimer() const
+{
+    mvwprintw(this->mWindows[2], 18, 1, "Time Left:");
+    std::string timeString = std::to_string(mTimeRemaining) + " s";
+    // 清除旧的计时显示
+    mvwprintw(this->mWindows[2], 19, 1, "          "); 
+    mvwprintw(this->mWindows[2], 19, 1, timeString.c_str());
+    wrefresh(this->mWindows[2]);
+}
 
+// 限时模式的主循环
+void Game::runTimeAttack()
+{
+    while (true)
+    {
+        //计时器逻辑 
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - mTimeAttackStartTime);
+        mTimeRemaining = mTimeAttackDurationSeconds - elapsed.count();
+
+        // 游戏结束条件 
+        bool collision = mPtrSnake->checkCollision();
+        if (collision || mTimeRemaining <= 0) {
+            // 如果撞墙或时间到，则结束游戏
+            break;
+        }
+
+        // 游戏循环核心 
+        this->controlSnake();
+        werase(this->mWindows[1]);
+        box(this->mWindows[1], 0, 0);
+        
+        this->renderMap();
+        
+        bool eatFood = this->mPtrSnake->moveFoward();
+        this->renderSnake();
+
+        if (eatFood == true)
+        {
+            this->mPoints += 1;
+            this->createRamdonFood();
+            this->mPtrSnake->senseFood(this->mFood);
+            this->adjustDelay();
+        }
+
+        this->renderFood();
+        this->renderDifficulty();
+        this->renderPoints();
+        this->renderTimer(); // 在每一帧都渲染计时器
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
+        refresh();
+    }
+}
 
 
 
