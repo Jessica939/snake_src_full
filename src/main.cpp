@@ -132,28 +132,28 @@ int main(int argc, char** argv)
     
     if (guiResult == 1) {
         // 经典模式：进入游戏循环，使用户能够从classic模式退回到模式选择
-        while (!exitGame) {
-            // 选择游戏模式
-            bool continueGame = game.selectLevel();
-            
-            // 如果用户选择退出，则结束游戏
-            if (!continueGame) {
-                exitGame = true;
-                continue;
-            }
-            
-            // 启动游戏
-            game.startGame();
-            
-            // 如果用户没有选择返回模式选择，则退出游戏
-            if (!game.shouldReturnToModeSelect()) {
-                exitGame = true;
-            }
-            
-            // 刷新屏幕并清除所有输入缓冲
-            clear();
-            refresh();
-            flushinp();
+    while (!exitGame) {
+        // 选择游戏模式
+        bool continueGame = game.selectLevel();
+        
+        // 如果用户选择退出，则结束游戏
+        if (!continueGame) {
+            exitGame = true;
+            continue;
+        }
+        
+        // 启动游戏
+        game.startGame();
+        
+        // 如果用户没有选择返回模式选择，则退出游戏
+        if (!game.shouldReturnToModeSelect()) {
+            exitGame = true;
+        }
+        
+        // 刷新屏幕并清除所有输入缓冲
+        clear();
+        refresh();
+        flushinp();
         }
     } else {
         // 剧情模式：直接启动指定关卡
