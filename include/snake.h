@@ -3,10 +3,6 @@
 
 #include <vector>
 
-// 前向声明
-class Map;
-enum class InitialDirection;
-
 enum class Direction
 {
     Up = 0,
@@ -22,10 +18,22 @@ public:
     SnakeBody(int x, int y);
     int getX() const;
     int getY() const;
-    bool operator == (const SnakeBody& snakeBody);
+    bool operator == (const SnakeBody& snakeBody) const;
 private:
     int mX;
     int mY;
+};
+
+
+enum class FoodType { Normal, Special2, Special4, Poison };
+
+struct ExtraFood {
+    SnakeBody pos;
+    FoodType type;
+    int lifetime;  //特殊食物的存活时间
+    bool active;
+
+    ExtraFood() : active(false) {}
 };
 
 // Snake class should have no depency on the GUI library
@@ -38,17 +46,11 @@ public:
     void setRandomSeed();
     // Initialize snake
     void initializeSnake();
-    // Initialize snake at specific position
-    void initializeSnake(int startX, int startY);
-    // Initialize snake at specific position with specific direction
-    void initializeSnake(int startX, int startY, InitialDirection direction);
     // Check if the snake is on the coordinate
     // bool isSnakeOn(int x, int y);
     // Checking API for generating random food
     bool isPartOfSnake(int x, int y);
     void senseFood(SnakeBody food);
-    // Set map for collision detection
-    void setMap(Map* map);
     // Check if hit wall
     bool hitWall();
     bool touchFood();
@@ -59,20 +61,34 @@ public:
     int getLength();
     SnakeBody createNewHead();
     bool moveFoward();
+    void shrink();
+    void grow(int num);
+
+    SnakeBody getHead() const;
+    void updateBoundary(int width, int height);
+
+    int getLives () const;
+    void setLives(int lives);
+    void loseLife () ;
+    bool isDead () const;
+
+    void resetSnake() ;
+
+    Direction getDirection() const;
+
 
 private:
     const int mGameBoardWidth;
     const int mGameBoardHeight;
+    int mEffectiveWidth; //有效边界的宽度，在边界缩小中有用
+    int mEffectiveHeight;
     // Snake information
     const int mInitialSnakeLength;
     Direction mDirection;
     SnakeBody mFood;
     std::vector<SnakeBody> mSnake;
-    // Map pointer for collision detection
-    Map* mMap;
-    
-    // Convert InitialDirection to Direction
-    Direction convertInitialDirection(InitialDirection dir);
+    int mGrowNum = 0;
+    int mLives = 3;//初始生命值为3
 };
 
 #endif

@@ -1,35 +1,31 @@
 #ifndef GAME_H
 #define GAME_H
 
-#ifdef _WIN32
-#include <curses.h>
-#else
 #include <ncurses.h>
-#endif
-
 #include <string>
 #include <vector>
 #include <memory>
+#include <map>
 
 #include "snake.h"
-#include "map.h"
 
-// 关卡类型枚举
-enum class LevelType
-{
-    Normal = 0,     // 普通关卡
-    Speed = 1,      // 速度挑战关卡
-    Maze = 2,       // 迷宫关卡
-    Custom1 = 3,    // 自定义关卡1（第四关）
-    Custom2 = 4     // 自定义关卡2（第五关）
+enum class ItemType {
+    NONE,        //无道具
+    HELMET,      // 头盔
+    GROW,        // 变大
+    SHRINK,      // 变小
+    SPEED_UP,    // 加速
+    SLOW_DOWN,   // 减速
+    PORTAL,      // 传送门
+    RANDOM_BOX   // 随机盒子
 };
 
-// 关卡状态枚举
-enum class LevelStatus
-{
-    Locked = 0,     // 未解锁
-    Unlocked = 1,   // 已解锁
-    Completed = 2   // 已完成
+struct ActiveItem {
+    bool active = false;
+    SnakeBody pos;
+    ItemType type;
+    int lifetime; // 存在时间
+    char symbol;  // 在地图上显示的符号
 };
 
 class Game
@@ -38,54 +34,57 @@ public:
     Game();
     ~Game();
     
-    void createInformationBoard();
+		void createInformationBoard();
     void renderInformationBoard() const;
 
     void createGameBoard();
     void renderGameBoard() const;
     
-    void createInstructionBoard();
+		void createInstructionBoard();
     void renderInstructionBoard() const;
-    
-    void loadLeadBoard();
+		
+		void loadLeadBoard();
     void updateLeadBoard();
     bool readLeaderBoard();
     bool updateLeaderBoard();
     bool writeLeaderBoard();
     void renderLeaderBoard() const;
     
-    void renderBoards() const;
+		void renderBoards() const;
     
-    void initializeGame();
+		void initializeGame();
     void runGame();
     void renderPoints() const;
     void renderDifficulty() const;
-    void renderLevel() const; // 新增：显示当前关卡
     
-    void createRamdonFood();
+		void createRamdonFood();
     void renderFood() const;
     void renderSnake() const;
-    void renderMap() const;
-    void controlSnake() const;
+    void controlSnake() ;
     
-    void startGame();
+		void startGame();
     bool renderRestartMenu() const;
     void adjustDelay();
-    bool selectMap();
-    bool selectLevel(); // 返回值：true表示继续游戏，false表示退出
-    bool shouldReturnToModeSelect() const { return mReturnToModeSelect; } // 获取是否应该返回模式选择
-    bool selectLevelInLevelMode(); // 新增：在关卡模式中选择已解锁的关卡
-    
-    // 关卡相关方法
-    void createDefaultLevelMaps(); // 创建默认关卡地图文件
-    void initializeLevel(int level); // 初始化指定关卡
-    void loadNextLevel(); // 加载下一关卡
-    bool isLevelCompleted(); // 检查当前关卡是否完成
-    void runLevel(); // 运行当前关卡
-    void unlockLevel(int level); // 解锁指定关卡
-    void updateLevelStatus(); // 更新关卡状态
-    bool saveLevelProgress(); // 保存关卡进度
-    bool loadLevelProgress(); // 加载关卡进度
+
+    void updateExtraFood();
+
+    void renderLives() const;
+
+    void showShop(); // 显示商店菜单
+    void spawnRandomItem(); // 在地图上生成随机道具
+    void renderSidePanel() const; // 渲染侧边面板，包括金钱、库存和道具
+    void renderMoneyAndInventory(int& currentY) const; // 渲染金钱和库存
+
+    void useRandomBox();
+
+    void spawnObstacles(int count);
+    void renderObstacles() const;
+    bool checkObstacleCollision(const SnakeBody& pos) const;
+
+    bool saveGame();
+    bool loadGame();
+
+    int renderMainMenu() const;
     
 
 private:
@@ -96,6 +95,8 @@ private:
     int mScreenHeight;
     int mGameBoardWidth;
     int mGameBoardHeight;
+    int mEffectiveWidth; //有效边界的宽度，在边界缩小中有用
+    int mEffectiveHeight;
     const int mInformationHeight = 6;
     const int mInstructionWidth = 18;
     std::vector<WINDOW *> mWindows;
@@ -103,33 +104,39 @@ private:
     const int mInitialSnakeLength = 2;
     const char mSnakeSymbol = '@';
     std::unique_ptr<Snake> mPtrSnake;
-    // Map information
-    std::unique_ptr<Map> mPtrMap;
-    const char mWallSymbol = '+';
     // Food information
     SnakeBody mFood;
+    ExtraFood mSpecialFood;    // 特殊食物（+2 或 +4）
+    ExtraFood mPoisonFood;    //毒药
+    bool mHasPoison = false; //记录当前生成的是毒药
     const char mFoodSymbol = '#';
+    const char mSpecial2Symbol = '$';   // 特殊食物 +2
+    const char mSpecial4Symbol = '*';   // 特殊食物 +4
+    const char mPoisonSymbol = '^';     // 毒药。  
+    
     int mPoints = 0;
     int mDifficulty = 0;
     int mBaseDelay = 100;
     int mDelay;
     const std::string mRecordBoardFilePath = "record.dat";
+    const std::string mSaveFilePath = "game_save.dat";
     std::vector<int> mLeaderBoard;
     const int mNumLeaders = 3;
-    // Map file paths
-    const std::string mDefaultMapName = "default";
-    std::vector<std::string> mMapFiles = {"maps/map1.txt", "maps/map2.txt", "maps/map3.txt"};
     
-    // 关卡相关变量
-    int mCurrentLevel = 1;  // 当前关卡
-    const int mMaxLevel = 5; // 最大关卡数
-    LevelType mCurrentLevelType = LevelType::Normal; // 当前关卡类型
-    int mLevelTargetPoints = 5; // 当前关卡通过所需的点数
-    bool mIsLevelMode = false; // 是否处于关卡模式
-    bool mReturnToModeSelect = false; // 是否返回到模式选择界面
-    std::vector<LevelStatus> mLevelStatus; // 关卡状态列表
-    const std::string mLevelProgressFilePath = "level_progress.dat"; // 关卡进度文件路径
-    std::vector<std::string> mLevelMapFiles = {"maps/level1.txt", "maps/level2.txt", "maps/level3.txt", "maps/level4.txt", "maps/level5.txt"}; // 关卡地图文件
+    //边界缩小参数
+    bool mShrunkBoundary = false;
+    int mShrinkDuration = 0; // 持续帧数 
+    bool mBoundaryHasShrunkThisRound = false; //设置这个参数后每轮边界只会缩小一次
+
+    int mMoney = 20; // 初始金钱
+    std::map<ItemType, int> mInventory; // 玩家拥有的道具库存 <道具类型, 数量>
+    ActiveItem mActiveItem; // 当前地图上活动的道具
+    
+    std::vector<SnakeBody> mObstacles;
+    const char mObstacleSymbol = 'X'; // 障碍物在地图上显示的符号
+    bool mIsPhasing = false;    // 一个标志，用于判断玩家本帧是否尝试穿墙
+
+    bool mCheatMode = false;//作弊机制
 };
 
 #endif
