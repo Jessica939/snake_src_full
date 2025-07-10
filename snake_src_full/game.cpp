@@ -308,19 +308,29 @@ void Game::createRamdonFood()
 
 void Game::renderFood() const
 {
+    // 渲染普通食物
     mvwaddch(this->mWindows[1], this->mFood.getY(), this->mFood.getX(), this->mFoodSymbol);
+
+    // 渲染特殊食物
     if (mSpecialFood.active) {
         char specialChar = (mSpecialFood.type == FoodType::Special2) ? mSpecial2Symbol : mSpecial4Symbol;
         mvwaddch(this->mWindows[1], mSpecialFood.pos.getY(), mSpecialFood.pos.getX(), specialChar);
     }
-
+    
     // 渲染毒药
     if (mPoisonFood.active) {
         mvwaddch(this->mWindows[1], mPoisonFood.pos.getY(), mPoisonFood.pos.getX(), mPoisonSymbol);
     }
 
+    // 渲染地图上的随机道具
+    if (mActiveItem.active) {
+        mvwaddch(this->mWindows[1], mActiveItem.pos.getY(), mActiveItem.pos.getX(), mActiveItem.symbol);
+    }
+
+    // 刷新
     wrefresh(this->mWindows[1]);
 }
+
 
 void Game::renderSnake() const
 {
@@ -866,32 +876,6 @@ void Game::useRandomBox() {
         }
     }
 }
-
-void Game::renderFood() const
-{
-    // 渲染普通食物
-    mvwaddch(this->mWindows[1], this->mFood.getY(), this->mFood.getX(), this->mFoodSymbol);
-
-    // 渲染特殊食物
-    if (mSpecialFood.active) {
-        char specialChar = (mSpecialFood.type == FoodType::Special2) ? mSpecial2Symbol : mSpecial4Symbol;
-        mvwaddch(this->mWindows[1], mSpecialFood.pos.getY(), mSpecialFood.pos.getX(), specialChar);
-    }
-    
-    // 渲染毒药
-    if (mPoisonFood.active) {
-        mvwaddch(this->mWindows[1], mPoisonFood.pos.getY(), mPoisonFood.pos.getX(), mPoisonSymbol);
-    }
-
-    // 渲染地图上的随机道具
-    if (mActiveItem.active) {
-        mvwaddch(this->mWindows[1], mActiveItem.pos.getY(), mActiveItem.pos.getX(), mActiveItem.symbol);
-    }
-
-    // 刷新
-    wrefresh(this->mWindows[1]);
-}
-
 
 void Game::renderLives() const{
     std::string hearts = "Lives: ";
