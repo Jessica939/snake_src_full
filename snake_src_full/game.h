@@ -107,7 +107,7 @@ private:
     const char mFoodSymbol = '#';
     const char mSpecial2Symbol = '$';   // 特殊食物 +2
     const char mSpecial4Symbol = '*';   // 特殊食物 +4
-    const char mPoisonSymbol = 'X';     // 毒药。  
+    const char mPoisonSymbol = '^';     // 毒药。  
     
     int mPoints = 0;
     int mDifficulty = 0;
@@ -126,7 +126,7 @@ private:
     ActiveItem mActiveItem; // 当前地图上活动的道具
     
     std::vector<SnakeBody> mObstacles;
-    const char mObstacleSymbol = 'XX'; // 障碍物在地图上显示的符号
+    const char mObstacleSymbol = 'X'; // 障碍物在地图上显示的符号
     bool mIsPhasing = false;          // 一个标志，用于判断玩家本帧是否尝试穿墙
 };
 
