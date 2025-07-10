@@ -6,6 +6,19 @@
 *.exe
 *.out
 
+# Qt specific
+*_moc.cpp
+*_moc.o
+moc_*.cpp
+moc_*.o
+ui_*.h
+qrc_*.cpp
+
+# Game specific
+snakegame
+record.dat
+level_progress.dat
+
 # Build system directories
 build/
 bin/
