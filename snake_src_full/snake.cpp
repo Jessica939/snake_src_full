@@ -319,3 +319,12 @@ void Snake::resetSnake() {
     this->mDirection = Direction::Up;
     this->initializeSnake();
 }
+
+Direction Snake::getDirection() const
+{
+    return this->mDirection;
+}
+
+void Snake::setLives(int lives) {
+    mLives = lives;
+}

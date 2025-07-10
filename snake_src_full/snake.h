@@ -68,10 +68,13 @@ public:
     void updateBoundary(int width, int height);
 
     int getLives () const;
+    void setLives(int lives);
     void loseLife () ;
     bool isDead () const;
 
     void resetSnake() ;
+
+    Direction getDirection() const;
 
 
 private:

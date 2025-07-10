@@ -71,8 +71,12 @@ void Game::createGameBoard()
     int startY = this->mInformationHeight;
     int startX = 0;
     if (mShrunkBoundary) {
-        mEffectiveHeight = this->mGameBoardHeight - 4;
-        mEffectiveWidth = this->mGameBoardWidth - 8;
+        int shrinkY = 2; // 上下各缩进2行
+        int shrinkX = 4; // 左右各缩进4列
+        mEffectiveHeight = this->mGameBoardHeight - (shrinkY * 2);
+        mEffectiveWidth = this->mGameBoardWidth - (shrinkX * 2);
+        startY += shrinkY; 
+        startX += shrinkX; 
     } else {
         mEffectiveHeight = this->mGameBoardHeight;
         mEffectiveWidth = this->mGameBoardWidth;
@@ -243,6 +247,7 @@ void Game::initializeGame()
     this->mDifficulty = 0;
     this->mPoints = 0;
     this->mDelay = this->mBaseDelay;
+    this->mBoundaryHasShrunkThisRound = false; 
 }
 
 void Game::createRamdonFood()
@@ -271,7 +276,6 @@ void Game::createRamdonFood()
     this->mFood = availableGrids[random_idx];
 
     
-    // --- 特殊食物或毒药（二选一） ---
     int extraType = std::rand() % 2; // 0: special, 1: poison
 
     // 从剩余 availableGrids 中选出一个没有普通食物的位置
@@ -307,22 +311,6 @@ void Game::createRamdonFood()
 
 }
 
-void Game::renderFood() const
-{
-    mvwaddch(this->mWindows[1], this->mFood.getY(), this->mFood.getX(), this->mFoodSymbol);
-    if (mSpecialFood.active) {
-        char specialChar = (mSpecialFood.type == FoodType::Special2) ? mSpecial2Symbol : mSpecial4Symbol;
-        mvwaddch(this->mWindows[1], mSpecialFood.pos.getY(), mSpecialFood.pos.getX(), specialChar);
-    }
-
-    // 渲染毒药
-    if (mPoisonFood.active) {
-        mvwaddch(this->mWindows[1], mPoisonFood.pos.getY(), mPoisonFood.pos.getX(), mPoisonSymbol);
-    }
-
-    wrefresh(this->mWindows[1]);
-}
-
 void Game::renderSnake() const
 {
     auto isInside = [this](int x, int y) {
@@ -343,7 +331,6 @@ void Game::renderSnake() const
     wrefresh(this->mWindows[1]);
 }
 
-// NOTE: The "const" keyword at the end is now gone.
 void Game::controlSnake()
 {
     int key;
@@ -418,7 +405,7 @@ void Game::controlSnake()
             if (it_portal != mInventory.end() && it_portal->second > 0) {
                 it_portal->second--; 
                 
-                // 传送门逻辑：把蛇
+                // 传送门逻辑：把蛇头传到一个随机位置
                 SnakeBody newPos;
                 bool position_ok = false;
                 while(!position_ok) {
@@ -444,6 +431,9 @@ void Game::controlSnake()
         case 'F':
             this->mIsPhasing = true; // 按下F键，标记本帧要尝试穿墙
             break;
+        case 'c': case 'C':
+            this->mCheatMode = !this->mCheatMode; // 切换作弊模式
+            break;
         default:
         {
             break;
@@ -460,7 +450,7 @@ void Game::renderBoards() const
     box(this->mWindows[0], 0, 0);
     wrefresh(this->mWindows[0]);
 
-    this->renderSidePanel(); // <-- 只调用这个新函数
+    this->renderSidePanel(); 
 
 }
 
@@ -486,6 +476,7 @@ void Game::runGame()
         // 随机触发“边界缩小”
         if (!mShrunkBoundary && (rand() % 100 < 2)) { 
             mShrunkBoundary = true;
+            mBoundaryHasShrunkThisRound = true; // 表示本轮边界已经缩小
             mShrinkDuration = 150;
             this->createGameBoard();  
         }
@@ -505,7 +496,7 @@ void Game::runGame()
         bool eatFood = false;
 
         // 根据玩家输入（是否按了穿墙键）执行不同的移动逻辑
-        if (mIsPhasing) {
+        if (mIsPhasing && !mCheatMode) {
             SnakeBody nextPos = this->mPtrSnake->createNewHead();
             // 检查下一个位置是否是障碍物
             if (checkObstacleCollision(nextPos)) {
@@ -534,8 +525,8 @@ void Game::runGame()
         bool selfCollision = this->mPtrSnake->checkCollision(); 
         bool obstacleCollision = checkObstacleCollision(this->mPtrSnake->getHead());
 
-        // 如果撞了墙/自己，或者在没有头盔的情况下撞了障碍物
-        if (selfCollision || (obstacleCollision && !mInventory.count(ItemType::HELMET))) {
+        // 非作弊机制下，如果撞了墙/自己，或者在没有头盔的情况下撞了障碍物
+        if (!mCheatMode && (selfCollision || (obstacleCollision && !mInventory.count(ItemType::HELMET)))) {
             this->mPtrSnake->loseLife();
             if (this->mPtrSnake->isDead()) { break; }
             else {
@@ -608,6 +599,7 @@ void Game::startGame()
     bool choice;
     while (true)
     {
+        this -> showShop();
         this->readLeaderBoard();
         this->renderBoards();
         this->initializeGame();
@@ -869,15 +861,28 @@ void Game::useRandomBox() {
     }
 }
 
-// 在 renderFood 函数中添加渲染道具的逻辑
-void Game::renderFood() const {
-    // ... 原有渲染食物的代码 ...
+void Game::renderFood() const
+{
+    // 渲染普通食物
+    mvwaddch(this->mWindows[1], this->mFood.getY(), this->mFood.getX(), this->mFoodSymbol);
 
-    // 渲染地图上的活动道具
+    // 渲染特殊食物
+    if (mSpecialFood.active) {
+        char specialChar = (mSpecialFood.type == FoodType::Special2) ? mSpecial2Symbol : mSpecial4Symbol;
+        mvwaddch(this->mWindows[1], mSpecialFood.pos.getY(), mSpecialFood.pos.getX(), specialChar);
+    }
+    
+    // 渲染毒药
+    if (mPoisonFood.active) {
+        mvwaddch(this->mWindows[1], mPoisonFood.pos.getY(), mPoisonFood.pos.getX(), mPoisonSymbol);
+    }
+
+    // 渲染地图上的随机道具
     if (mActiveItem.active) {
         mvwaddch(this->mWindows[1], mActiveItem.pos.getY(), mActiveItem.pos.getX(), mActiveItem.symbol);
     }
 
+    // 刷新
     wrefresh(this->mWindows[1]);
 }
 
@@ -908,7 +913,9 @@ void Game::renderMoneyAndInventory(int& currentY) const
 
     if (hasItems) {
         mvwprintw(this->mWindows[2], currentY++, 1, "Inventory:");
-        for (auto const& [itemType, count] : mInventory) {
+        for (auto const& pair : mInventory) {
+            ItemType itemType = pair.first;
+            int count = pair.second;
             if (count > 0) {
                 std::string itemName;
                 switch(itemType) {
@@ -931,14 +938,17 @@ void Game::renderMoneyAndInventory(int& currentY) const
 
 //此函数负责统一绘制所有信息，包括游戏说明、实时分数、生命值、玩家资产（金钱/库存）以及排行榜。
 void Game::renderSidePanel() const {
-    // 1. 准备工作：清空并绘制窗口边框
     werase(this->mWindows[2]);
     box(this->mWindows[2], 0, 0);
-
-    // 2. 初始化动态行号
     int currentY = 1;
 
-    // 3. 绘制【手册】部分
+    if (mCheatMode) {
+        wattron(this->mWindows[2], A_STANDOUT); 
+        mvwprintw(this->mWindows[2], currentY++, 1, "CHEAT MODE ON");
+        wattroff(this->mWindows[2], A_STANDOUT);
+        currentY++; 
+    }
+
     mvwprintw(this->mWindows[2], currentY++, 1, "Manual");
     mvwprintw(this->mWindows[2], currentY++, 1, "Up:    W");
     mvwprintw(this->mWindows[2], currentY++, 1, "Down:  S");
@@ -946,32 +956,30 @@ void Game::renderSidePanel() const {
     mvwprintw(this->mWindows[2], currentY++, 1, "Right: D");
     mvwprintw(this->mWindows[2], currentY++, 1, "Items: Q/E");
 
-    // 4. 绘制【游戏状态】部分
-    currentY++; // 增加垂直间距
+    
+    currentY++; 
     mvwprintw(this->mWindows[2], currentY++, 1, "Difficulty: %d", this->mDifficulty);
     mvwprintw(this->mWindows[2], currentY++, 1, "Points: %d", this->mPoints);
     
-    // 绘制生命值（使用心形符号）
     std::string hearts = "Lives: ";
-    if (this->mPtrSnake) { // 安全检查，确保蛇对象存在
+    if (this->mPtrSnake) { 
         for (int i = 0; i < this->mPtrSnake->getLives(); ++i) {
-            hearts += "\u2665 "; // UTF-8 Heart symbol
+            hearts += "\u2665 "; 
         }
     }
     mvwprintw(this->mWindows[2], currentY++, 1, "%s", hearts.c_str());
 
-    // 5. 绘制【玩家资产】部分
+    // 绘制【玩家资产】部分
     this->renderMoneyAndInventory(currentY);
 
-    // 6. 绘制【排行榜】部分
-    currentY++; // 增加垂直间距
-    // 动态检查剩余空间是否足够显示排行榜
+    // 绘制【排行榜】部分
+    currentY++; 
     if (mScreenHeight - mInformationHeight > currentY + 3) {
         mvwprintw(this->mWindows[2], currentY++, 1, "Leader Board");
         std::string pointString;
         std::string rank;
         for (int i = 0; i < mNumLeaders; i++) {
-            if (mScreenHeight - mInformationHeight <= currentY) break; // 如果空间不足，则停止绘制
+            if (mScreenHeight - mInformationHeight <= currentY) break; 
             
             pointString = std::to_string(this->mLeaderBoard[i]);
             rank = "#" + std::to_string(i + 1) + ":";
@@ -979,7 +987,7 @@ void Game::renderSidePanel() const {
         }
     }
 
-    // 7. 刷新窗口以显示所有内容
+    //显示所有内容
     wrefresh(this->mWindows[2]);
 }
 
@@ -1017,4 +1025,77 @@ bool Game::checkObstacleCollision(const SnakeBody& pos) const {
     return false;
 }
 
+bool Game::saveGame() {
+    std::fstream fhand(mSaveFilePath, fhand.binary | fhand.trunc | fhand.out);
+    if (!fhand.is_open()) {
+        return false; // 文件打开失败
+    }
 
+    // Game类状态
+    fhand.write(reinterpret_cast<char*>(&mPoints), sizeof(mPoints));
+    fhand.write(reinterpret_cast<char*>(&mMoney), sizeof(mMoney));
+    fhand.write(reinterpret_cast<char*>(&mDelay), sizeof(mDelay));
+    fhand.write(reinterpret_cast<char*>(&mDifficulty), sizeof(mDifficulty));
+
+    // Snake状态
+    std::vector<SnakeBody>& snakeVec = mPtrSnake->getSnake();
+    size_t snakeSize = snakeVec.size();
+    fhand.write(reinterpret_cast<char*>(&snakeSize), sizeof(snakeSize));
+    fhand.write(reinterpret_cast<char*>(snakeVec.data()), snakeSize * sizeof(SnakeBody));
+    Direction snakeDir = mPtrSnake->getDirection(); 
+    fhand.write(reinterpret_cast<char*>(&snakeDir), sizeof(snakeDir));
+    int lives = mPtrSnake->getLives();
+    fhand.write(reinterpret_cast<char*>(&lives), sizeof(lives));
+
+    // 道具库存状态
+    size_t inventorySize = mInventory.size();
+    fhand.write(reinterpret_cast<char*>(&inventorySize), sizeof(inventorySize));
+    for (const auto& pair : mInventory) {
+        fhand.write(reinterpret_cast<const char*>(&pair.first), sizeof(ItemType));
+        fhand.write(reinterpret_cast<const char*>(&pair.second), sizeof(int));
+    }
+
+    fhand.close();
+    return true;
+}
+
+bool Game::loadGame() {
+    std::fstream fhand(mSaveFilePath, fhand.binary | fhand.in);
+    if (!fhand.is_open()) {
+        return false; // 没有存档文件
+    }
+
+    // Game类状态
+    fhand.read(reinterpret_cast<char*>(&mPoints), sizeof(mPoints));
+    fhand.read(reinterpret_cast<char*>(&mMoney), sizeof(mMoney));
+    fhand.read(reinterpret_cast<char*>(&mDelay), sizeof(mDelay));
+    fhand.read(reinterpret_cast<char*>(&mDifficulty), sizeof(mDifficulty));
+
+    // Snake状态
+    std::vector<SnakeBody>& snakeVec = mPtrSnake->getSnake();
+    size_t snakeSize;
+    fhand.read(reinterpret_cast<char*>(&snakeSize), sizeof(snakeSize));
+    snakeVec.resize(snakeSize);
+    fhand.read(reinterpret_cast<char*>(snakeVec.data()), snakeSize * sizeof(SnakeBody));
+    Direction snakeDir;
+    fhand.read(reinterpret_cast<char*>(&snakeDir), sizeof(snakeDir));
+    mPtrSnake->changeDirection(snakeDir); 
+    int lives;
+    fhand.read(reinterpret_cast<char*>(&lives), sizeof(lives));
+    mPtrSnake->setLives(lives); 
+
+    // 道具库存状态
+    size_t inventorySize;
+    fhand.read(reinterpret_cast<char*>(&inventorySize), sizeof(inventorySize));
+    mInventory.clear();
+    for (size_t i = 0; i < inventorySize; ++i) {
+        ItemType type;
+        int count;
+        fhand.read(reinterpret_cast<char*>(&type), sizeof(ItemType));
+        fhand.read(reinterpret_cast<char*>(&count), sizeof(int));
+        mInventory[type] = count;
+    }
+
+    fhand.close();
+    return true;
+}

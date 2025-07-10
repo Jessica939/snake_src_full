@@ -80,6 +80,9 @@ public:
     void spawnObstacles(int count);
     void renderObstacles() const;
     bool checkObstacleCollision(const SnakeBody& pos) const;
+
+    bool saveGame();
+    bool loadGame();
     
 
 private:
@@ -107,27 +110,31 @@ private:
     const char mFoodSymbol = '#';
     const char mSpecial2Symbol = '$';   // 特殊食物 +2
     const char mSpecial4Symbol = '*';   // 特殊食物 +4
-    const char mPoisonSymbol = 'X';     // 毒药。  
+    const char mPoisonSymbol = '^';     // 毒药。  
     
     int mPoints = 0;
     int mDifficulty = 0;
     int mBaseDelay = 100;
     int mDelay;
     const std::string mRecordBoardFilePath = "record.dat";
+    const std::string mSaveFilePath = "game_save.dat";
     std::vector<int> mLeaderBoard;
     const int mNumLeaders = 3;
     
     //边界缩小参数
     bool mShrunkBoundary = false;
     int mShrinkDuration = 0; // 持续帧数 
+    bool mBoundaryHasShrunkThisRound = false; //设置这个参数后每轮边界只会缩小一次
 
     int mMoney = 20; // 初始金钱
     std::map<ItemType, int> mInventory; // 玩家拥有的道具库存 <道具类型, 数量>
     ActiveItem mActiveItem; // 当前地图上活动的道具
     
     std::vector<SnakeBody> mObstacles;
-    const char mObstacleSymbol = 'XX'; // 障碍物在地图上显示的符号
-    bool mIsPhasing = false;          // 一个标志，用于判断玩家本帧是否尝试穿墙
+    const char mObstacleSymbol = 'X'; // 障碍物在地图上显示的符号
+    bool mIsPhasing = false;    // 一个标志，用于判断玩家本帧是否尝试穿墙
+
+    bool mCheatMode = false;//作弊机制
 };
 
 #endif
