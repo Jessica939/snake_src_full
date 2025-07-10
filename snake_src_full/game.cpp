@@ -271,7 +271,6 @@ void Game::createRamdonFood()
     this->mFood = availableGrids[random_idx];
 
     
-    // --- 特殊食物或毒药（二选一） ---
     int extraType = std::rand() % 2; // 0: special, 1: poison
 
     // 从剩余 availableGrids 中选出一个没有普通食物的位置
@@ -343,7 +342,6 @@ void Game::renderSnake() const
     wrefresh(this->mWindows[1]);
 }
 
-// NOTE: The "const" keyword at the end is now gone.
 void Game::controlSnake()
 {
     int key;
@@ -418,7 +416,7 @@ void Game::controlSnake()
             if (it_portal != mInventory.end() && it_portal->second > 0) {
                 it_portal->second--; 
                 
-                // 传送门逻辑：把蛇
+                // 传送门逻辑：把蛇头传到一个随机位置
                 SnakeBody newPos;
                 bool position_ok = false;
                 while(!position_ok) {
@@ -460,7 +458,7 @@ void Game::renderBoards() const
     box(this->mWindows[0], 0, 0);
     wrefresh(this->mWindows[0]);
 
-    this->renderSidePanel(); // <-- 只调用这个新函数
+    this->renderSidePanel(); 
 
 }
 
