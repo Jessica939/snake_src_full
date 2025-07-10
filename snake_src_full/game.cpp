@@ -869,15 +869,28 @@ void Game::useRandomBox() {
     }
 }
 
-// 在 renderFood 函数中添加渲染道具的逻辑
-void Game::renderFood() const {
-    // ... 原有渲染食物的代码 ...
+void Game::renderFood() const
+{
+    // 渲染普通食物
+    mvwaddch(this->mWindows[1], this->mFood.getY(), this->mFood.getX(), this->mFoodSymbol);
 
-    // 渲染地图上的活动道具
+    // 渲染特殊食物
+    if (mSpecialFood.active) {
+        char specialChar = (mSpecialFood.type == FoodType::Special2) ? mSpecial2Symbol : mSpecial4Symbol;
+        mvwaddch(this->mWindows[1], mSpecialFood.pos.getY(), mSpecialFood.pos.getX(), specialChar);
+    }
+    
+    // 渲染毒药
+    if (mPoisonFood.active) {
+        mvwaddch(this->mWindows[1], mPoisonFood.pos.getY(), mPoisonFood.pos.getX(), mPoisonSymbol);
+    }
+
+    // 渲染地图上的随机道具
     if (mActiveItem.active) {
         mvwaddch(this->mWindows[1], mActiveItem.pos.getY(), mActiveItem.pos.getX(), mActiveItem.symbol);
     }
 
+    // 刷新
     wrefresh(this->mWindows[1]);
 }
 
@@ -931,14 +944,10 @@ void Game::renderMoneyAndInventory(int& currentY) const
 
 //此函数负责统一绘制所有信息，包括游戏说明、实时分数、生命值、玩家资产（金钱/库存）以及排行榜。
 void Game::renderSidePanel() const {
-    // 1. 准备工作：清空并绘制窗口边框
     werase(this->mWindows[2]);
     box(this->mWindows[2], 0, 0);
-
-    // 2. 初始化动态行号
     int currentY = 1;
 
-    // 3. 绘制【手册】部分
     mvwprintw(this->mWindows[2], currentY++, 1, "Manual");
     mvwprintw(this->mWindows[2], currentY++, 1, "Up:    W");
     mvwprintw(this->mWindows[2], currentY++, 1, "Down:  S");
@@ -946,32 +955,29 @@ void Game::renderSidePanel() const {
     mvwprintw(this->mWindows[2], currentY++, 1, "Right: D");
     mvwprintw(this->mWindows[2], currentY++, 1, "Items: Q/E");
 
-    // 4. 绘制【游戏状态】部分
-    currentY++; // 增加垂直间距
+    currentY++; 
     mvwprintw(this->mWindows[2], currentY++, 1, "Difficulty: %d", this->mDifficulty);
     mvwprintw(this->mWindows[2], currentY++, 1, "Points: %d", this->mPoints);
     
-    // 绘制生命值（使用心形符号）
     std::string hearts = "Lives: ";
-    if (this->mPtrSnake) { // 安全检查，确保蛇对象存在
+    if (this->mPtrSnake) { 
         for (int i = 0; i < this->mPtrSnake->getLives(); ++i) {
-            hearts += "\u2665 "; // UTF-8 Heart symbol
+            hearts += "\u2665 "; 
         }
     }
     mvwprintw(this->mWindows[2], currentY++, 1, "%s", hearts.c_str());
 
-    // 5. 绘制【玩家资产】部分
+    // 绘制【玩家资产】部分
     this->renderMoneyAndInventory(currentY);
 
-    // 6. 绘制【排行榜】部分
-    currentY++; // 增加垂直间距
-    // 动态检查剩余空间是否足够显示排行榜
+    // 绘制【排行榜】部分
+    currentY++; 
     if (mScreenHeight - mInformationHeight > currentY + 3) {
         mvwprintw(this->mWindows[2], currentY++, 1, "Leader Board");
         std::string pointString;
         std::string rank;
         for (int i = 0; i < mNumLeaders; i++) {
-            if (mScreenHeight - mInformationHeight <= currentY) break; // 如果空间不足，则停止绘制
+            if (mScreenHeight - mInformationHeight <= currentY) break; 
             
             pointString = std::to_string(this->mLeaderBoard[i]);
             rank = "#" + std::to_string(i + 1) + ":";
@@ -979,7 +985,7 @@ void Game::renderSidePanel() const {
         }
     }
 
-    // 7. 刷新窗口以显示所有内容
+    //显示所有内容
     wrefresh(this->mWindows[2]);
 }
 
