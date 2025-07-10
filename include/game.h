@@ -76,7 +76,7 @@ public:
     void controlSnake() const;
     
     void startGame();
-    bool renderRestartMenu() const;
+    bool renderRestartMenu();
     void adjustDelay();
     bool selectMap();
     bool selectLevel(); // 返回值：true表示继续游戏，false表示退出

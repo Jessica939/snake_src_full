@@ -234,7 +234,7 @@ void Game::renderLeaderBoard() const
     wrefresh(this->mWindows[2]);
 }
 
-bool Game::renderRestartMenu() const
+bool Game::renderRestartMenu() 
 {
     WINDOW * menu;
     int width = this->mGameBoardWidth * 0.5;
@@ -304,6 +304,7 @@ bool Game::renderRestartMenu() const
     }
     else
     {
+        mReturnToModeSelect = true;
         return false;
     }
     
@@ -687,7 +688,10 @@ void Game::startGame()
                 this->runGame();
                 this->updateLeaderBoard();
                 this->writeLeaderBoard();
-                if (!renderRestartMenu()) break; // 如果不重启，则退出循环
+                if (!renderRestartMenu()) {
+                    if (mReturnToModeSelect) continue; // 返回模式选择
+                    else break; 
+                } // 如果不重启，则退出循环
                 break;
 
             case GameMode::Timed:
@@ -697,7 +701,10 @@ void Game::startGame()
                 this->runTimeAttack();
                 this->updateLeaderBoard();
                 this->writeLeaderBoard();
-                if (!renderRestartMenu()) break; // 如果不重启，则退出循环
+                if (!renderRestartMenu()) {
+                    if (mReturnToModeSelect) continue; // 返回模式选择
+                    else break; 
+                } // 如果不重启，则退出循环
                 break;
                
             case GameMode::Level:
@@ -882,14 +889,10 @@ void Game::startGame()
                 
     
             }
-            if (mReturnToModeSelect) {
-                continue;
-            } else {
-            // 对于经典和限时模式，重启会直接开始新一局
-            // 如果不想重启，上面的 break 会退出循环
+
         }
     
-    }       
+       
 }
 
 // https://en.cppreference.com/w/cpp/io/basic_fstream
