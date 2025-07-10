@@ -273,6 +273,61 @@ bool Snake::changeDirection(Direction newDirection)
     return false;
 }
 
+// 设置转弯模式
+void Snake::setTurnMode(TurnMode mode)
+{
+    mTurnMode = mode;
+}
+
+// 获取当前转弯模式
+TurnMode Snake::getTurnMode() const
+{
+    return mTurnMode;
+}
+
+// 单键转弯控制
+bool Snake::singleKeyTurn()
+{
+    // 根据当前方向和下一次转向是左转还是右转，确定新方向
+    Direction newDirection;
+    
+    switch (this->mDirection)
+    {
+        case Direction::Up:
+            newDirection = mNextTurnIsLeft ? Direction::Left : Direction::Right;
+            break;
+        case Direction::Down:
+            newDirection = mNextTurnIsLeft ? Direction::Right : Direction::Left;
+            break;
+        case Direction::Left:
+            newDirection = mNextTurnIsLeft ? Direction::Down : Direction::Up;
+            break;
+        case Direction::Right:
+            newDirection = mNextTurnIsLeft ? Direction::Up : Direction::Down;
+            break;
+    }
+    
+    // 更新下一次转向方向（交替左右转）
+    mNextTurnIsLeft = !mNextTurnIsLeft;
+    
+    // 改变方向
+    this->mDirection = newDirection;
+    return true;
+}
+
+// 设置下一次单键转弯的方向
+void Snake::setNextTurnDirection(bool isLeftTurn)
+{
+    mNextTurnIsLeft = isLeftTurn;
+}
+
+// 检查是否达到了终点
+bool Snake::reachedEndpoint(int endX, int endY) const
+{
+    // 检查蛇头是否位于终点位置
+    const SnakeBody& head = this->mSnake[0];
+    return (head.getX() == endX && head.getY() == endY);
+}
 
 SnakeBody Snake::createNewHead()
 {
