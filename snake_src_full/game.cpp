@@ -434,6 +434,11 @@ void Game::controlSnake()
         case 'c': case 'C':
             this->mCheatMode = !this->mCheatMode; // 切换作弊模式
             break;
+         
+        case 'p': 
+        case 'P':
+            this->saveGame();
+            break;
         default:
         {
             break;
@@ -596,21 +601,60 @@ void Game::runGame()
 void Game::startGame()
 {
     refresh();
-    bool choice;
+
     while (true)
     {
-        this -> showShop();
-        this->readLeaderBoard();
-        this->renderBoards();
-        this->initializeGame();
-        this->runGame();
-        this->updateLeaderBoard();
-        this->writeLeaderBoard();
-        choice = this->renderRestartMenu();
-        if (choice == false)
+        // 0=经典， 1=加载, 2=退出
+        int choice = this->renderMainMenu();
+
+        switch (choice)
         {
-            break;
+            case 0: 
+            {
+                this->showShop();
+                this->readLeaderBoard();
+                this->renderBoards();
+                this->initializeGame();
+                this->runGame(); // 运行游戏，直到本局结束
+                
+                // 游戏结束后，更新并写入排行榜
+                this->updateLeaderBoard();
+                this->writeLeaderBoard();
+    
+                break;
+            }
+
+            case 1: 
+            {
+                // 先准备好界面
+                this->renderBoards();
+                this->initializeGame(); // 必须先初始化一个空的蛇对象
+
+                if (this->loadGame()) {
+                    // 加载成功, 直接开始游戏
+                    this->runGame();
+                    
+                    // 游戏结束后，同样更新排行榜
+                    this->updateLeaderBoard();
+                    this->writeLeaderBoard();
+                } else {
+                    // 加载失败 (例如没有存档文件)
+                    WINDOW* msgWin = newwin(3, 30, (mScreenHeight-3)/2, (mScreenWidth-30)/2);
+                    box(msgWin, 0, 0);
+                    mvwprintw(msgWin, 1, 1, "Load failed. No save file.");
+                    wrefresh(msgWin);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                    delwin(msgWin);
+                }
+                break;
+            }
+
+            case 2: 
+            {
+                return; // 直接结束 startGame 函数，退出整个程序
+            }
         }
+        
     }
 }
 
@@ -1099,3 +1143,65 @@ bool Game::loadGame() {
     fhand.close();
     return true;
 }
+
+int Game::renderMainMenu() const
+{
+    WINDOW* menu_win;
+    int width = 40;
+    int height = 12;
+    int startX = (mScreenWidth - width) / 2;
+    int startY = (mScreenHeight - height) / 2;
+
+    menu_win = newwin(height, width, startY, startX);
+    box(menu_win, 0, 0);
+    
+    mvwprintw(menu_win, 1, (width - 11) / 2, "SNAKE GAME"); // 11是"SNAKE GAME"的长度
+    mvwprintw(menu_win, 2, (width - 20) / 2, "Use W/S to navigate"); // 20是提示语的长度
+    mvwprintw(menu_win, 3, (width - 18) / 2, "Press Space to select");
+
+    // 菜单选项
+    std::vector<std::string> menuItems = {"Classic" ,"Load Game", "Quit"};
+    int selectedIndex = 0;
+    int menuOffset = 5; // 菜单项开始的行号
+
+    // 循环处理用户输入，直到用户按下空格或回车
+    while (true) {
+        for (int i = 0; i < menuItems.size(); ++i) {
+            //高亮显示
+            if (i == selectedIndex) {
+                wattron(menu_win, A_STANDOUT);
+            }
+            mvwprintw(menu_win, i + menuOffset, (width - menuItems[i].length())/2, menuItems[i].c_str());
+            if (i == selectedIndex) {
+                wattroff(menu_win, A_STANDOUT); 
+            }
+        }
+        wrefresh(menu_win);
+
+        int key = getch();
+        switch(key)
+        {
+            case 'W':
+            case 'w':
+            case KEY_UP:
+                selectedIndex--;
+                if (selectedIndex < 0) {
+                    selectedIndex = menuItems.size() - 1; 
+                }
+                break;
+            case 'S':
+            case 's':
+            case KEY_DOWN:
+                selectedIndex++;
+                if (selectedIndex >= menuItems.size()) {
+                    selectedIndex = 0; 
+                }
+                break;
+            case ' ':  
+            case 10:   
+                delwin(menu_win); 
+                return selectedIndex; 
+        }
+    }
+}
+
