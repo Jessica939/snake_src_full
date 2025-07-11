@@ -8,7 +8,7 @@ CXX = g++
 CXXFLAGS = -std=c++17 -Wall -g
 
 # 可执行文件的名称
-TARGET = snake_game
+TARGET = snakegame
 
 # 源文件列表
 # 如果未来添加了新的 .cpp 文件，请在此处添加
