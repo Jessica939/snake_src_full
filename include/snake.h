@@ -15,6 +15,13 @@ enum class Direction
     Right = 3,
 };
 
+// 添加转弯模式枚举
+enum class TurnMode
+{
+    Normal = 0,  // 正常模式：使用方向键控制
+    SingleKey = 1,  // 单键模式：按一次键自动左转/右转
+};
+
 class SnakeBody
 {
 public:
@@ -59,6 +66,17 @@ public:
     int getLength();
     SnakeBody createNewHead();
     bool moveFoward();
+    
+    // 设置转弯模式
+    void setTurnMode(TurnMode mode);
+    // 获取当前转弯模式
+    TurnMode getTurnMode() const;
+    // 单键转弯控制
+    bool singleKeyTurn();
+    // 设置下一次单键转弯的方向
+    void setNextTurnDirection(bool isLeftTurn);
+    // 检查是否达到了终点
+    bool reachedEndpoint(int endX, int endY) const;
 
 private:
     const int mGameBoardWidth;
@@ -70,6 +88,10 @@ private:
     std::vector<SnakeBody> mSnake;
     // Map pointer for collision detection
     Map* mMap;
+    
+    // 单键转向模式相关属性
+    TurnMode mTurnMode = TurnMode::Normal;  // 默认为普通模式
+    bool mNextTurnIsLeft = true;  // 下一次转向是左转还是右转
     
     // Convert InitialDirection to Direction
     Direction convertInitialDirection(InitialDirection dir);

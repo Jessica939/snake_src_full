@@ -100,6 +100,11 @@ public:
     void renderTimer() const;
 
     
+    // 第四关特殊功能方法
+    void initializeLevel4(); // 初始化第四关特殊设置
+    void renderEndpoint() const; // 渲染终点标记
+    void controlSnakeLevel4() const; // 第四关蛇的单键控制
+    void runLevel4(); // 运行第四关特殊逻辑
 
 private:
     // We need to have two windows
@@ -143,6 +148,12 @@ private:
     std::vector<LevelStatus> mLevelStatus; // 关卡状态列表
     const std::string mLevelProgressFilePath = "level_progress.dat"; // 关卡进度文件路径
     std::vector<std::string> mLevelMapFiles = {"maps/level1.txt", "maps/level2.txt", "maps/level3.txt", "maps/level4.txt", "maps/level5.txt"}; // 关卡地图文件
+    
+    // 第四关特殊变量
+    SnakeBody mEndpoint; // 终点位置
+    const char mEndpointSymbol = 'X'; // 终点标记符号
+    bool mHasEndpoint = false; // 是否有终点标记
+    const char mSingleKeyTurnSymbol = 'T'; // 单键转向按键
 
     //限时模式相关变量
     GameMode mCurrentMode;

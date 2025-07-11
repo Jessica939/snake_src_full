@@ -34,6 +34,8 @@ Game::Game()
     this->mLevelStatus.assign(this->mMaxLevel, LevelStatus::Locked);
     // 第一关默认解锁
     this->mLevelStatus[0] = LevelStatus::Unlocked;
+    // 第四关也解锁，用于测试
+    this->mLevelStatus[3] = LevelStatus::Unlocked;
     
     // 加载已保存的关卡进度
     this->loadLevelProgress();
@@ -538,16 +540,19 @@ void Game::renderFood() const
 
 void Game::renderMap() const
 {
-    if (!mPtrMap) return;
-    
-    for (int y = 0; y < mGameBoardHeight; y++) {
-        for (int x = 0; x < mGameBoardWidth; x++) {
-            if (mPtrMap->isWall(x, y)) {
+    // 渲染地图上的墙体
+    for (int y = 0; y < this->mGameBoardHeight; y++) {
+        for (int x = 0; x < this->mGameBoardWidth; x++) {
+            if (this->mPtrMap->isWall(x, y)) {
                 mvwaddch(this->mWindows[1], y, x, this->mWallSymbol);
             }
         }
     }
-    wrefresh(this->mWindows[1]);
+    
+    // 如果是第四关，还需要渲染终点
+    if (mCurrentLevel == 4 && mHasEndpoint) {
+        this->renderEndpoint();
+    }
 }
 
 void Game::renderSnake() const
@@ -565,6 +570,18 @@ void Game::controlSnake() const
 {
     int key;
     key = getch();
+    
+    // 如果是第四关，使用单键转弯控制
+    if (mCurrentLevel == 4) {
+        // 在第四关中，只需要一个按键 'T' 或空格键来转弯
+        if (key == mSingleKeyTurnSymbol || key == 't' || key == ' ')
+        {
+            this->mPtrSnake->singleKeyTurn();
+        }
+        return;
+    }
+    
+    // 正常的方向控制
     switch(key)
     {
         case 'W':
@@ -1059,7 +1076,9 @@ void Game::initializeLevel(int level)
         case 4:
             mCurrentLevelType = LevelType::Custom1;
             mLevelTargetPoints = 12;
-            break;
+            // 初始化第四关特殊设置
+            this->initializeLevel4();
+            return; // 第四关有特殊初始化，直接返回
         case 5:
             mCurrentLevelType = LevelType::Custom2;
             mLevelTargetPoints = 15;
@@ -1145,6 +1164,127 @@ void Game::initializeLevel(int level)
     this->mDelay = this->mBaseDelay * pow(0.75, this->mDifficulty);
 }
 
+// 初始化第四关特殊设置
+void Game::initializeLevel4()
+{
+    // 加载地图
+    std::string mapFilePath = mLevelMapFiles[3]; // level4.txt
+    mPtrMap = std::make_unique<Map>(mGameBoardWidth, mGameBoardHeight);
+    
+    // 检查地图文件是否存在
+    std::ifstream mapFile(mapFilePath);
+    if (mapFile.good()) {
+        mapFile.close();
+        mPtrMap->loadMapFromFile(mapFilePath);
+    } else {
+        // 如果地图文件不存在，加载默认地图
+        mPtrMap->loadDefaultMap();
+    }
+    
+    // 创建蛇
+    this->mPtrSnake.reset(new Snake(this->mGameBoardWidth, this->mGameBoardHeight, this->mInitialSnakeLength));
+    this->mPtrSnake->setMap(this->mPtrMap.get());
+    
+    // 第四关使用单键转向模式
+    this->mPtrSnake->setTurnMode(TurnMode::SingleKey);
+    
+    // 设置蛇的初始位置（从迷宫的入口开始）
+    this->mPtrSnake->initializeSnake(2, 1, InitialDirection::Down);
+    
+    // 设置终点位置（迷宫出口）
+    mEndpoint = SnakeBody(63, 11);
+    mHasEndpoint = true;
+    
+    // 第四关不需要创建食物，直接将食物设置在不可能到达的位置
+    mFood = SnakeBody(0, 0);
+    this->mPtrSnake->senseFood(this->mFood);
+    
+    // 设置难度
+    this->mDifficulty = 1;
+    this->mDelay = this->mBaseDelay * pow(1.25, this->mDifficulty);
+    this->mPoints = 0;
+}
+
+void Game::renderEndpoint() const
+{
+    if (!mHasEndpoint) return;
+    
+    // 在游戏面板上绘制终点标记
+    mvwaddch(this->mWindows[1], mEndpoint.getY(), mEndpoint.getX(), mEndpointSymbol);
+}
+
+// 第四关蛇的单键控制
+void Game::controlSnakeLevel4() const
+{
+    int key;
+    key = getch();
+    
+    // 在第四关中，只需要一个按键 'T' 或空格键来转弯
+    if (key == mSingleKeyTurnSymbol || key == 't' || key == ' ')
+    {
+        this->mPtrSnake->singleKeyTurn();
+    }
+}
+
+// 运行第四关特殊逻辑
+void Game::runLevel4()
+{
+    bool moveSuccess;
+    int key;
+    
+    // 更新信息面板，显示关卡提示
+    mvwprintw(this->mWindows[0], 1, 1, "Level 4: Single Path Challenge");
+    mvwprintw(this->mWindows[0], 2, 1, "Press 'T' or SPACE to turn");
+    mvwprintw(this->mWindows[0], 3, 1, "Reach the 'X' mark to win!");
+    wrefresh(this->mWindows[0]);
+    
+    while (true)
+    {
+        // 使用单键控制
+        this->controlSnakeLevel4();
+        
+        werase(this->mWindows[1]);
+        box(this->mWindows[1], 0, 0);
+        
+        // 渲染地图
+        this->renderMap();
+        
+        // 渲染终点
+        this->renderEndpoint();
+        
+        // 移动蛇
+        this->mPtrSnake->moveFoward();
+        
+        // 检查是否撞墙或自己
+        bool collision = this->mPtrSnake->checkCollision();
+        if (collision == true)
+        {
+            // 如果碰撞，关卡失败
+            break;
+        }
+        
+        // 检查是否到达终点
+        if (this->mPtrSnake->reachedEndpoint(mEndpoint.getX(), mEndpoint.getY()))
+        {
+            // 如果达到终点，关卡通过
+            this->renderSnake();
+            this->renderLevel();
+            refresh();
+            
+            // 设置完成关卡的标志
+            mPoints = mLevelTargetPoints;
+            break;
+        }
+        
+        this->renderSnake();
+        this->renderLevel();
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
+        
+        refresh();
+    }
+}
+
 void Game::loadNextLevel()
 {
     if (mCurrentLevel < mMaxLevel) {
@@ -1161,36 +1301,13 @@ bool Game::isLevelCompleted()
 
 void Game::runLevel()
 {
-    bool moveSuccess;
-    int key;
-    
-    // 显示关卡信息
-    WINDOW* levelInfoWin;
-    int width = this->mGameBoardWidth * 0.5;
-    int height = 5;
-    int startX = this->mGameBoardWidth * 0.25;
-    int startY = this->mGameBoardHeight * 0.25 + this->mInformationHeight;
-    
-    levelInfoWin = newwin(height, width, startY, startX);
-    box(levelInfoWin, 0, 0);
-    
-    mvwprintw(levelInfoWin, 1, 1, "Level %d", mCurrentLevel);
-    mvwprintw(levelInfoWin, 2, 1, "Target: %d points", mLevelTargetPoints);
-    mvwprintw(levelInfoWin, 3, 1, "Press Space to start...");
-    wrefresh(levelInfoWin);
-    
-    // 等待用户按空格开始
-    int startKey;
-    while (true) {
-        startKey = getch();
-        if (startKey == ' ' || startKey == 10)
-            break;
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // 如果是第四关，使用特殊的运行逻辑
+    if (mCurrentLevel == 4) {
+        this->runLevel4();
+        return;
     }
     
-    delwin(levelInfoWin);
-    
-    // 开始关卡游戏循环
+    // 其他关卡的运行逻辑
     while (true)
     {
         this->controlSnake();
@@ -1236,24 +1353,7 @@ void Game::runLevel()
         this->renderLevel();
         
         // 根据关卡类型调整游戏逻辑
-        switch (mCurrentLevelType) {
-            case LevelType::Speed:
-                // 速度挑战：延迟更短
-                std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(this->mDelay * 0.8)));
-                break;
-            case LevelType::Custom1:
-                // 第四关特殊逻辑
-                std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
-                break;
-            case LevelType::Custom2:
-                // 第五关特殊逻辑
-                std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
-                break;
-            default:
-                // 普通关卡
-                std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
-                break;
-        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
         
         refresh();
     }
