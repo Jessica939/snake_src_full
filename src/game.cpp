@@ -1395,10 +1395,10 @@ bool Game::selectLevelInLevelMode()
         if (mLevelStatus[i] != LevelStatus::Locked) {
             std::string itemText = "Level " + std::to_string(i + 1);
             
-            // 如果关卡已完成，添加完成标记
-            if (mLevelStatus[i] == LevelStatus::Completed) {
-                itemText += " (Completed)";
-            }
+            // // 如果关卡已完成，添加完成标记
+            // if (mLevelStatus[i] == LevelStatus::Completed) {
+            //     itemText += " (Completed)";
+            // }
             
             menuItems.push_back(itemText);
         } else {
