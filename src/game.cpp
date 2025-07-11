@@ -34,9 +34,9 @@ Game::Game()
     this->mLevelStatus.assign(this->mMaxLevel, LevelStatus::Locked);
     // 第一关默认解锁
     this->mLevelStatus[0] = LevelStatus::Unlocked;
-    // 第四关也解锁，用于测试
+    // 第四五关也解锁，用于测试，待修改
     this->mLevelStatus[3] = LevelStatus::Unlocked;
-    
+    this->mLevelStatus[4] = LevelStatus::Unlocked;
     // 加载已保存的关卡进度
     this->loadLevelProgress();
     
@@ -124,11 +124,7 @@ void Game::createDefaultLevelMaps()
                     case 5: // 第五关：自定义关卡2
                         for (int y = 0; y < height; y++) {
                             for (int x = 0; x < width; x++) {
-                                if (x == 0 || y == 0 || x == width - 1 || y == height - 1 || 
-                                    (x == width/4 && y < height*3/4) ||
-                                    (x == width*3/4 && y > height/4) ||
-                                    (y == height/4 && x > width/4 && x < width*3/4) ||
-                                    (y == height*3/4 && x > width/4 && x < width*3/4)) {
+                                if (x == 0 || y == 0 || x == width - 1 || y == height - 1) {
                                     mapFile << "1 ";
                                 } else {
                                     mapFile << "0 ";
@@ -159,7 +155,7 @@ void Game::createDefaultLevelMaps()
 
 Game::~Game()
 {
-    for (int i = 0; i < this->mWindows.size(); i ++)
+    for (size_t i = 0; i < this->mWindows.size(); i ++)
     {
         delwin(this->mWindows[i]);
     }
@@ -230,8 +226,8 @@ void Game::renderLeaderBoard() const
     {
         pointString = std::to_string(this->mLeaderBoard[i]);
         rank = "#" + std::to_string(i + 1) + ":";
-        mvwprintw(this->mWindows[2], 14 + (i + 1), 1, rank.c_str());
-        mvwprintw(this->mWindows[2], 14 + (i + 1), 5, pointString.c_str());
+        mvwprintw(this->mWindows[2], 14 + (i + 1), 1, "%s", rank.c_str());
+        mvwprintw(this->mWindows[2], 14 + (i + 1), 5, "%s", pointString.c_str());
     }
     wrefresh(this->mWindows[2]);
 }
@@ -252,11 +248,11 @@ bool Game::renderRestartMenu() const
     int offset = 4;
     mvwprintw(menu, 1, 1, "Your Final Score:");
     std::string pointString = std::to_string(this->mPoints);
-    mvwprintw(menu, 2, 1, pointString.c_str());
+    mvwprintw(menu, 2, 1, "%s", pointString.c_str());
     wattron(menu, A_STANDOUT);
-    mvwprintw(menu, 0 + offset, 1, menuItems[0].c_str());
+    mvwprintw(menu, 0 + offset, 1, "%s", menuItems[0].c_str());
     wattroff(menu, A_STANDOUT);
-    mvwprintw(menu, 1 + offset, 1, menuItems[1].c_str());
+    mvwprintw(menu, 1 + offset, 1, "%s", menuItems[1].c_str());
 
     wrefresh(menu);
 
@@ -270,11 +266,11 @@ bool Game::renderRestartMenu() const
             case 'w':
             case KEY_UP:
             {
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                index --;
-                index = (index < 0) ? menuItems.size() - 1 : index;
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                index--;
+                index = (index < 0) ? static_cast<int>(menuItems.size()) - 1 : index;
                 wattron(menu, A_STANDOUT);
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                 wattroff(menu, A_STANDOUT);
                 break;
             }
@@ -282,11 +278,11 @@ bool Game::renderRestartMenu() const
             case 's':
             case KEY_DOWN:
             {
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                index ++;
-                index = (index > menuItems.size() - 1) ? 0 : index;
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                index++;
+                index = (index > static_cast<int>(menuItems.size()) - 1) ? 0 : index;
                 wattron(menu, A_STANDOUT);
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                 wattroff(menu, A_STANDOUT);
                 break;
             }
@@ -338,11 +334,11 @@ bool Game::selectMap()
     mvwprintw(menu, 1, 1, "Select a Map:");
     
     wattron(menu, A_STANDOUT);
-    mvwprintw(menu, 0 + offset, 1, menuItems[0].c_str());
+    mvwprintw(menu, 0 + offset, 1, "%s", menuItems[0].c_str());
     wattroff(menu, A_STANDOUT);
     
-    for (int i = 1; i < menuItems.size(); i++) {
-        mvwprintw(menu, i + offset, 1, menuItems[i].c_str());
+    for (size_t i = 1; i < menuItems.size(); i++) {
+        mvwprintw(menu, static_cast<int>(i) + offset, 1, "%s", menuItems[i].c_str());
     }
 
     wrefresh(menu);
@@ -357,11 +353,11 @@ bool Game::selectMap()
             case 'w':
             case KEY_UP:
             {
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                index --;
-                index = (index < 0) ? menuItems.size() - 1 : index;
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                index--;
+                index = (index < 0) ? static_cast<int>(menuItems.size()) - 1 : index;
                 wattron(menu, A_STANDOUT);
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                 wattroff(menu, A_STANDOUT);
                 break;
             }
@@ -369,11 +365,11 @@ bool Game::selectMap()
             case 's':
             case KEY_DOWN:
             {
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                index ++;
-                index = (index > menuItems.size() - 1) ? 0 : index;
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                index++;
+                index = (index > static_cast<int>(menuItems.size()) - 1) ? 0 : index;
                 wattron(menu, A_STANDOUT);
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                 wattroff(menu, A_STANDOUT);
                 break;
             }
@@ -405,14 +401,14 @@ bool Game::selectMap()
 void Game::renderPoints() const
 {
     std::string pointString = std::to_string(this->mPoints);
-    mvwprintw(this->mWindows[2], 12, 1, pointString.c_str());
+    mvwprintw(this->mWindows[2], 12, 1, "%s", pointString.c_str());
     wrefresh(this->mWindows[2]);
 }
 
 void Game::renderDifficulty() const
 {
     std::string difficultyString = std::to_string(this->mDifficulty);
-    mvwprintw(this->mWindows[2], 9, 1, difficultyString.c_str());
+    mvwprintw(this->mWindows[2], 9, 1, "%s", difficultyString.c_str());
     wrefresh(this->mWindows[2]);
 }
 
@@ -420,7 +416,7 @@ void Game::renderLevel() const
 {
     mvwprintw(this->mWindows[2], 15, 1, "Level");
     std::string levelString = std::to_string(this->mCurrentLevel);
-    mvwprintw(this->mWindows[2], 16, 1, levelString.c_str());
+    mvwprintw(this->mWindows[2], 16, 1, "%s", levelString.c_str());
     wrefresh(this->mWindows[2]);
 }
 
@@ -559,9 +555,21 @@ void Game::renderSnake() const
 {
     int snakeLength = this->mPtrSnake->getLength();
     std::vector<SnakeBody>& snake = this->mPtrSnake->getSnake();
-    for (int i = 0; i < snakeLength; i ++)
+    
+    // 第五关中，如果蛇处于无敌状态，使用不同的符号显示
+    char snakeSymbol = this->mSnakeSymbol;
+    if (mCurrentLevel == 5 && mSnakeInvincible)
     {
-        mvwaddch(this->mWindows[1], snake[i].getY(), snake[i].getX(), this->mSnakeSymbol);
+        // 无敌状态下使用不同的符号（闪烁效果）
+        if ((int)(mBossStateDuration * 10) % 2 == 0)
+        {
+            snakeSymbol = 'O'; // 用O表示无敌状态
+        }
+    }
+    
+    for (int i = 0; i < snakeLength; i++)
+    {
+        mvwaddch(this->mWindows[1], snake[i].getY(), snake[i].getX(), snakeSymbol);
     }
     wrefresh(this->mWindows[1]);
 }
@@ -621,14 +629,14 @@ void Game::controlSnake() const
 
 void Game::renderBoards() const
 {
-    for (int i = 0; i < this->mWindows.size(); i ++)
+    for (size_t i = 0; i < this->mWindows.size(); i ++)
     {
         werase(this->mWindows[i]);
     }
     this->renderInformationBoard();
     this->renderGameBoard();
     this->renderInstructionBoard();
-    for (int i = 0; i < this->mWindows.size(); i ++)
+    for (size_t i = 0; i < this->mWindows.size(); i ++)
     {
         box(this->mWindows[i], 0, 0);
         wrefresh(this->mWindows[i]);
@@ -648,8 +656,6 @@ void Game::adjustDelay()
 
 void Game::runGame()
 {
-    bool moveSuccess;
-    int key;
     while (true)
     {
         this->controlSnake();
@@ -692,14 +698,12 @@ void Game::startGame()
     
     while(true){
         mReturnToModeSelect = false;
-        if (!selectLevel()) {
-            break; //用户选择退出
-        }
+        // 删除重复的selectLevel()调用，因为它已经在main.cpp中调用过一次
         switch(mCurrentMode) {
             case GameMode::Classic:
             case GameMode::Timed: {
                 
-                // 内层循环：负责处理“再来一局”
+                // 内层循环：负责处理"再来一局"
                 bool playAgain = true;
                 while (playAgain) {
                     
@@ -835,13 +839,13 @@ void Game::startGame()
                         int offset = 4;
                         mvwprintw(menu, 1, 1, "Your Final Score:");
                         std::string pointString = std::to_string(this->mPoints);
-                        mvwprintw(menu, 2, 1, pointString.c_str());
+                        mvwprintw(menu, 2, 1, "%s", pointString.c_str());
                         wattron(menu, A_STANDOUT);
-                        mvwprintw(menu, 0 + offset, 1, menuItems[0].c_str());
+                        mvwprintw(menu, 0 + offset, 1, "%s", menuItems[0].c_str());
                         wattroff(menu, A_STANDOUT);
-                        mvwprintw(menu, 1 + offset, 1, menuItems[1].c_str());
-                        mvwprintw(menu, 2 + offset, 1, menuItems[2].c_str());
-                        mvwprintw(menu, 3 + offset, 1, menuItems[3].c_str());
+                        mvwprintw(menu, 1 + offset, 1, "%s", menuItems[1].c_str());
+                        mvwprintw(menu, 2 + offset, 1, "%s", menuItems[2].c_str());
+                        mvwprintw(menu, 3 + offset, 1, "%s", menuItems[3].c_str());
 
                         wrefresh(menu);
 
@@ -855,11 +859,11 @@ void Game::startGame()
                                 case 'w':
                                 case KEY_UP:
                                 {
-                                    mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                                    index --;
-                                    index = (index < 0) ? menuItems.size() - 1 : index;
+                                    mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                                    index--;
+                                    index = (index < 0) ? static_cast<int>(menuItems.size()) - 1 : index;
                                     wattron(menu, A_STANDOUT);
-                                    mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                                    mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                                     wattroff(menu, A_STANDOUT);
                                     break;
                                 }       
@@ -867,11 +871,11 @@ void Game::startGame()
                                 case 's':
                                 case KEY_DOWN:
                                 {
-                                    mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                                    index ++;
-                                    index = (index > menuItems.size() - 1) ? 0 : index;
+                                    mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                                    index++;
+                                    index = (index > static_cast<int>(menuItems.size()) - 1) ? 0 : index;
                                     wattron(menu, A_STANDOUT);
-                                    mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                                    mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                                     wattroff(menu, A_STANDOUT);
                                     break;
                                 }
@@ -904,13 +908,20 @@ void Game::startGame()
                         }
                     }
                 }
-                
-    
-            }
-
+                break;
         }
-    
-       
+        
+        if (mReturnToModeSelect) {
+            // 如果需要返回模式选择，则在这里进行处理
+            if (!selectLevel()) {
+                // 如果选择退出游戏
+                return;
+            }
+        } else {
+            // 否则退出游戏
+            break;
+        }
+    }
 }
 
 // https://en.cppreference.com/w/cpp/io/basic_fstream
@@ -994,11 +1005,11 @@ bool Game::selectLevel()
     mvwprintw(menu, 1, 1, "Select Game Mode:");
     
     wattron(menu, A_STANDOUT);
-    mvwprintw(menu, 0 + offset, 1, menuItems[0].c_str());
+    mvwprintw(menu, 0 + offset, 1, "%s", menuItems[0].c_str());
     wattroff(menu, A_STANDOUT);
     
-    for (int i = 1; i < menuItems.size(); i++) {
-        mvwprintw(menu, i + offset, 1, menuItems[i].c_str());
+    for (size_t i = 1; i < menuItems.size(); i++) {
+        mvwprintw(menu, static_cast<int>(i) + offset, 1, "%s", menuItems[i].c_str());
     }
 
     wrefresh(menu);
@@ -1013,11 +1024,11 @@ bool Game::selectLevel()
             case 'w':
             case KEY_UP:
             {
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                 index--;
-                index = (index < 0) ? menuItems.size() - 1 : index;
+                index = (index < 0) ? static_cast<int>(menuItems.size()) - 1 : index;
                 wattron(menu, A_STANDOUT);
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                 wattroff(menu, A_STANDOUT);
                 break;
             }
@@ -1025,11 +1036,11 @@ bool Game::selectLevel()
             case 's':
             case KEY_DOWN:
             {
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                 index++;
-                index = (index > menuItems.size() - 1) ? 0 : index;
+                index = (index > static_cast<int>(menuItems.size()) - 1) ? 0 : index;
                 wattron(menu, A_STANDOUT);
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                 wattroff(menu, A_STANDOUT);
                 break;
             }
@@ -1082,7 +1093,9 @@ void Game::initializeLevel(int level)
         case 5:
             mCurrentLevelType = LevelType::Custom2;
             mLevelTargetPoints = 15;
-            break;
+            // 初始化第五关特殊设置
+            this->initializeLevel5();
+            return; // 第五关有特殊初始化，直接返回
         default:
             mCurrentLevelType = LevelType::Normal;
             mLevelTargetPoints = 5;
@@ -1229,9 +1242,6 @@ void Game::controlSnakeLevel4() const
 // 运行第四关特殊逻辑
 void Game::runLevel4()
 {
-    bool moveSuccess;
-    int key;
-    
     // 更新信息面板，显示关卡提示
     mvwprintw(this->mWindows[0], 1, 1, "Level 4: Single Path Challenge");
     mvwprintw(this->mWindows[0], 2, 1, "Press 'T' or SPACE to turn");
@@ -1304,6 +1314,12 @@ void Game::runLevel()
     // 如果是第四关，使用特殊的运行逻辑
     if (mCurrentLevel == 4) {
         this->runLevel4();
+        return;
+    }
+    
+    // 如果是第五关，使用Boss战逻辑
+    if (mCurrentLevel == 5) {
+        this->runLevel5();
         return;
     }
     
@@ -1381,10 +1397,10 @@ bool Game::selectLevelInLevelMode()
         if (mLevelStatus[i] != LevelStatus::Locked) {
             std::string itemText = "Level " + std::to_string(i + 1);
             
-            // 如果关卡已完成，添加完成标记
-            if (mLevelStatus[i] == LevelStatus::Completed) {
-                itemText += " (Completed)";
-            }
+            // // 如果关卡已完成，添加完成标记
+            // if (mLevelStatus[i] == LevelStatus::Completed) {
+            //     itemText += " (Completed)";
+            // }
             
             menuItems.push_back(itemText);
         } else {
@@ -1402,19 +1418,19 @@ bool Game::selectLevelInLevelMode()
     mvwprintw(menu, 1, 1, "Select Level:");
     
     // 渲染菜单项
-    for (int i = 0; i < menuItems.size(); i++) {
+    for (size_t i = 0; i < menuItems.size(); i++) {
         if (i == 0) {
             wattron(menu, A_STANDOUT);
         }
         
         // 如果是已锁定的关卡，显示为灰色
-        if (i < mMaxLevel && mLevelStatus[i] == LevelStatus::Locked) {
+        if (i < static_cast<size_t>(mMaxLevel) && mLevelStatus[i] == LevelStatus::Locked) {
             wattron(menu, A_DIM);
         }
         
-        mvwprintw(menu, i + offset, 1, menuItems[i].c_str());
+        mvwprintw(menu, static_cast<int>(i) + offset, 1, "%s", menuItems[i].c_str());
         
-        if (i < mMaxLevel && mLevelStatus[i] == LevelStatus::Locked) {
+        if (i < static_cast<size_t>(mMaxLevel) && mLevelStatus[i] == LevelStatus::Locked) {
             wattroff(menu, A_DIM);
         }
         
@@ -1436,25 +1452,25 @@ bool Game::selectLevelInLevelMode()
             case KEY_UP:
             {
                 // 移除当前选项的高亮
-                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
                     wattron(menu, A_DIM);
                 }
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
                     wattroff(menu, A_DIM);
                 }
                 
                 // 选择前一个选项
                 index--;
-                index = (index < 0) ? menuItems.size() - 1 : index;
+                index = (index < 0) ? static_cast<int>(menuItems.size()) - 1 : index;
                 
                 // 高亮新选项
                 wattron(menu, A_STANDOUT);
-                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
                     wattron(menu, A_DIM);
                 }
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
                     wattroff(menu, A_DIM);
                 }
                 wattroff(menu, A_STANDOUT);
@@ -1465,25 +1481,25 @@ bool Game::selectLevelInLevelMode()
             case KEY_DOWN:
             {
                 // 移除当前选项的高亮
-                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
                     wattron(menu, A_DIM);
                 }
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
                     wattroff(menu, A_DIM);
                 }
                 
                 // 选择下一个选项
                 index++;
-                index = (index > menuItems.size() - 1) ? 0 : index;
+                index = (index > static_cast<int>(menuItems.size()) - 1) ? 0 : index;
                 
                 // 高亮新选项
                 wattron(menu, A_STANDOUT);
-                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
                     wattron(menu, A_DIM);
                 }
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
                     wattroff(menu, A_DIM);
                 }
                 wattroff(menu, A_STANDOUT);
@@ -1500,16 +1516,16 @@ bool Game::selectLevelInLevelMode()
     delwin(menu);
     
     // 如果选择了返回模式选择
-    if (index == menuItems.size() - 2) {
+    if (static_cast<size_t>(index) == menuItems.size() - 2) {
         mReturnToModeSelect = true;
         return false;
     }
     // 如果选择了退出游戏
-    else if (index == menuItems.size() - 1) {
+    else if (static_cast<size_t>(index) == menuItems.size() - 1) {
         return false;
     }
     // 如果选择了一个锁定的关卡
-    else if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+    else if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
         // 显示提示信息
         WINDOW* lockedWin;
         int lockWidth = this->mGameBoardWidth * 0.4;
@@ -1610,7 +1626,7 @@ void Game::renderTimer() const
     std::string timeString = std::to_string(mTimeRemaining) + " s";
     // 清除旧的计时显示
     mvwprintw(this->mWindows[2], 19, 1, "          "); 
-    mvwprintw(this->mWindows[2], 19, 1, timeString.c_str());
+    mvwprintw(this->mWindows[2], 19, 1, "%s", timeString.c_str());
     wrefresh(this->mWindows[2]);
 }
 
@@ -1657,6 +1673,537 @@ void Game::runTimeAttack()
         std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
         refresh();
     }
+}
+
+// 添加第五关初始化函数
+void Game::initializeLevel5()
+{
+    // 加载地图
+    std::string mapFilePath = mLevelMapFiles[4]; // level5.txt
+    mPtrMap = std::make_unique<Map>(mGameBoardWidth, mGameBoardHeight);
+    
+    // 检查地图文件是否存在
+    std::ifstream mapFile(mapFilePath);
+    if (mapFile.good()) {
+        mapFile.close();
+        mPtrMap->loadMapFromFile(mapFilePath);
+    } else {
+        // 如果地图文件不存在，加载默认地图
+        mPtrMap->loadDefaultMap();
+    }
+    
+    // 创建蛇（固定长度）
+    this->mPtrSnake.reset(new Snake(this->mGameBoardWidth, this->mGameBoardHeight, this->mInitialSnakeLength));
+    this->mPtrSnake->setMap(this->mPtrMap.get());
+    this->mPtrSnake->setFixedLength(true); // 设置蛇为固定长度
+    
+    // 初始化Boss属性
+    mBossHP = 5;
+    mBossSize = 5; // 5x5的方形
+    
+    // 计算Boss位置（场地中央）
+    int centerX = this->mGameBoardWidth / 2;
+    int centerY = this->mGameBoardHeight / 2;
+    mBossPosition.first = centerX - mBossSize/2;
+    mBossPosition.second = centerY - mBossSize/2;
+    
+    // 初始化Boss状态
+    mBossState = BossState::Red;
+    mBossStateStartTime = std::chrono::steady_clock::now();
+    mBossStateDuration = 0.0f;
+    
+    // 初始化无敌状态
+    mSnakeInvincible = false;
+    
+    // 初始化攻击点
+    updateBossAttackPoint();
+    
+    // 初始化旋转激光
+    mLaserAngle = 0.0;
+    mLaserRotationSpeed = 3.0; // 每帧旋转的角度，略微增加旋转速度
+    mLaserLength = std::max(mGameBoardWidth, mGameBoardHeight) * 2; // 确保激光能覆盖整个场地
+    
+    // 初始化计分
+    this->mPoints = 0;
+    this->mDifficulty = 2; // Boss关卡难度较高
+    this->mDelay = this->mBaseDelay * 2.0; // 将速度降低为原来的1/2（延迟增加为2倍）
+    
+    // 选择一个远离Boss的位置作为蛇的起始位置
+    // 选择四个角落中的一个
+    int startX, startY;
+    int cornerChoice = std::rand() % 4; // 随机选择四个角落之一
+    
+    switch (cornerChoice) {
+        case 0: // 左上角
+            startX = 5;
+            startY = 5;
+            this->mPtrSnake->initializeSnake(startX, startY, InitialDirection::Right);
+            break;
+            
+        case 1: // 右上角
+            startX = this->mGameBoardWidth - 10;
+            startY = 5;
+            this->mPtrSnake->initializeSnake(startX, startY, InitialDirection::Left);
+            break;
+            
+        case 2: // 左下角
+            startX = 5;
+            startY = this->mGameBoardHeight - 10;
+            this->mPtrSnake->initializeSnake(startX, startY, InitialDirection::Right);
+            break;
+            
+        case 3: // 右下角
+            startX = this->mGameBoardWidth - 10;
+            startY = this->mGameBoardHeight - 10;
+            this->mPtrSnake->initializeSnake(startX, startY, InitialDirection::Left);
+            break;
+    }
+}
+
+// 添加第五关运行函数
+void Game::runLevel5()
+{
+    // 更新信息面板，显示Boss战提示
+    mvwprintw(this->mWindows[0], 1, 1, "Level 5: Boss Battle");
+    mvwprintw(this->mWindows[0], 2, 1, "Defeat the Core! Boss HP: %d/5", mBossHP);
+    mvwprintw(this->mWindows[0], 3, 1, "Avoid rotating lasers!");
+    wrefresh(this->mWindows[0]);
+    
+    while (true)
+    {
+        // 控制蛇的移动
+        this->controlSnake();
+        
+        werase(this->mWindows[1]);
+        box(this->mWindows[1], 0, 0);
+        
+        // 渲染地图
+        this->renderMap();
+        
+        // 更新Boss状态
+        updateBossState();
+        
+        // 渲染Boss
+        renderBoss();
+        
+        // 更新并渲染激光（激光一直存在）
+        updateAndRenderLasers();
+        
+        // 移动蛇
+        this->mPtrSnake->moveFoward();
+        
+        // 检查蛇是否撞墙或自己
+        bool collision = this->mPtrSnake->checkCollision();
+        if (collision)
+        {
+            // 如果碰撞，关卡失败
+            break;
+        }
+        
+        // 检查蛇是否撞到激光（如果不是无敌状态）
+        if (!mSnakeInvincible && checkLaserCollision())
+        {
+            // 如果碰到激光，关卡失败
+            break;
+        }
+        
+        // 如果是绿色状态，检查蛇是否攻击到Boss的攻击点
+        if (mBossState == BossState::Green && checkBossAttack())
+        {
+            // 减少Boss血量
+            mBossHP--;
+            
+            // 更新信息面板上的Boss血量
+            mvwprintw(this->mWindows[0], 2, 1, "Defeat the Core! Boss HP: %d/5", mBossHP);
+            mvwprintw(this->mWindows[0], 3, 1, "You're invincible! Move away!");
+            wrefresh(this->mWindows[0]);
+            
+            // 增加得分
+            this->mPoints += 3;
+            
+            // 开启无敌状态
+            mSnakeInvincible = true;
+            mInvincibleStartTime = std::chrono::steady_clock::now();
+            
+            // 切换到红色状态
+            mBossState = BossState::Red;
+            mBossStateStartTime = std::chrono::steady_clock::now();
+            
+            // 如果Boss血量为0，玩家胜利
+            if (mBossHP <= 0)
+            {
+                // 设置分数以满足关卡通关条件
+                this->mPoints = mLevelTargetPoints;
+                break;
+            }
+        }
+        
+        this->renderSnake();
+        this->renderPoints();
+        this->renderLevel();
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
+        
+        refresh();
+    }
+}
+
+// 更新Boss状态
+void Game::updateBossState()
+{
+    // 计算当前状态已经持续的时间（秒）
+    auto now = std::chrono::steady_clock::now();
+    auto elapsedSeconds = std::chrono::duration<float>(now - mBossStateStartTime).count();
+    mBossStateDuration = elapsedSeconds;
+    
+    // 如果蛇处于无敌状态，检查是否结束
+    if (mSnakeInvincible)
+    {
+        auto invincibleElapsed = std::chrono::duration<float>(now - mInvincibleStartTime).count();
+        if (invincibleElapsed >= mInvincibleDuration)
+        {
+            mSnakeInvincible = false;
+        }
+    }
+    
+    // 根据当前状态和已经过的时间决定是否需要转换状态
+    switch (mBossState)
+    {
+        case BossState::Red:
+            // 红色状态持续6秒后，自动转换为绿色状态
+            if (mBossStateDuration >= mRedStateDuration)
+            {
+                // 转换为绿色状态
+                mBossState = BossState::Green;
+                mBossStateStartTime = now;
+                
+                // 生成新的攻击点
+                updateBossAttackPoint();
+                
+                // 显示提示信息
+                mvwprintw(this->mWindows[0], 3, 1, "Attack the Boss now!        ");
+                wrefresh(this->mWindows[0]);
+            }
+            break;
+            
+        case BossState::Green:
+            // 绿色状态持续3秒，如果没有被攻击，转换回红色状态
+            if (mBossStateDuration >= mGreenStateDuration)
+            {
+                // 转换为红色状态
+                mBossState = BossState::Red;
+                mBossStateStartTime = now;
+                
+                // 显示提示信息
+                mvwprintw(this->mWindows[0], 3, 1, "Avoid the lasers!           ");
+                wrefresh(this->mWindows[0]);
+            }
+            break;
+    }
+}
+
+// 渲染Boss
+void Game::renderBoss()
+{
+    int startX = mBossPosition.first;
+    int startY = mBossPosition.second;
+    
+    // 根据Boss的状态选择不同的字符表示
+    char bossSymbol;
+    
+    switch (mBossState)
+    {
+        case BossState::Red:
+            bossSymbol = 'R';
+            break;
+        case BossState::Green:
+            bossSymbol = 'G';
+            break;
+        default:
+            bossSymbol = 'B';
+            break;
+    }
+    
+    // 渲染Boss的方形区域
+    for (int y = 0; y < mBossSize; y++)
+    {
+        for (int x = 0; x < mBossSize; x++)
+        {
+            mvwaddch(this->mWindows[1], startY + y, startX + x, bossSymbol);
+        }
+    }
+    
+    // 如果是绿色状态，显示攻击点
+    if (mBossState == BossState::Green)
+    {
+        // 用特殊符号标记攻击点
+        mvwaddch(this->mWindows[1], mBossAttackPoint.getY(), mBossAttackPoint.getX(), '@');
+    }
+}
+
+// 更新并渲染激光
+void Game::updateAndRenderLasers()
+{
+    // 更新激光旋转角度
+    mLaserAngle += mLaserRotationSpeed;
+    if (mLaserAngle >= 360.0)
+    {
+        mLaserAngle -= 360.0;
+    }
+    
+    // 计算激光起点（Boss中心）
+    int centerX = mBossPosition.first + mBossSize / 2;
+    int centerY = mBossPosition.second + mBossSize / 2;
+    
+    // 生成多条激光，均匀分布在360度范围内
+    const int laserCount = 4; // 减少为4条激光
+    for (int i = 0; i < laserCount; i++)
+    {
+        double angle = mLaserAngle + (360.0 / laserCount) * i;
+        double radians = angle * M_PI / 180.0;
+        int endX = static_cast<int>(centerX + mLaserLength * cos(radians));
+        int endY = static_cast<int>(centerY + mLaserLength * sin(radians));
+        
+        renderLaser(centerX, centerY, endX, endY, mWallSymbol);
+    }
+}
+
+// 渲染单个激光
+void Game::renderLaser(int x1, int y1, int x2, int y2, char symbol)
+{
+    // 使用Bresenham算法绘制线段
+    int dx = abs(x2 - x1);
+    int dy = abs(y2 - y1);
+    int sx = (x1 < x2) ? 1 : -1;
+    int sy = (y1 < y2) ? 1 : -1;
+    int err = dx - dy;
+    
+    // 添加用于创建间隙的计数器
+    int gapCounter = 0;
+    const int gapInterval = 4; // 每4个单位创建一个间隙 (原来是5)
+    const int gapSize = 3;    // 间隙大小为3个单位 (原来是2)
+    
+    while (true)
+    {
+        // 增加计数器
+        gapCounter++;
+        
+        // 如果不在间隙内（创建有规律的间隙）
+        if (gapCounter % (gapInterval + gapSize) >= gapSize)
+        {
+            // 如果点在游戏区域内，则绘制
+            if (x1 >= 0 && x1 <= mGameBoardWidth - 1 && y1 >= 0 && y1 <= mGameBoardHeight - 1)
+            {
+                // 不在Boss区域内才绘制激光
+                if (!(x1 >= mBossPosition.first && x1 < mBossPosition.first + mBossSize &&
+                      y1 >= mBossPosition.second && y1 < mBossPosition.second + mBossSize))
+                {
+                    // 不在墙上才绘制激光
+                    if (!mPtrMap->isWall(x1, y1))
+                    {
+                        // 使用墙的符号来渲染激光
+                        mvwaddch(this->mWindows[1], y1, x1, this->mWallSymbol);
+                    }
+                }
+            }
+        }
+        
+        if (x1 == x2 && y1 == y2) break;
+        
+        int e2 = 2 * err;
+        if (e2 > -dy)
+        {
+            err -= dy;
+            x1 += sx;
+        }
+        if (e2 < dx)
+        {
+            err += dx;
+            y1 += sy;
+        }
+    }
+}
+
+// 检查蛇是否碰到激光
+bool Game::checkLaserCollision()
+{
+    // 如果蛇处于无敌状态，不会受到激光伤害
+    if (mSnakeInvincible)
+    {
+        return false;
+    }
+    
+    // 只获取蛇头，不再检查整个蛇身
+    const SnakeBody& head = this->mPtrSnake->getSnake()[0];
+    
+    // 计算激光起点（Boss中心）
+    int centerX = mBossPosition.first + mBossSize / 2;
+    int centerY = mBossPosition.second + mBossSize / 2;
+    
+    // 检查多条激光的碰撞
+    const int laserCount = 4; // 与updateAndRenderLasers中相同
+    for (int i = 0; i < laserCount; i++)
+    {
+        double angle = mLaserAngle + (360.0 / laserCount) * i;
+        double radians = angle * M_PI / 180.0;
+        int endX = static_cast<int>(centerX + mLaserLength * cos(radians));
+        int endY = static_cast<int>(centerY + mLaserLength * sin(radians));
+        
+        if (checkSnakeLaserCollision({head}, centerX, centerY, endX, endY))
+        {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// 检查蛇与单个激光的碰撞
+bool Game::checkSnakeLaserCollision(const std::vector<SnakeBody>& snake, int x1, int y1, int x2, int y2)
+{
+    // 定义与renderLaser相同的间隙参数
+    const int gapInterval = 4; // 每4个单位创建一个间隙 (原来是5)
+    const int gapSize = 3;    // 间隙大小为3个单位 (原来是2)
+    
+    // 对蛇的每个部分进行检查
+    for (const auto& body : snake)
+    {
+        int snakeX = body.getX();
+        int snakeY = body.getY();
+        
+        // 检查蛇是否在墙上，如果在则不会碰撞（与renderLaser保持一致）
+        if (mPtrMap != nullptr && mPtrMap->isWall(snakeX, snakeY))
+        {
+            continue;
+        }
+        
+        // 检查蛇是否在游戏区域内，如果不在则不会碰撞
+        if (snakeX < 0 || snakeX > mGameBoardWidth - 1 || 
+            snakeY < 0 || snakeY > mGameBoardHeight - 1)
+        {
+            continue;
+        }
+        
+        // 检查蛇是否在Boss区域内，如果在则不会碰撞（与renderLaser保持一致）
+        if (snakeX >= mBossPosition.first && snakeX < mBossPosition.first + mBossSize &&
+            snakeY >= mBossPosition.second && snakeY < mBossPosition.second + mBossSize)
+        {
+            continue;
+        }
+        
+        // 使用更精确的网格判定方式，检查蛇是否与激光在同一个格子
+        // 计算激光路径上的所有格子
+        std::vector<std::pair<int, int>> laserCells;
+        int x = x1, y = y1;
+        const int dx = abs(x2 - x1);
+        const int dy = abs(y2 - y1);
+        const int sx = (x1 < x2) ? 1 : -1;
+        const int sy = (y1 < y2) ? 1 : -1;
+        int err = dx - dy;
+        int gapCounter = 0;
+        
+        while (true)
+        {
+            // 增加计数器
+            gapCounter++;
+            
+            // 如果不在间隙内（创建有规律的间隙）
+            if (gapCounter % (gapInterval + gapSize) >= gapSize)
+            {
+                // 如果点在游戏区域内且不在墙上，添加到激光路径
+                if (x >= 0 && x <= mGameBoardWidth - 1 && y >= 0 && y <= mGameBoardHeight - 1)
+                {
+                    // 不在Boss区域内且不在墙上才算作激光路径
+                    if (!(x >= mBossPosition.first && x < mBossPosition.first + mBossSize &&
+                          y >= mBossPosition.second && y < mBossPosition.second + mBossSize) &&
+                        !mPtrMap->isWall(x, y))
+                    {
+                        laserCells.emplace_back(x, y);
+                    }
+                }
+            }
+            
+            if (x == x2 && y == y2) break;
+            
+            int e2 = 2 * err;
+            if (e2 > -dy)
+            {
+                err -= dy;
+                x += sx;
+            }
+            if (e2 < dx)
+            {
+                err += dx;
+                y += sy;
+            }
+        }
+        
+        // 检查蛇是否在激光路径上的格子中
+        for (const auto& cell : laserCells)
+        {
+            if (snakeX == cell.first && snakeY == cell.second)
+            {
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
+// 计算点到线段的距离
+double Game::pointToLineDistance(int x0, int y0, int x1, int y1, int x2, int y2)
+{
+    // 计算线段长度的平方
+    double lineLength2 = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+    
+    // 如果线段长度为0，则返回点到端点的距离
+    if (lineLength2 == 0)
+    {
+        return sqrt((x0 - x1) * (x0 - x1) + (y0 - y1) * (y0 - y1));
+    }
+    
+    // 计算投影比例
+    double t = ((x0 - x1) * (x2 - x1) + (y0 - y1) * (y2 - y1)) / lineLength2;
+    
+    // 限制t在[0,1]范围内，即投影点在线段上
+    t = std::max(0.0, std::min(1.0, t));
+    
+    // 计算投影点坐标
+    double projX = x1 + t * (x2 - x1);
+    double projY = y1 + t * (y2 - y1);
+    
+    // 计算点到投影点的距离
+    return sqrt((x0 - projX) * (x0 - projX) + (y0 - projY) * (y0 - projY));
+}
+
+// 检查蛇是否攻击到Boss
+bool Game::checkBossAttack()
+{
+    // 只有在Boss处于绿色状态时才可以被攻击
+    if (mBossState != BossState::Green)
+    {
+        return false;
+    }
+    
+    // 获取蛇的头部
+    const SnakeBody& head = this->mPtrSnake->getSnake()[0];
+    int headX = head.getX();
+    int headY = head.getY();
+    
+    // 检查蛇头是否接触到Boss攻击点
+    return (headX == mBossAttackPoint.getX() && headY == mBossAttackPoint.getY());
+}
+
+// 更新Boss攻击点位置
+void Game::updateBossAttackPoint()
+{
+    // 在Boss区域内随机选择一点
+    int offsetX = std::rand() % mBossSize;
+    int offsetY = std::rand() % mBossSize;
+    
+    // 更新攻击点位置
+    mBossAttackPoint = SnakeBody(mBossPosition.first + offsetX, mBossPosition.second + offsetY);
 }
 
 

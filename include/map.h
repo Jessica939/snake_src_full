@@ -12,14 +12,7 @@ enum class TileType
     Food = 2
 };
 
-// 定义蛇的可能初始方向
-enum class InitialDirection
-{
-    Up,
-    Down,
-    Left,
-    Right
-};
+// InitialDirection 已在 snake.h 中定义，这里不再重复定义
 
 class Map
 {

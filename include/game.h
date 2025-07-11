@@ -15,28 +15,37 @@
 #include "snake.h"
 #include "map.h"
 
+// 游戏模式枚举
+enum class GameMode
+{
+    Classic = 0, // 经典模式
+    Level = 1,   // 关卡模式
+    Timed = 2    // 限时模式
+};
+
 // 关卡类型枚举
 enum class LevelType
 {
-    Normal = 0,     // 普通关卡
-    Speed = 1,      // 速度挑战关卡
-    Maze = 2,       // 迷宫关卡
-    Custom1 = 3,    // 自定义关卡1（第四关）
-    Custom2 = 4     // 自定义关卡2（第五关）
+    Normal, // 普通关卡
+    Speed,  // 速度挑战
+    Maze,   // 迷宫闯关
+    Custom1, // 自定义关卡1 - 单键转向
+    Custom2  // 自定义关卡2 - Boss战
 };
 
 // 关卡状态枚举
 enum class LevelStatus
 {
-    Locked = 0,     // 未解锁
-    Unlocked = 1,   // 已解锁
-    Completed = 2   // 已完成
+    Locked,    // 未解锁
+    Unlocked,  // 已解锁
+    Completed  // 已完成
 };
-//游戏模式枚举
-enum class GameMode {
-    Classic,
-    Level,
-    Timed
+
+// Boss状态枚举
+enum class BossState
+{
+    Red,    // 红色危险状态 - 发射旋转激光束
+    Green   // 绿色脆弱状态 - 可被攻击
 };
 
 class Game
@@ -44,123 +53,167 @@ class Game
 public:
     Game();
     ~Game();
+    void startGame();
     
+    // 把selectLevel()方法改为公有
+    bool selectLevel();
+    
+    // 添加公有的shouldReturnToModeSelect()方法
+    bool shouldReturnToModeSelect() const { return mReturnToModeSelect; }
+    
+private:
+    // 界面相关
+    std::vector<WINDOW *> mWindows;
+    int mScreenHeight, mScreenWidth;
+    int mInformationHeight = 5;
+    int mInstructionWidth = 20;
+    int mGameBoardHeight;
+    int mGameBoardWidth;
     void createInformationBoard();
     void renderInformationBoard() const;
-
     void createGameBoard();
     void renderGameBoard() const;
-    
     void createInstructionBoard();
     void renderInstructionBoard() const;
     
-    void loadLeadBoard();
-    void updateLeadBoard();
+    // 蛇和地图
+    std::unique_ptr<Snake> mPtrSnake;
+    std::unique_ptr<Map> mPtrMap;
+    SnakeBody mFood;
+    const char mSnakeSymbol = '*';
+    const char mFoodSymbol = '@';
+    const char mWallSymbol = '#';
+    const char mEndpointSymbol = 'X'; // 终点标记符号
+    const char mSingleKeyTurnSymbol = 'T'; // 单键转向按键
+    
+    // 默认关卡地图文件
+    const std::vector<std::string> mLevelMapFiles = {
+        "maps/level1.txt",
+        "maps/level2.txt",
+        "maps/level3.txt",
+        "maps/level4.txt", 
+        "maps/level5.txt"
+    };
+    
+    // 自定义地图文件
+    const std::string mDefaultMapName = "[Default Map]";
+    const std::vector<std::string> mMapFiles = {
+        "maps/map1.txt",
+        "maps/map2.txt",
+        "maps/map3.txt"
+    };
+    
+    // 游戏设置
+    int mInitialSnakeLength = 3;
+    
+    // 游戏状态
+    int mPoints = 0;
+    int mDifficulty = 0;
+    int mDelay = mBaseDelay;
+    const int mBaseDelay = 100;
+    
+    // 排行榜系统
+    int mNumLeaders = 5;
+    std::vector<int> mLeaderBoard;
+    const char* mRecordBoardFilePath = "record.dat";
     bool readLeaderBoard();
     bool updateLeaderBoard();
     bool writeLeaderBoard();
     void renderLeaderBoard() const;
     
+    // 游戏相关函数
     void renderBoards() const;
-    
     void initializeGame();
-    void runGame();
-    void renderPoints() const;
-    void renderDifficulty() const;
-    void renderLevel() const; // 新增：显示当前关卡
-    
     void createRamdonFood();
     void renderFood() const;
     void renderSnake() const;
     void renderMap() const;
     void controlSnake() const;
-    
-    void startGame();
-    bool renderRestartMenu() const;
     void adjustDelay();
+    void runGame();
+    bool renderRestartMenu() const;
     bool selectMap();
-    bool selectLevel(); // 返回值：true表示继续游戏，false表示退出
-    bool shouldReturnToModeSelect() const { return mReturnToModeSelect; } // 获取是否应该返回模式选择
-    bool selectLevelInLevelMode(); // 新增：在关卡模式中选择已解锁的关卡
+    void renderPoints() const;
+    void renderDifficulty() const;
     
-    // 关卡相关方法
-    void createDefaultLevelMaps(); // 创建默认关卡地图文件
-    void initializeLevel(int level); // 初始化指定关卡
-    void loadNextLevel(); // 加载下一关卡
-    bool isLevelCompleted(); // 检查当前关卡是否完成
-    void runLevel(); // 运行当前关卡
-    void unlockLevel(int level); // 解锁指定关卡
-    void updateLevelStatus(); // 更新关卡状态
-    bool saveLevelProgress(); // 保存关卡进度
-    bool loadLevelProgress(); // 加载关卡进度
-
-    //限时模式的相关函数
+    // 关卡系统
+    int mCurrentLevel = 1;
+    int mMaxLevel = 5;
+    GameMode mCurrentMode = GameMode::Classic;
+    LevelType mCurrentLevelType = LevelType::Normal;
+    std::vector<LevelStatus> mLevelStatus;
+    int mLevelTargetPoints = 0;
+    const char* mLevelProgressFilePath = "level_progress.dat";
+    bool mReturnToModeSelect = false;
+    
+    // 创建默认的关卡地图
+    void createDefaultLevelMaps();
+    
+    // 关卡系统函数
+    void initializeLevel(int level);
+    void loadNextLevel();
+    bool isLevelCompleted();
+    void runLevel();
+    bool selectLevelInLevelMode();
+    void unlockLevel(int level);
+    bool saveLevelProgress();
+    bool loadLevelProgress();
+    void renderLevel() const;
+    
+    // 第四关特殊设置
+    void initializeLevel4();
+    void runLevel4();
+    bool mHasEndpoint = false;
+    SnakeBody mEndpoint;
+    void renderEndpoint() const;
+    void controlSnakeLevel4() const;
+    
+    // 第五关Boss战设置
+    void initializeLevel5();
+    void runLevel5();
+    int mBossHP = 5;
+    int mBossSize = 5;
+    std::pair<int, int> mBossPosition; // Boss左上角的位置
+    BossState mBossState = BossState::Red;
+    
+    // Boss状态计时
+    float mBossStateDuration = 0.0f; // 当前状态持续时间
+    const float mRedStateDuration = 6.0f;    // 红色状态持续6秒
+    const float mGreenStateDuration = 3.0f;  // 绿色状态持续3秒（原为2秒）
+    std::chrono::time_point<std::chrono::steady_clock> mBossStateStartTime; // 状态开始时间
+    
+    // 蛇无敌状态控制
+    bool mSnakeInvincible = false;
+    std::chrono::time_point<std::chrono::steady_clock> mInvincibleStartTime;
+    const float mInvincibleDuration = 2.0f; // 无敌状态持续2秒
+    
+    // Boss攻击点
+    SnakeBody mBossAttackPoint; // Boss的攻击点位置
+    void updateBossAttackPoint(); // 更新攻击点位置
+    
+    int mBossStateTimer = 0;
+    int mBossStateChangeDuration = 50;
+    double mLaserAngle = 0.0;
+    double mLaserRotationSpeed = 2.0;
+    int mLaserLength = 0;
+    
+    // Boss战相关函数
+    void updateBossState();
+    void renderBoss();
+    void updateAndRenderLasers();
+    void renderLaser(int x1, int y1, int x2, int y2, char symbol);
+    bool checkLaserCollision();
+    bool checkSnakeLaserCollision(const std::vector<SnakeBody>& snake, int x1, int y1, int x2, int y2);
+    double pointToLineDistance(int x0, int y0, int x1, int y1, int x2, int y2);
+    bool checkBossAttack();
+    
+    // 限时模式
     void initializeTimeAttack();
     void runTimeAttack();
     void renderTimer() const;
-
-    
-    // 第四关特殊功能方法
-    void initializeLevel4(); // 初始化第四关特殊设置
-    void renderEndpoint() const; // 渲染终点标记
-    void controlSnakeLevel4() const; // 第四关蛇的单键控制
-    void runLevel4(); // 运行第四关特殊逻辑
-
-private:
-    // We need to have two windows
-    // One is for game introduction
-    // One is for game mWindows
-    int mScreenWidth;
-    int mScreenHeight;
-    int mGameBoardWidth;
-    int mGameBoardHeight;
-    const int mInformationHeight = 6;
-    const int mInstructionWidth = 18;
-    std::vector<WINDOW *> mWindows;
-    // Snake information
-    const int mInitialSnakeLength = 2;
-    const char mSnakeSymbol = '@';
-    std::unique_ptr<Snake> mPtrSnake;
-    // Map information
-    std::unique_ptr<Map> mPtrMap;
-    const char mWallSymbol = '+';
-    // Food information
-    SnakeBody mFood;
-    const char mFoodSymbol = '#';
-    int mPoints = 0;
-    int mDifficulty = 0;
-    int mBaseDelay = 100;
-    int mDelay;
-    const std::string mRecordBoardFilePath = "record.dat";
-    std::vector<int> mLeaderBoard;
-    const int mNumLeaders = 3;
-    // Map file paths
-    const std::string mDefaultMapName = "default";
-    std::vector<std::string> mMapFiles = {"maps/map1.txt", "maps/map2.txt", "maps/map3.txt"};
-    
-    // 关卡相关变量
-    int mCurrentLevel = 1;  // 当前关卡
-    const int mMaxLevel = 5; // 最大关卡数
-    LevelType mCurrentLevelType = LevelType::Normal; // 当前关卡类型
-    int mLevelTargetPoints = 5; // 当前关卡通过所需的点数
-    bool mIsLevelMode = false; // 是否处于关卡模式
-    bool mReturnToModeSelect = false; // 是否返回到模式选择界面
-    std::vector<LevelStatus> mLevelStatus; // 关卡状态列表
-    const std::string mLevelProgressFilePath = "level_progress.dat"; // 关卡进度文件路径
-    std::vector<std::string> mLevelMapFiles = {"maps/level1.txt", "maps/level2.txt", "maps/level3.txt", "maps/level4.txt", "maps/level5.txt"}; // 关卡地图文件
-    
-    // 第四关特殊变量
-    SnakeBody mEndpoint; // 终点位置
-    const char mEndpointSymbol = 'X'; // 终点标记符号
-    bool mHasEndpoint = false; // 是否有终点标记
-    const char mSingleKeyTurnSymbol = 'T'; // 单键转向按键
-
-    //限时模式相关变量
-    GameMode mCurrentMode;
+    int mTimeAttackDurationSeconds = 120;
+    int mTimeRemaining = 0;
     std::chrono::time_point<std::chrono::steady_clock> mTimeAttackStartTime;
-    int mTimeAttackDurationSeconds = 120; 
-    int mTimeRemaining;
-
 };
 
-#endif
+#endif // GAME_H

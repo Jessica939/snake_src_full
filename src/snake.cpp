@@ -2,39 +2,42 @@
 #include <cstdlib>
 #include <ctime>
 #include <iostream>
+#include <vector>
+#include <algorithm>
 
 #include "snake.h"
 #include "map.h"
 
+// 删除这些函数，因为我们已经在snake.h中内联实现了
+// SnakeBody::SnakeBody()
+// {
+// }
 
-SnakeBody::SnakeBody()
+// SnakeBody::SnakeBody(int x, int y): mX(x), mY(y)
+// {
+// }
+
+// int SnakeBody::getX() const
+// {
+//     return mX;
+// }
+
+// int SnakeBody::getY() const
+// {
+//     return mY;
+// }
+
+// bool SnakeBody::operator == (const SnakeBody& snakeBody)
+// {
+//     return (this->getX() == snakeBody.getX() && this->getY() == snakeBody.getY());
+// }
+
+Snake::Snake(int gameBoardWidth, int gameBoardHeight, int initLength)
+    : mGameBoardWidth(gameBoardWidth), mGameBoardHeight(gameBoardHeight), mInitLength(initLength), 
+      mPtrMap(nullptr), mFixedLength(false)
 {
-}
-
-
-SnakeBody::SnakeBody(int x, int y): mX(x), mY(y)
-{
-}
-
-int SnakeBody::getX() const
-{
-    return mX;
-}
-
-int SnakeBody::getY() const
-{
-    return mY;
-}
-
-bool SnakeBody::operator == (const SnakeBody& snakeBody)
-{
-    return (this->getX() == snakeBody.getX() && this->getY() == snakeBody.getY());
-}
-
-Snake::Snake(int gameBoardWidth, int gameBoardHeight, int initialSnakeLength): mGameBoardWidth(gameBoardWidth), mGameBoardHeight(gameBoardHeight), mInitialSnakeLength(initialSnakeLength), mMap(nullptr)
-{
-    this->initializeSnake();
-    this->setRandomSeed();
+    this->mDirection = Direction::Right;
+    this->mTurnMode = TurnMode::FourDirection;
 }
 
 void Snake::setRandomSeed()
@@ -51,89 +54,58 @@ void Snake::initializeSnake()
     int centerY = this->mGameBoardHeight / 2;
 
     // 清空旧的蛇身
-    mSnake.clear();
+    mSnakeBody.clear();
     
-    for (int i = 0; i < this->mInitialSnakeLength; i ++)
+    for (int i = 0; i < this->mInitLength; i ++)
     {
-        this->mSnake.push_back(SnakeBody(centerX, centerY + i));
+        this->mSnakeBody.push_back(SnakeBody(centerX, centerY + i));
     }
     this->mDirection = Direction::Up;
 }
 
-void Snake::initializeSnake(int startX, int startY)
+void Snake::initializeSnake(int headX, int headY, InitialDirection dir)
 {
     // 清空旧的蛇身
-    mSnake.clear();
-    
-    // 根据提供的起始位置创建蛇
-    for (int i = 0; i < this->mInitialSnakeLength; i ++)
-    {
-        // 根据初始方向向下构建蛇身
-        this->mSnake.push_back(SnakeBody(startX, startY + i));
-    }
-    this->mDirection = Direction::Up;
-}
-
-void Snake::initializeSnake(int startX, int startY, InitialDirection direction)
-{
-    // 清空旧的蛇身
-    mSnake.clear();
+    mSnakeBody.clear();
     
     int dx = 0, dy = 0;
     
     // 根据方向设置增量
-    switch (direction)
-    {
-        case InitialDirection::Up:
-            dy = -1;
-            break;
-        case InitialDirection::Down:
-            dy = 1;
-            break;
-        case InitialDirection::Left:
-            dx = -1;
-            break;
-        case InitialDirection::Right:
-            dx = 1;
-            break;
-    }
-    
-    // 根据提供的起始位置和方向创建蛇
-    // 确保蛇头位于初始位置，身体沿着方向的反方向延伸
-    this->mSnake.push_back(SnakeBody(startX, startY)); // 蛇头
-    
-    for (int i = 1; i < this->mInitialSnakeLength; i ++)
-    {
-        this->mSnake.push_back(SnakeBody(startX - i * dx, startY - i * dy));
-    }
-    
-    // 设置蛇的移动方向与初始方向一致
-    this->mDirection = convertInitialDirection(direction);
-}
-
-Direction Snake::convertInitialDirection(InitialDirection dir)
-{
-    // 初始方向决定了蛇的身体排列方向，移动方向应与身体方向相反
     switch (dir)
     {
-        case InitialDirection::Up:    // 蛇身体朝上排列
-            return Direction::Up;     // 头部在最上方，应向上移动
-        case InitialDirection::Down:  // 蛇身体朝下排列
-            return Direction::Down;   // 头部在最下方，应向下移动
-        case InitialDirection::Left:  // 蛇身体朝左排列
-            return Direction::Left;   // 头部在最左方，应向左移动
-        case InitialDirection::Right: // 蛇身体朝右排列
-            return Direction::Right;  // 头部在最右方，应向右移动
+        case InitialDirection::Up:
+            dy = 1;
+            this->mDirection = Direction::Up;
+            break;
+        case InitialDirection::Down:
+            dy = -1;
+            this->mDirection = Direction::Down;
+            break;
+        case InitialDirection::Left:
+            dx = 1;
+            this->mDirection = Direction::Left;
+            break;
+        case InitialDirection::Right:
+            dx = -1;
+            this->mDirection = Direction::Right;
+            break;
     }
-    return Direction::Up; // 默认值
+    
+    // 创建蛇头
+    mSnakeBody.push_back(SnakeBody(headX, headY));
+    
+    // 根据方向创建蛇身
+    for (int i = 1; i < this->mInitLength; i++) {
+        mSnakeBody.push_back(SnakeBody(headX + dx * i, headY + dy * i));
+    }
 }
 
-bool Snake::isPartOfSnake(int x, int y)
+bool Snake::isPartOfSnake(int x, int y) const
 {
     SnakeBody temp = SnakeBody(x, y);
-    for (int i = 0; i < this->mSnake.size(); i ++)
+    for (size_t i = 0; i < this->mSnakeBody.size(); i++)
     {
-        if (this->mSnake[i] == temp)
+        if (this->mSnakeBody[i] == temp)
         {
             return true;
         }
@@ -141,275 +113,153 @@ bool Snake::isPartOfSnake(int x, int y)
     return false;
 }
 
-void Snake::setMap(Map* map)
+void Snake::setMap(const Map* map)
 {
-    this->mMap = map;
+    this->mPtrMap = map;
 }
 
-/*
- * Assumption:
- * Only the head would hit wall.
- */
-bool Snake::hitWall()
+bool Snake::checkCollision() const
 {
-    SnakeBody& head = this->mSnake[0];
+    // 获取蛇头
+    const SnakeBody& head = this->mSnakeBody[0];
     int headX = head.getX();
     int headY = head.getY();
     
-    // Check boundary walls
-    if (headX <= 0 || headX >= this->mGameBoardWidth - 1)
-    {
-        return true;
-    }
-    if (headY <= 0 || headY >= this->mGameBoardHeight - 1)
-    {
-        return true;
-    }
-    
-    // Check map walls if map is available
-    if (mMap != nullptr && mMap->isWall(headX, headY))
+    // 检查是否撞到地图边界（确保只有蛇头真正进入边界时才判定为碰撞）
+    if (headX < 0 || headX > this->mGameBoardWidth - 1 ||
+        headY < 0 || headY > this->mGameBoardHeight - 1)
     {
         return true;
     }
     
-    return false;
-}
-
-/*
- * The snake head is overlapping with its body
- */
-bool Snake::hitSelf()
-{
-    SnakeBody& head = this->mSnake[0];
-    // Exclude the snake head
-    for (int i = 1; i < this->mSnake.size(); i ++)
+    // 检查是否撞到地图中的墙（确保只有蛇头真正进入墙时才判定为碰撞）
+    if (mPtrMap != nullptr && mPtrMap->isWall(headX, headY))
     {
-        if (this->mSnake[i] == head)
+        return true;
+    }
+    
+    // 检查是否撞到自己（除了蛇头外的身体部分）
+    // 在第五关（固定长度模式）中，不检查蛇身碰撞
+    if (!mFixedLength) {
+        for (size_t i = 1; i < this->mSnakeBody.size(); i++)
         {
-            return true;
+            if (head.getX() == this->mSnakeBody[i].getX() && 
+                head.getY() == this->mSnakeBody[i].getY())
+            {
+                return true;
+            }
         }
     }
+    
     return false;
 }
 
-
-bool Snake::touchFood()
-{
-    SnakeBody newHead = this->createNewHead();
-    if (this->mFood == newHead)
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
-void Snake::senseFood(SnakeBody food)
+void Snake::senseFood(const SnakeBody& food)
 {
     this->mFood = food;
 }
 
 std::vector<SnakeBody>& Snake::getSnake()
 {
-    return this->mSnake;
+    return this->mSnakeBody;
 }
 
-bool Snake::changeDirection(Direction newDirection)
+void Snake::changeDirection(const Direction& dir)
 {
-    switch (this->mDirection)
+    // 不能直接反向移动
+    if ((mDirection == Direction::Up && dir == Direction::Down) ||
+        (mDirection == Direction::Down && dir == Direction::Up) ||
+        (mDirection == Direction::Left && dir == Direction::Right) ||
+        (mDirection == Direction::Right && dir == Direction::Left))
     {
-        case Direction::Up:
-        {
-            if (newDirection == Direction::Left || newDirection == Direction::Right)
-            {
-                this->mDirection = newDirection;
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        case Direction::Down:
-        {
-            if (newDirection == Direction::Left || newDirection == Direction::Right)
-            {
-                this->mDirection = newDirection;
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        case Direction::Left:
-        {
-            if (newDirection == Direction::Up || newDirection == Direction::Down)
-            {
-                this->mDirection = newDirection;
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        case Direction::Right:
-        {
-            if (newDirection == Direction::Up || newDirection == Direction::Down)
-            {
-                this->mDirection = newDirection;
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
+        return;
     }
-
-    return false;
+    
+    this->mDirection = dir;
 }
 
-// 设置转弯模式
 void Snake::setTurnMode(TurnMode mode)
 {
     mTurnMode = mode;
 }
 
-// 获取当前转弯模式
-TurnMode Snake::getTurnMode() const
+void Snake::singleKeyTurn()
 {
-    return mTurnMode;
-}
-
-// 单键转弯控制
-bool Snake::singleKeyTurn()
-{
-    // 根据当前方向和下一次转向是左转还是右转，确定新方向
-    Direction newDirection;
-    
-    switch (this->mDirection)
+    // 实现单键转向逻辑
+    // 右转90度逻辑
+    switch (mDirection)
     {
         case Direction::Up:
-            newDirection = mNextTurnIsLeft ? Direction::Left : Direction::Right;
-            break;
-        case Direction::Down:
-            newDirection = mNextTurnIsLeft ? Direction::Right : Direction::Left;
-            break;
-        case Direction::Left:
-            newDirection = mNextTurnIsLeft ? Direction::Down : Direction::Up;
+            mDirection = Direction::Right;
             break;
         case Direction::Right:
-            newDirection = mNextTurnIsLeft ? Direction::Up : Direction::Down;
+            mDirection = Direction::Down;
             break;
-    }
-    
-    // 更新下一次转向方向（交替左右转）
-    mNextTurnIsLeft = !mNextTurnIsLeft;
-    
-    // 改变方向
-    this->mDirection = newDirection;
-    return true;
-}
-
-// 设置下一次单键转弯的方向
-void Snake::setNextTurnDirection(bool isLeftTurn)
-{
-    mNextTurnIsLeft = isLeftTurn;
-}
-
-// 检查是否达到了终点
-bool Snake::reachedEndpoint(int endX, int endY) const
-{
-    // 检查蛇头是否位于终点位置
-    const SnakeBody& head = this->mSnake[0];
-    return (head.getX() == endX && head.getY() == endY);
-}
-
-SnakeBody Snake::createNewHead()
-{
-    SnakeBody& head = this->mSnake[0];
-    int headX = head.getX();
-    int headY = head.getY();
-    int headXNext;
-    int headYNext;
-
-    switch (this->mDirection)
-    {
-        case Direction::Up:
-        {
-            headXNext = headX;
-            headYNext = headY - 1;
-            break;
-        }
         case Direction::Down:
-        {
-            headXNext = headX;
-            headYNext = headY + 1;
+            mDirection = Direction::Left;
             break;
-        }
         case Direction::Left:
-        {
-            headXNext = headX - 1;
-            headYNext = headY;
+            mDirection = Direction::Up;
             break;
-        }
-        case Direction::Right:
-        {
-            headXNext = headX + 1;
-            headYNext = headY;
-            break;
-        }
     }
-
-    SnakeBody newHead = SnakeBody(headXNext, headYNext);
-
-    return newHead;
 }
 
-/*
- * If eat food, return true, otherwise return false
- */
 bool Snake::moveFoward()
 {
-    if (this->touchFood())
-    {
-        SnakeBody newHead = this->mFood;
-        this->mSnake.insert(this->mSnake.begin(), newHead); 
-        return true;
+    // 创建新的蛇头
+    SnakeBody newHead = this->mSnakeBody[0];
+    
+    // 根据当前方向移动蛇头
+    switch (this->mDirection) {
+        case Direction::Up:
+            newHead.setY(newHead.getY() - 1);
+            break;
+        case Direction::Down:
+            newHead.setY(newHead.getY() + 1);
+            break;
+        case Direction::Left:
+            newHead.setX(newHead.getX() - 1);
+            break;
+        case Direction::Right:
+            newHead.setX(newHead.getX() + 1);
+            break;
     }
-    else
-    {
-        this->mSnake.pop_back();
-        SnakeBody newHead = this->createNewHead();
-        this->mSnake.insert(this->mSnake.begin(), newHead); 
-        return false;
+    
+    // 将新头部插入到蛇身的最前面
+    this->mSnakeBody.insert(this->mSnakeBody.begin(), newHead);
+    
+    // 检查是否吃到食物
+    bool eatFood = (newHead.getX() == this->mFood.getX() && newHead.getY() == this->mFood.getY());
+    
+    // 如果没有吃到食物，或者是固定长度模式，则移除蛇尾
+    if (!eatFood || mFixedLength) {
+        this->mSnakeBody.pop_back();
     }
+    
+    return eatFood;
 }
 
-bool Snake::checkCollision()
+int Snake::getLength() const
 {
-    // 检查是否撞墙
-    if (this->hitWall())
-    {
-        return true;
+    return this->mSnakeBody.size();
+}
+
+void Snake::setFixedLength(bool fixed)
+{
+    this->mFixedLength = fixed;
+}
+
+bool Snake::isFixedLength() const
+{
+    return this->mFixedLength;
+}
+
+bool Snake::reachedEndpoint(int x, int y) const
+{
+    // 判断蛇头是否到达指定坐标（终点）
+    if (!mSnakeBody.empty()) {
+        return (mSnakeBody[0].getX() == x && mSnakeBody[0].getY() == y);
     }
-    
-    // 检查是否撞到自己
-    if (this->hitSelf())
-    {
-        return true;
-    }
-    
     return false;
-}
-
-
-int Snake::getLength()
-{
-    return this->mSnake.size();
 }
 
