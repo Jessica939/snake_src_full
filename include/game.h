@@ -116,8 +116,6 @@ public:
     void runLevel4(); // 运行第四关特殊逻辑
 
     // 对战模式 (新增函数)
-    void initializeBattle(BattleType type);
-    void runBattle();
     void controlSnakes(int key);
     std::string checkBattleCollisions();
     void renderSnakes() const;

@@ -1065,7 +1065,7 @@ bool Game::selectLevel()
         "Classic Mode", 
         "Level Mode",
         "Timed Mode",
-        "Battle Mode"
+        "Battle Mode",
         "Exit Game"
     };
 
@@ -1124,7 +1124,7 @@ bool Game::selectLevel()
     delwin(menu);
     
     // 如果选择退出
-    if (index == 3) {
+    if (index == 4) {
         return false;
     }
     

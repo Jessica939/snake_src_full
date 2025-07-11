@@ -218,59 +218,14 @@ std::vector<SnakeBody>& Snake::getSnake()
 
 bool Snake::changeDirection(Direction newDirection)
 {
-    switch (this->mDirection)
-    {
-        case Direction::Up:
-        {
-            if (newDirection == Direction::Left || newDirection == Direction::Right)
-            {
-                this->mDirection = newDirection;
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        case Direction::Down:
-        {
-            if (newDirection == Direction::Left || newDirection == Direction::Right)
-            {
-                this->mDirection = newDirection;
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        case Direction::Left:
-        {
-            if (newDirection == Direction::Up || newDirection == Direction::Down)
-            {
-                this->mDirection = newDirection;
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        case Direction::Right:
-        {
-            if (newDirection == Direction::Up || newDirection == Direction::Down)
-            {
-                this->mDirection = newDirection;
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-    }
-
-    return false;
+    // 优化：防止蛇180度掉头，但允许保持原方向（实现直行）
+    if (mDirection == Direction::Up && newDirection == Direction::Down) return false;
+    if (mDirection == Direction::Down && newDirection == Direction::Up) return false;
+    if (mDirection == Direction::Left && newDirection == Direction::Right) return false;
+    if (mDirection == Direction::Right && newDirection == Direction::Left) return false;
+    
+    this->mDirection = newDirection;
+    return true; // 返回true表示方向已成功改变或保持
 }
 
 // 设置转弯模式
