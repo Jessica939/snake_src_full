@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <chrono> 
 
 #include "snake.h"
 #include "map.h"
@@ -30,6 +31,12 @@ enum class LevelStatus
     Locked = 0,     // 未解锁
     Unlocked = 1,   // 已解锁
     Completed = 2   // 已完成
+};
+//游戏模式枚举
+enum class GameMode {
+    Classic,
+    Level,
+    Timed
 };
 
 class Game
@@ -86,6 +93,12 @@ public:
     void updateLevelStatus(); // 更新关卡状态
     bool saveLevelProgress(); // 保存关卡进度
     bool loadLevelProgress(); // 加载关卡进度
+
+    //限时模式的相关函数
+    void initializeTimeAttack();
+    void runTimeAttack();
+    void renderTimer() const;
+
     
 
 private:
@@ -130,6 +143,13 @@ private:
     std::vector<LevelStatus> mLevelStatus; // 关卡状态列表
     const std::string mLevelProgressFilePath = "level_progress.dat"; // 关卡进度文件路径
     std::vector<std::string> mLevelMapFiles = {"maps/level1.txt", "maps/level2.txt", "maps/level3.txt", "maps/level4.txt", "maps/level5.txt"}; // 关卡地图文件
+
+    //限时模式相关变量
+    GameMode mCurrentMode;
+    std::chrono::time_point<std::chrono::steady_clock> mTimeAttackStartTime;
+    int mTimeAttackDurationSeconds = 120; 
+    int mTimeRemaining;
+
 };
 
 #endif
