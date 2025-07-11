@@ -44,9 +44,8 @@ enum class LevelStatus
 // Boss状态枚举
 enum class BossState
 {
-    Red,    // 红色状态 - 两道激光
-    Green,  // 绿色状态 - 三道激光，可被攻击
-    Yellow  // 黄色状态 - 四道激光
+    Red,    // 红色危险状态 - 发射旋转激光束
+    Green   // 绿色脆弱状态 - 可被攻击
 };
 
 class Game
@@ -176,6 +175,22 @@ private:
     int mBossSize = 5;
     std::pair<int, int> mBossPosition; // Boss左上角的位置
     BossState mBossState = BossState::Red;
+    
+    // Boss状态计时
+    float mBossStateDuration = 0.0f; // 当前状态持续时间
+    const float mRedStateDuration = 6.0f;    // 红色状态持续6秒
+    const float mGreenStateDuration = 3.0f;  // 绿色状态持续3秒（原为2秒）
+    std::chrono::time_point<std::chrono::steady_clock> mBossStateStartTime; // 状态开始时间
+    
+    // 蛇无敌状态控制
+    bool mSnakeInvincible = false;
+    std::chrono::time_point<std::chrono::steady_clock> mInvincibleStartTime;
+    const float mInvincibleDuration = 2.0f; // 无敌状态持续2秒
+    
+    // Boss攻击点
+    SnakeBody mBossAttackPoint; // Boss的攻击点位置
+    void updateBossAttackPoint(); // 更新攻击点位置
+    
     int mBossStateTimer = 0;
     int mBossStateChangeDuration = 50;
     double mLaserAngle = 0.0;

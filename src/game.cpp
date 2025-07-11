@@ -555,9 +555,21 @@ void Game::renderSnake() const
 {
     int snakeLength = this->mPtrSnake->getLength();
     std::vector<SnakeBody>& snake = this->mPtrSnake->getSnake();
-    for (int i = 0; i < snakeLength; i ++)
+    
+    // 第五关中，如果蛇处于无敌状态，使用不同的符号显示
+    char snakeSymbol = this->mSnakeSymbol;
+    if (mCurrentLevel == 5 && mSnakeInvincible)
     {
-        mvwaddch(this->mWindows[1], snake[i].getY(), snake[i].getX(), this->mSnakeSymbol);
+        // 无敌状态下使用不同的符号（闪烁效果）
+        if ((int)(mBossStateDuration * 10) % 2 == 0)
+        {
+            snakeSymbol = 'O'; // 用O表示无敌状态
+        }
+    }
+    
+    for (int i = 0; i < snakeLength; i++)
+    {
+        mvwaddch(this->mWindows[1], snake[i].getY(), snake[i].getX(), snakeSymbol);
     }
     wrefresh(this->mWindows[1]);
 }
@@ -1697,13 +1709,19 @@ void Game::initializeLevel5()
     
     // 初始化Boss状态
     mBossState = BossState::Red;
-    mBossStateTimer = 0;
-    mBossStateChangeDuration = 50; // 每50帧改变一次状态
+    mBossStateStartTime = std::chrono::steady_clock::now();
+    mBossStateDuration = 0.0f;
+    
+    // 初始化无敌状态
+    mSnakeInvincible = false;
+    
+    // 初始化攻击点
+    updateBossAttackPoint();
     
     // 初始化旋转激光
     mLaserAngle = 0.0;
-    mLaserRotationSpeed = 2.0; // 每帧旋转的角度
-    mLaserLength = std::max(mGameBoardWidth, mGameBoardHeight); // 确保激光能覆盖整个场地
+    mLaserRotationSpeed = 3.0; // 每帧旋转的角度，略微增加旋转速度
+    mLaserLength = std::max(mGameBoardWidth, mGameBoardHeight) * 2; // 确保激光能覆盖整个场地
     
     // 初始化计分
     this->mPoints = 0;
@@ -1768,7 +1786,7 @@ void Game::runLevel5()
         // 渲染Boss
         renderBoss();
         
-        // 更新并渲染激光
+        // 更新并渲染激光（激光一直存在）
         updateAndRenderLasers();
         
         // 移动蛇
@@ -1782,25 +1800,34 @@ void Game::runLevel5()
             break;
         }
         
-        // 检查蛇是否撞到激光
-        if (checkLaserCollision())
+        // 检查蛇是否撞到激光（如果不是无敌状态）
+        if (!mSnakeInvincible && checkLaserCollision())
         {
             // 如果碰到激光，关卡失败
             break;
         }
         
-        // 检查蛇是否攻击到Boss
-        if (checkBossAttack())
+        // 如果是绿色状态，检查蛇是否攻击到Boss的攻击点
+        if (mBossState == BossState::Green && checkBossAttack())
         {
             // 减少Boss血量
             mBossHP--;
             
             // 更新信息面板上的Boss血量
             mvwprintw(this->mWindows[0], 2, 1, "Defeat the Core! Boss HP: %d/5", mBossHP);
+            mvwprintw(this->mWindows[0], 3, 1, "You're invincible! Move away!");
             wrefresh(this->mWindows[0]);
             
             // 增加得分
             this->mPoints += 3;
+            
+            // 开启无敌状态
+            mSnakeInvincible = true;
+            mInvincibleStartTime = std::chrono::steady_clock::now();
+            
+            // 切换到红色状态
+            mBossState = BossState::Red;
+            mBossStateStartTime = std::chrono::steady_clock::now();
             
             // 如果Boss血量为0，玩家胜利
             if (mBossHP <= 0)
@@ -1824,31 +1851,54 @@ void Game::runLevel5()
 // 更新Boss状态
 void Game::updateBossState()
 {
-    // 每隔一定时间更改Boss状态
-    mBossStateTimer++;
+    // 计算当前状态已经持续的时间（秒）
+    auto now = std::chrono::steady_clock::now();
+    auto elapsedSeconds = std::chrono::duration<float>(now - mBossStateStartTime).count();
+    mBossStateDuration = elapsedSeconds;
     
-    if (mBossStateTimer >= mBossStateChangeDuration)
+    // 如果蛇处于无敌状态，检查是否结束
+    if (mSnakeInvincible)
     {
-        mBossStateTimer = 0;
-        
-        // 随机选择下一个状态
-        int nextState = std::rand() % 3;
-        
-        switch (nextState)
+        auto invincibleElapsed = std::chrono::duration<float>(now - mInvincibleStartTime).count();
+        if (invincibleElapsed >= mInvincibleDuration)
         {
-            case 0:
-                mBossState = BossState::Red;
-                break;
-            case 1:
-                mBossState = BossState::Green;
-                break;
-            case 2:
-                mBossState = BossState::Yellow;
-                break;
-            default:
-                mBossState = BossState::Red;
-                break;
+            mSnakeInvincible = false;
         }
+    }
+    
+    // 根据当前状态和已经过的时间决定是否需要转换状态
+    switch (mBossState)
+    {
+        case BossState::Red:
+            // 红色状态持续6秒后，自动转换为绿色状态
+            if (mBossStateDuration >= mRedStateDuration)
+            {
+                // 转换为绿色状态
+                mBossState = BossState::Green;
+                mBossStateStartTime = now;
+                
+                // 生成新的攻击点
+                updateBossAttackPoint();
+                
+                // 显示提示信息
+                mvwprintw(this->mWindows[0], 3, 1, "Attack the Boss now!        ");
+                wrefresh(this->mWindows[0]);
+            }
+            break;
+            
+        case BossState::Green:
+            // 绿色状态持续3秒，如果没有被攻击，转换回红色状态
+            if (mBossStateDuration >= mGreenStateDuration)
+            {
+                // 转换为红色状态
+                mBossState = BossState::Red;
+                mBossStateStartTime = now;
+                
+                // 显示提示信息
+                mvwprintw(this->mWindows[0], 3, 1, "Avoid the lasers!           ");
+                wrefresh(this->mWindows[0]);
+            }
+            break;
     }
 }
 
@@ -1869,9 +1919,6 @@ void Game::renderBoss()
         case BossState::Green:
             bossSymbol = 'G';
             break;
-        case BossState::Yellow:
-            bossSymbol = 'Y';
-            break;
         default:
             bossSymbol = 'B';
             break;
@@ -1884,6 +1931,13 @@ void Game::renderBoss()
         {
             mvwaddch(this->mWindows[1], startY + y, startX + x, bossSymbol);
         }
+    }
+    
+    // 如果是绿色状态，显示攻击点
+    if (mBossState == BossState::Green)
+    {
+        // 用特殊符号标记攻击点
+        mvwaddch(this->mWindows[1], mBossAttackPoint.getY(), mBossAttackPoint.getX(), '@');
     }
 }
 
@@ -1901,52 +1955,16 @@ void Game::updateAndRenderLasers()
     int centerX = mBossPosition.first + mBossSize / 2;
     int centerY = mBossPosition.second + mBossSize / 2;
     
-    // 为主激光计算终点
-    double radians = mLaserAngle * M_PI / 180.0;
-    int endX = static_cast<int>(centerX + mLaserLength * cos(radians));
-    int endY = static_cast<int>(centerY + mLaserLength * sin(radians));
-    
-    // 渲染主激光
-    renderLaser(centerX, centerY, endX, endY, '*');
-    
-    // 根据Boss状态渲染额外的激光
-    switch (mBossState)
+    // 生成多条激光，均匀分布在360度范围内
+    const int laserCount = 4; // 减少为4条激光
+    for (int i = 0; i < laserCount; i++)
     {
-        case BossState::Red:
-            // 红色状态：一道额外激光，与主激光相对
-            renderLaser(centerX, centerY, 
-                       static_cast<int>(centerX + mLaserLength * cos(radians + M_PI)),
-                       static_cast<int>(centerY + mLaserLength * sin(radians + M_PI)),
-                       '*');
-            break;
-            
-        case BossState::Green:
-            // 绿色状态：两道额外激光，呈90度角
-            renderLaser(centerX, centerY, 
-                       static_cast<int>(centerX + mLaserLength * cos(radians + M_PI/2)),
-                       static_cast<int>(centerY + mLaserLength * sin(radians + M_PI/2)),
-                       '*');
-            renderLaser(centerX, centerY, 
-                       static_cast<int>(centerX + mLaserLength * cos(radians + M_PI*3/2)),
-                       static_cast<int>(centerY + mLaserLength * sin(radians + M_PI*3/2)),
-                       '*');
-            break;
-            
-        case BossState::Yellow:
-            // 黄色状态：三道额外激光，呈十字形
-            renderLaser(centerX, centerY, 
-                       static_cast<int>(centerX + mLaserLength * cos(radians + M_PI/2)),
-                       static_cast<int>(centerY + mLaserLength * sin(radians + M_PI/2)),
-                       '*');
-            renderLaser(centerX, centerY, 
-                       static_cast<int>(centerX + mLaserLength * cos(radians + M_PI)),
-                       static_cast<int>(centerY + mLaserLength * sin(radians + M_PI)),
-                       '*');
-            renderLaser(centerX, centerY, 
-                       static_cast<int>(centerX + mLaserLength * cos(radians + M_PI*3/2)),
-                       static_cast<int>(centerY + mLaserLength * sin(radians + M_PI*3/2)),
-                       '*');
-            break;
+        double angle = mLaserAngle + (360.0 / laserCount) * i;
+        double radians = angle * M_PI / 180.0;
+        int endX = static_cast<int>(centerX + mLaserLength * cos(radians));
+        int endY = static_cast<int>(centerY + mLaserLength * sin(radians));
+        
+        renderLaser(centerX, centerY, endX, endY, mWallSymbol);
     }
 }
 
@@ -1974,7 +1992,7 @@ void Game::renderLaser(int x1, int y1, int x2, int y2, char symbol)
         if (gapCounter % (gapInterval + gapSize) >= gapSize)
         {
             // 如果点在游戏区域内，则绘制
-            if (x1 >= 0 && x1 < mGameBoardWidth && y1 >= 0 && y1 < mGameBoardHeight)
+            if (x1 >= 0 && x1 <= mGameBoardWidth - 1 && y1 >= 0 && y1 <= mGameBoardHeight - 1)
             {
                 // 不在Boss区域内才绘制激光
                 if (!(x1 >= mBossPosition.first && x1 < mBossPosition.first + mBossSize &&
@@ -2009,6 +2027,12 @@ void Game::renderLaser(int x1, int y1, int x2, int y2, char symbol)
 // 检查蛇是否碰到激光
 bool Game::checkLaserCollision()
 {
+    // 如果蛇处于无敌状态，不会受到激光伤害
+    if (mSnakeInvincible)
+    {
+        return false;
+    }
+    
     // 只获取蛇头，不再检查整个蛇身
     const SnakeBody& head = this->mPtrSnake->getSnake()[0];
     
@@ -2016,54 +2040,19 @@ bool Game::checkLaserCollision()
     int centerX = mBossPosition.first + mBossSize / 2;
     int centerY = mBossPosition.second + mBossSize / 2;
     
-    // 检查主激光碰撞
-    double radians = mLaserAngle * M_PI / 180.0;
-    int endX = static_cast<int>(centerX + mLaserLength * cos(radians));
-    int endY = static_cast<int>(centerY + mLaserLength * sin(radians));
-    
-    if (checkSnakeLaserCollision({head}, centerX, centerY, endX, endY))
+    // 检查多条激光的碰撞
+    const int laserCount = 4; // 与updateAndRenderLasers中相同
+    for (int i = 0; i < laserCount; i++)
     {
-        return true;
-    }
-    
-    // 根据Boss状态检查额外激光碰撞
-    switch (mBossState)
-    {
-        case BossState::Red:
-            // 检查相对激光
-            return checkSnakeLaserCollision({head}, centerX, centerY, 
-                                          static_cast<int>(centerX + mLaserLength * cos(radians + M_PI)),
-                                          static_cast<int>(centerY + mLaserLength * sin(radians + M_PI)));
-            
-        case BossState::Green:
-            // 检查两道垂直激光
-            if (checkSnakeLaserCollision({head}, centerX, centerY, 
-                                        static_cast<int>(centerX + mLaserLength * cos(radians + M_PI/2)),
-                                        static_cast<int>(centerY + mLaserLength * sin(radians + M_PI/2))))
-            {
-                return true;
-            }
-            return checkSnakeLaserCollision({head}, centerX, centerY, 
-                                          static_cast<int>(centerX + mLaserLength * cos(radians + M_PI*3/2)),
-                                          static_cast<int>(centerY + mLaserLength * sin(radians + M_PI*3/2)));
-            
-        case BossState::Yellow:
-            // 检查三道额外激光
-            if (checkSnakeLaserCollision({head}, centerX, centerY, 
-                                        static_cast<int>(centerX + mLaserLength * cos(radians + M_PI/2)),
-                                        static_cast<int>(centerY + mLaserLength * sin(radians + M_PI/2))))
-            {
-                return true;
-            }
-            if (checkSnakeLaserCollision({head}, centerX, centerY, 
-                                        static_cast<int>(centerX + mLaserLength * cos(radians + M_PI)),
-                                        static_cast<int>(centerY + mLaserLength * sin(radians + M_PI))))
-            {
-                return true;
-            }
-            return checkSnakeLaserCollision({head}, centerX, centerY, 
-                                          static_cast<int>(centerX + mLaserLength * cos(radians + M_PI*3/2)),
-                                          static_cast<int>(centerY + mLaserLength * sin(radians + M_PI*3/2)));
+        double angle = mLaserAngle + (360.0 / laserCount) * i;
+        double radians = angle * M_PI / 180.0;
+        int endX = static_cast<int>(centerX + mLaserLength * cos(radians));
+        int endY = static_cast<int>(centerY + mLaserLength * sin(radians));
+        
+        if (checkSnakeLaserCollision({head}, centerX, centerY, endX, endY))
+        {
+            return true;
+        }
     }
     
     return false;
@@ -2082,34 +2071,80 @@ bool Game::checkSnakeLaserCollision(const std::vector<SnakeBody>& snake, int x1,
         int snakeX = body.getX();
         int snakeY = body.getY();
         
-        // 检查点到线段的距离是否小于阈值
-        double distance = pointToLineDistance(snakeX, snakeY, x1, y1, x2, y2);
-        if (distance < 0.5) // 阈值可以根据需要调整
+        // 检查蛇是否在墙上，如果在则不会碰撞（与renderLaser保持一致）
+        if (mPtrMap != nullptr && mPtrMap->isWall(snakeX, snakeY))
         {
-            // 计算该点在激光上的位置参数
-            double lineLength = sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
-            double t = ((snakeX - x1) * (x2 - x1) + (snakeY - y1) * (y2 - y1)) / 
-                      (lineLength * lineLength);
+            continue;
+        }
+        
+        // 检查蛇是否在游戏区域内，如果不在则不会碰撞
+        if (snakeX < 0 || snakeX > mGameBoardWidth - 1 || 
+            snakeY < 0 || snakeY > mGameBoardHeight - 1)
+        {
+            continue;
+        }
+        
+        // 检查蛇是否在Boss区域内，如果在则不会碰撞（与renderLaser保持一致）
+        if (snakeX >= mBossPosition.first && snakeX < mBossPosition.first + mBossSize &&
+            snakeY >= mBossPosition.second && snakeY < mBossPosition.second + mBossSize)
+        {
+            continue;
+        }
+        
+        // 使用更精确的网格判定方式，检查蛇是否与激光在同一个格子
+        // 计算激光路径上的所有格子
+        std::vector<std::pair<int, int>> laserCells;
+        int x = x1, y = y1;
+        const int dx = abs(x2 - x1);
+        const int dy = abs(y2 - y1);
+        const int sx = (x1 < x2) ? 1 : -1;
+        const int sy = (y1 < y2) ? 1 : -1;
+        int err = dx - dy;
+        int gapCounter = 0;
+        
+        while (true)
+        {
+            // 增加计数器
+            gapCounter++;
             
-            // 限制t在[0,1]范围内
-            t = std::max(0.0, std::min(1.0, t));
-            
-            // 计算该点对应激光上的点
-            double projX = x1 + t * (x2 - x1);
-            double projY = y1 + t * (y2 - y1);
-            
-            // 计算从起点到该点的距离
-            double distFromStart = sqrt((projX - x1) * (projX - x1) + (projY - y1) * (projY - y1));
-            
-            // 检查该点是否在激光的间隙中
-            int gapCounter = static_cast<int>(distFromStart);
-            if (gapCounter % (gapInterval + gapSize) < gapSize)
+            // 如果不在间隙内（创建有规律的间隙）
+            if (gapCounter % (gapInterval + gapSize) >= gapSize)
             {
-                // 在间隙中，不会碰撞
-                continue;
+                // 如果点在游戏区域内且不在墙上，添加到激光路径
+                if (x >= 0 && x <= mGameBoardWidth - 1 && y >= 0 && y <= mGameBoardHeight - 1)
+                {
+                    // 不在Boss区域内且不在墙上才算作激光路径
+                    if (!(x >= mBossPosition.first && x < mBossPosition.first + mBossSize &&
+                          y >= mBossPosition.second && y < mBossPosition.second + mBossSize) &&
+                        !mPtrMap->isWall(x, y))
+                    {
+                        laserCells.emplace_back(x, y);
+                    }
+                }
             }
             
-            return true;
+            if (x == x2 && y == y2) break;
+            
+            int e2 = 2 * err;
+            if (e2 > -dy)
+            {
+                err -= dy;
+                x += sx;
+            }
+            if (e2 < dx)
+            {
+                err += dx;
+                y += sy;
+            }
+        }
+        
+        // 检查蛇是否在激光路径上的格子中
+        for (const auto& cell : laserCells)
+        {
+            if (snakeX == cell.first && snakeY == cell.second)
+            {
+                return true;
+            }
         }
     }
     
@@ -2156,9 +2191,23 @@ bool Game::checkBossAttack()
     int headX = head.getX();
     int headY = head.getY();
     
-    // 检查蛇头是否接触到Boss
-    return (headX >= mBossPosition.first - 1 && headX <= mBossPosition.first + mBossSize &&
-            headY >= mBossPosition.second - 1 && headY <= mBossPosition.second + mBossSize);
+    // 检查蛇头是否接触到Boss攻击点
+    return (headX == mBossAttackPoint.getX() && headY == mBossAttackPoint.getY());
+}
+
+// 更新Boss攻击点位置
+void Game::updateBossAttackPoint()
+{
+    // Boss中心位置
+    int centerX = mBossPosition.first + mBossSize / 2;
+    int centerY = mBossPosition.second + mBossSize / 2;
+    
+    // 在Boss区域内随机选择一点
+    int offsetX = std::rand() % mBossSize;
+    int offsetY = std::rand() % mBossSize;
+    
+    // 更新攻击点位置
+    mBossAttackPoint = SnakeBody(mBossPosition.first + offsetX, mBossPosition.second + offsetY);
 }
 
 

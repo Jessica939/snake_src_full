@@ -125,14 +125,14 @@ bool Snake::checkCollision() const
     int headX = head.getX();
     int headY = head.getY();
     
-    // 检查是否撞墙
-    if (headX <= 0 || headX >= this->mGameBoardWidth - 1 ||
-        headY <= 0 || headY >= this->mGameBoardHeight - 1)
+    // 检查是否撞到地图边界（确保只有蛇头真正进入边界时才判定为碰撞）
+    if (headX < 0 || headX > this->mGameBoardWidth - 1 ||
+        headY < 0 || headY > this->mGameBoardHeight - 1)
     {
         return true;
     }
     
-    // 检查是否撞到地图中的墙
+    // 检查是否撞到地图中的墙（确保只有蛇头真正进入墙时才判定为碰撞）
     if (mPtrMap != nullptr && mPtrMap->isWall(headX, headY))
     {
         return true;
