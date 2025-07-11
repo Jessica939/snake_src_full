@@ -681,31 +681,33 @@ void Game::startGame()
         }
         switch(mCurrentMode) {
             case GameMode::Classic:
-                // 经典模式流程
-                this->readLeaderBoard();
-                this->renderBoards();
-                this->initializeGame();
-                this->runGame();
-                this->updateLeaderBoard();
-                this->writeLeaderBoard();
-                if (!renderRestartMenu()) {
-                    if (mReturnToModeSelect) continue; // 返回模式选择
-                    else break; 
-                } // 如果不重启，则退出循环
+            case GameMode::Timed: {
+                
+                // 内层循环：负责处理“再来一局”
+                bool playAgain = true;
+                while (playAgain) {
+                    
+                    if (mCurrentMode == GameMode::Classic) {
+                        initializeGame();
+                    } else {
+                        initializeTimeAttack();
+                    }
+                    
+                    renderBoards(); 
+                    
+                    if (mCurrentMode == GameMode::Classic) {
+                        runGame();
+                    } else {
+                        runTimeAttack();
+                    }
+                    
+                    updateLeaderBoard();
+                    writeLeaderBoard();
+                    
+                    playAgain = renderRestartMenu();
+                }
                 break;
-
-            case GameMode::Timed:
-                this->readLeaderBoard();
-                this->renderBoards();
-                this->initializeTimeAttack();
-                this->runTimeAttack();
-                this->updateLeaderBoard();
-                this->writeLeaderBoard();
-                if (!renderRestartMenu()) {
-                    if (mReturnToModeSelect) continue; // 返回模式选择
-                    else break; 
-                } // 如果不重启，则退出循环
-                break;
+            }
                
             case GameMode::Level:
                 // 关卡模式
@@ -888,11 +890,6 @@ void Game::startGame()
                 }
                 
     
-            }
-            if (mReturnToModeSelect) {
-                continue;  // 回到模式选择
-            } else {
-                break;     // 完全退出 
             }
 
         }
