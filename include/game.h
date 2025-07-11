@@ -14,6 +14,7 @@
 
 #include "snake.h"
 #include "map.h"
+#include "ai.h"
 
 // 关卡类型枚举
 enum class LevelType
@@ -36,7 +37,14 @@ enum class LevelStatus
 enum class GameMode {
     Classic,
     Level,
-    Timed
+    Timed,
+    Battle
+};
+
+// 对战模式类型枚举
+enum class BattleType {
+    PlayerVsPlayer,
+    PlayerVsAI
 };
 
 class Game
@@ -77,6 +85,7 @@ public:
     
     void startGame();
     bool renderRestartMenu() const;
+    bool renderRestartMenu(bool isBattleMode) const;
     void adjustDelay();
     bool selectMap();
     bool selectLevel(); // 返回值：true表示继续游戏，false表示退出
@@ -105,6 +114,23 @@ public:
     void renderEndpoint() const; // 渲染终点标记
     void controlSnakeLevel4() const; // 第四关蛇的单键控制
     void runLevel4(); // 运行第四关特殊逻辑
+
+    // 对战模式 (新增函数)
+    void initializeBattle(BattleType type);
+    void runBattle();
+    void controlSnakes(int key);
+    std::string checkBattleCollisions();
+    void renderSnakes() const;
+    void renderBattleStatus() const;
+    void renderWinnerText(const std::string& winner) const;
+    
+    bool selectBattleType();//"PVP" vs "PVE"
+
+    // 根据选择的对战类型（PVP/PVE）初始化两条蛇和战场
+    void initializeBattle(BattleType type);
+
+    // 对战模式专用的主游戏循环
+    void runBattle();
 
 private:
     // We need to have two windows
@@ -160,6 +186,21 @@ private:
     std::chrono::time_point<std::chrono::steady_clock> mTimeAttackStartTime;
     int mTimeAttackDurationSeconds = 120; 
     int mTimeRemaining;
+
+    //玩家2
+    std::unique_ptr<Snake> mPtrSnake2; // 新增：用于玩家2或AI
+    std::unique_ptr<AI> mPtrAI; // 新增：AI控制器
+    int mPoints2 = 0; // 新增：玩家2的分数
+    const char mSnakeSymbol2 = 'X'; // 新增：蛇2的符号
+    
+
+    //对战模式相关变量
+    BattleType mCurrentBattleType; 
+
+    //加速功能相关变量
+    const int mAccelDelay = 40;         // 加速时的游戏延迟（毫秒）
+    bool mAccelerateP1 = false;         // 玩家1的加速状态标志
+    bool mAccelerateP2 = false;         // 玩家2的加速状态标志
 
 };
 

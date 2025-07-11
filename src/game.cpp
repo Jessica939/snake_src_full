@@ -45,6 +45,8 @@ Game::Game()
     
     // 创建默认的关卡地图文件
     createDefaultLevelMaps();
+
+    mPtrAI = std::make_unique<AI>(mGameBoardWidth, mGameBoardHeight);
 }
 
 // 创建默认的关卡地图文件（如果不存在）
@@ -311,6 +313,74 @@ bool Game::renderRestartMenu() const
     
 }
 
+bool Game::renderRestartMenu(bool isBattleMode) const
+{
+    WINDOW * menu;
+    int width = this->mGameBoardWidth * 0.5;
+    int height = this->mGameBoardHeight * 0.5;
+    int startX = this->mGameBoardWidth * 0.25;
+    int startY = this->mGameBoardHeight * 0.25 + this->mInformationHeight;
+
+    menu = newwin(height, width, startY, startX);
+    box(menu, 0, 0);
+
+    // 只有两个选项
+    std::vector<std::string> menuItems = {"Restart", "Quit"};
+
+    int index = 0;
+    int offset = 4;
+
+    // 根据模式显示不同标题
+    if (isBattleMode) {
+        mvwprintw(menu, 1, 1, "Battle Over!");
+        mvwprintw(menu, 2, 1, "Player1: %d | Player2: %d", mPoints, mPoints2);
+    } else {
+        mvwprintw(menu, 1, 1, "Your Final Score:");
+        std::string pointString = std::to_string(this->mPoints);
+        mvwprintw(menu, 2, 1, pointString.c_str());
+    }
+
+    wattron(menu, A_STANDOUT);
+    mvwprintw(menu, 0 + offset, 1, menuItems[0].c_str());
+    wattroff(menu, A_STANDOUT);
+    mvwprintw(menu, 1 + offset, 1, menuItems[1].c_str());
+
+    wrefresh(menu);
+
+    int key;
+    while (true)
+    {
+        key = getch();
+        switch(key)
+        {
+            case 'W': case 'w': case KEY_UP:
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                index = (index == 0) ? 1 : 0; // 在两个选项间切换
+                wattron(menu, A_STANDOUT);
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                wattroff(menu, A_STANDOUT);
+                break;
+            case 'S': case 's': case KEY_DOWN:
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                index = (index == 0) ? 1 : 0; // 在两个选项间切换
+                wattron(menu, A_STANDOUT);
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                wattroff(menu, A_STANDOUT);
+                break;
+        }
+        wrefresh(menu);
+        if (key == ' ' || key == 10) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    delwin(menu);
+
+    if (index == 0) {
+        return true; // Restart -> playAgain = true
+    } else {
+        return false; // Quit -> playAgain = false
+    }
+}
+
 bool Game::selectMap()
 {
     WINDOW * menu;
@@ -503,7 +573,13 @@ void Game::createRamdonFood()
     // 使用地图提供的空白位置生成食物
     std::vector<SnakeBody> availableGrids;
     if (this->mPtrMap) {
-        availableGrids = this->mPtrMap->getEmptyPositions(this->mPtrSnake->getSnake());
+        std::vector<SnakeBody> allParts;
+        // 将两条蛇的身体合并到一个列表中
+        if(mPtrSnake) allParts.insert(allParts.end(), mPtrSnake->getSnake().begin(), mPtrSnake->getSnake().end());
+        if(mPtrSnake2) allParts.insert(allParts.end(), mPtrSnake2->getSnake().begin(), mPtrSnake2->getSnake().end());
+
+        // 查找时排除所有蛇的身体部分
+        availableGrids = this->mPtrMap->getEmptyPositions(allParts);
     } else {
         // 回退到原来的生成方法
         for (int i = 1; i < this->mGameBoardHeight - 1; i ++)
@@ -695,37 +771,28 @@ void Game::startGame()
         if (!selectLevel()) {
             break; //用户选择退出
         }
-        switch(mCurrentMode) {
-            case GameMode::Classic:
-            case GameMode::Timed: {
-                
-                // 内层循环：负责处理“再来一局”
-                bool playAgain = true;
-                while (playAgain) {
-                    
+            bool playAgain = true;
+            while (playAgain) {
+            switch(mCurrentMode) {
+                case GameMode::Classic:
+                case GameMode::Timed: {
                     if (mCurrentMode == GameMode::Classic) {
                         initializeGame();
                     } else {
                         initializeTimeAttack();
                     }
-                    
                     renderBoards(); 
-                    
                     if (mCurrentMode == GameMode::Classic) {
                         runGame();
                     } else {
                         runTimeAttack();
                     }
-                    
                     updateLeaderBoard();
                     writeLeaderBoard();
-                    
                     playAgain = renderRestartMenu();
+                    break;
                 }
-                break;
-            }
-               
-            case GameMode::Level:
+                case GameMode::Level:
                 // 关卡模式
                 this->readLeaderBoard();
                 this->renderBoards();
@@ -904,13 +971,25 @@ void Game::startGame()
                         }
                     }
                 }
-                
-    
-            }
+                case GameMode::Battle: {
+                    if (!selectBattleType()) {
+                        playAgain = false; // 如果用户从类型选择返回，则退出playAgain循环
+                        break;
+                    }
+                    initializeBattle(mCurrentBattleType);
+                    renderBoards();
+                    runBattle();
+                    // 传入 true，让菜单显示 "Battle Over!"
+                    playAgain = renderRestartMenu(true); 
+                    break;
+                }
 
+            }
+            
         }
+
+    }
     
-       
 }
 
 // https://en.cppreference.com/w/cpp/io/basic_fstream
@@ -986,6 +1065,7 @@ bool Game::selectLevel()
         "Classic Mode", 
         "Level Mode",
         "Timed Mode",
+        "Battle Mode"
         "Exit Game"
     };
 
@@ -1659,5 +1739,241 @@ void Game::runTimeAttack()
     }
 }
 
+bool Game::selectBattleType() {
+    clear();
+    refresh();
+    WINDOW * menu;
+    int width = this->mGameBoardWidth * 0.6;
+    int height = this->mGameBoardHeight * 0.6;
+    int startX = this->mGameBoardWidth * 0.2;
+    int startY = this->mGameBoardHeight * 0.2 + this->mInformationHeight;
+
+    menu = newwin(height, width, startY, startX);
+    box(menu, 0, 0);
+
+    std::vector<std::string> menuItems = {"Player vs Player", "Player vs AI", "Back"};
+    int index = 0;
+    int offset = 3;
+    mvwprintw(menu, 1, 1, "Select Battle Type:");
+    wattron(menu, A_STANDOUT);
+    mvwprintw(menu, 0 + offset, 1, menuItems[0].c_str());
+    wattroff(menu, A_STANDOUT);
+    for (size_t i = 1; i < menuItems.size(); i++) {
+        mvwprintw(menu, i + offset, 1, menuItems[i].c_str());
+    }
+    wrefresh(menu);
+
+    int key;
+    while (true) {
+        key = getch();
+        switch(key) {
+            case 'W': case 'w': case KEY_UP:
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                index = (index - 1 + menuItems.size()) % menuItems.size();
+                wattron(menu, A_STANDOUT);
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                wattroff(menu, A_STANDOUT);
+                break;
+            case 'S': case 's': case KEY_DOWN:
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                index = (index + 1) % menuItems.size();
+                wattron(menu, A_STANDOUT);
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                wattroff(menu, A_STANDOUT);
+                break;
+        }
+        wrefresh(menu);
+        if (key == ' ' || key == 10) break;
+    }
+    delwin(menu);
+
+    if (index == 0) mCurrentBattleType = BattleType::PlayerVsPlayer;
+    else if (index == 1) mCurrentBattleType = BattleType::PlayerVsAI;
+    else return false; // 用户选择 "Back"
+
+    return true;
+}
 
 
+void Game::initializeBattle(BattleType type) {
+    mPtrMap = std::make_unique<Map>(mGameBoardWidth, mGameBoardHeight);
+    mPtrMap->initializeEmptyMap(); // 对战使用简单的开放地图
+
+    mPtrSnake.reset(new Snake(mGameBoardWidth, mGameBoardHeight, mInitialSnakeLength));
+    mPtrSnake2.reset(new Snake(mGameBoardWidth, mGameBoardHeight, mInitialSnakeLength));
+
+    // 将蛇放置在相对的角落
+    mPtrSnake->initializeSnake(5, 5, InitialDirection::Right);
+    mPtrSnake2->initializeSnake(mGameBoardWidth - 6, mGameBoardHeight - 6, InitialDirection::Left);
+
+    mPtrSnake->setMap(mPtrMap.get());
+    mPtrSnake2->setMap(mPtrMap.get());
+
+    createRamdonFood();
+    mPoints = 0;
+    mPoints2 = 0;
+    mDelay = mBaseDelay;
+    mAccelerateP1 = false;
+    mAccelerateP2 = false;
+}
+
+void Game::runBattle() {
+    std::string winner = "";
+    while (winner.empty()) {
+        int key = getch();
+        if (key != ERR) {
+             controlSnakes(key); // 处理玩家输入
+        }
+
+        // 如果是 AI 对战模式，获取 AI 的下一步移动方向
+        if (mCurrentBattleType == BattleType::PlayerVsAI) {
+            Direction ai_dir = mPtrAI->findNextMove(*mPtrMap, *mPtrSnake, *mPtrSnake2, mFood);
+            mPtrSnake2->changeDirection(ai_dir);
+        }
+
+        werase(mWindows[1]);
+        box(mWindows[1], 0, 0);
+        renderMap();
+
+        // 同步食物信息并移动两条蛇
+        mPtrSnake->senseFood(mFood);
+        mPtrSnake2->senseFood(mFood);
+        bool p1_ate = mPtrSnake->moveFoward();
+        bool p2_ate = mPtrSnake2->moveFoward();
+
+        // 检查碰撞
+        winner = checkBattleCollisions();
+        if (!winner.empty()) {
+            renderSnakes();
+            wrefresh(mWindows[1]);
+            break; // 如果有胜负，跳出循环
+        }
+
+        // 处理吃食物
+        if (p1_ate || p2_ate) {
+            if (p1_ate) mPoints++;
+            if (p2_ate) mPoints2++;
+            createRamdonFood();
+        }
+
+        // 渲染所有元素
+        renderSnakes();
+        renderFood();
+        renderBattleStatus();
+
+        // 实现加速逻辑
+        long currentDelay = mBaseDelay;
+        if (mAccelerateP1 || mAccelerateP2) {
+            currentDelay = mAccelDelay;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(currentDelay));
+        wrefresh(mWindows[1]);
+    }
+    renderWinnerText(winner); // 显示胜利者
+}
+
+void Game::controlSnakes(int key) {
+    mAccelerateP1 = false;
+    mAccelerateP2 = false;
+
+    // 玩家1控制 (WASD)
+    switch(key) {
+        case 'W': case 'w': if(mPtrSnake->changeDirection(Direction::Up)) mAccelerateP1 = true; break;
+        case 'S': case 's': if(mPtrSnake->changeDirection(Direction::Down)) mAccelerateP1 = true; break;
+        case 'A': case 'a': if(mPtrSnake->changeDirection(Direction::Left)) mAccelerateP1 = true; break;
+        case 'D': case 'd': if(mPtrSnake->changeDirection(Direction::Right)) mAccelerateP1 = true; break;
+    }
+
+    // 玩家2控制 (方向键)，仅在PVP模式下
+    if (mCurrentBattleType == BattleType::PlayerVsPlayer) {
+        switch(key) {
+            case KEY_UP:    if(mPtrSnake2->changeDirection(Direction::Up)) mAccelerateP2 = true; break;
+            case KEY_DOWN:  if(mPtrSnake2->changeDirection(Direction::Down)) mAccelerateP2 = true; break;
+            case KEY_LEFT:  if(mPtrSnake2->changeDirection(Direction::Left)) mAccelerateP2 = true; break;
+            case KEY_RIGHT: if(mPtrSnake2->changeDirection(Direction::Right)) mAccelerateP2 = true; break;
+        }
+    }
+}
+
+std::string Game::checkBattleCollisions() {
+    const auto& head1 = mPtrSnake->getSnake().front();
+    const auto& head2 = mPtrSnake2->getSnake().front();
+
+    // 检查蛇1是否死亡（撞墙、撞自己、撞蛇2身体）
+    bool p1_dead = mPtrSnake->checkCollision() || mPtrSnake2->isPartOfSnake(head1.getX(), head1.getY());
+
+    // 检查蛇2是否死亡（撞墙、撞自己、撞蛇1身体）
+    bool p2_dead = mPtrSnake2->checkCollision() || mPtrSnake->isPartOfSnake(head2.getX(), head2.getY());
+
+    // 特殊情况：头对头碰撞
+    if (head1 == head2) {
+        p1_dead = true;
+        p2_dead = true;
+    }
+
+    if (p1_dead && p2_dead) return "Draw!";       // 平局
+    if (p1_dead) return "Player 2 Wins!"; // 玩家2胜利
+    if (p2_dead) return "Player 1 Wins!"; // 玩家1胜利
+
+    return ""; // 没有碰撞发生
+}
+
+void Game::renderSnakes() const {
+    if (mPtrSnake) {
+        wattron(mWindows[1], COLOR_PAIR(1));
+        for (const auto& part : mPtrSnake->getSnake()) {
+            mvwaddch(mWindows[1], part.getY(), part.getX(), mSnakeSymbol);
+        }
+        wattroff(mWindows[1], COLOR_PAIR(1));
+    }
+    if (mPtrSnake2) {
+        wattron(mWindows[1], COLOR_PAIR(2));
+        for (const auto& part : mPtrSnake2->getSnake()) {
+            mvwaddch(mWindows[1], part.getY(), part.getX(), mSnakeSymbol2);
+        }
+        wattroff(mWindows[1], COLOR_PAIR(2));
+    }
+}
+
+void Game::renderBattleStatus() const {
+    for(int i = 1; i < 15; ++i) mvwprintw(mWindows[2], i, 1, "                     ");
+
+    mvwprintw(mWindows[2], 1, 1, "Battle Mode");
+
+    wattron(mWindows[2], COLOR_PAIR(1));
+    mvwprintw(mWindows[2], 3, 1, "Player 1 (WASD)");
+    wattroff(mWindows[2], COLOR_PAIR(1));
+    mvwprintw(mWindows[2], 4, 1, "Points: %d", mPoints);
+
+    wattron(mWindows[2], COLOR_PAIR(2));
+    if (mCurrentBattleType == BattleType::PlayerVsPlayer) {
+        mvwprintw(mWindows[2], 6, 1, "Player 2 (Arrows)");
+    } else {
+        mvwprintw(mWindows[2], 6, 1, "AI Player (X)");
+    }
+    wattroff(mWindows[2], COLOR_PAIR(2));
+    mvwprintw(mWindows[2], 7, 1, "Points: %d", mPoints2);
+
+    wrefresh(mWindows[2]);
+}
+
+void Game::renderWinnerText(const std::string& winner) const {
+    WINDOW * menu;
+    int width = this->mGameBoardWidth * 0.5;
+    int height = 5;
+    int startX = this->mGameBoardWidth * 0.25;
+    int startY = this->mGameBoardHeight * 0.25 + this->mInformationHeight;
+
+    menu = newwin(height, width, startY, startX);
+    box(menu, 0, 0);
+
+    mvwprintw(menu, 1, (width - 10) / 2, "Game Over!");
+    mvwprintw(menu, 2, (width - winner.length()) / 2, winner.c_str());
+    mvwprintw(menu, 3, (width - 26) / 2, "Press any key to continue...");
+    wrefresh(menu);
+
+    nodelay(stdscr, FALSE); // 切换为阻塞模式，等待按键
+    getch();
+    nodelay(stdscr, TRUE); // 恢复非阻塞模式
+    delwin(menu);
+}

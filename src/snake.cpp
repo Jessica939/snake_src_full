@@ -26,7 +26,7 @@ int SnakeBody::getY() const
     return mY;
 }
 
-bool SnakeBody::operator == (const SnakeBody& snakeBody)
+bool SnakeBody::operator == (const SnakeBody& snakeBody) const
 {
     return (this->getX() == snakeBody.getX() && this->getY() == snakeBody.getY());
 }
@@ -128,7 +128,7 @@ Direction Snake::convertInitialDirection(InitialDirection dir)
     return Direction::Up; // 默认值
 }
 
-bool Snake::isPartOfSnake(int x, int y)
+bool Snake::isPartOfSnake(int x, int y) const
 {
     SnakeBody temp = SnakeBody(x, y);
     for (int i = 0; i < this->mSnake.size(); i ++)
@@ -408,8 +408,13 @@ bool Snake::checkCollision()
 }
 
 
-int Snake::getLength()
+int Snake::getLength() const
 {
     return this->mSnake.size();
 }
 
+const std::vector<SnakeBody>& Snake::getSnake() const {
+    return this->mSnake;
+}
+
+Direction Snake::getDirection() const {return mDirection;}

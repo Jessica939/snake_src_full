@@ -29,7 +29,7 @@ public:
     SnakeBody(int x, int y);
     int getX() const;
     int getY() const;
-    bool operator == (const SnakeBody& snakeBody);
+    bool operator == (const SnakeBody& snakeBody) const;
 private:
     int mX;
     int mY;
@@ -52,7 +52,7 @@ public:
     // Check if the snake is on the coordinate
     // bool isSnakeOn(int x, int y);
     // Checking API for generating random food
-    bool isPartOfSnake(int x, int y);
+    bool isPartOfSnake(int x, int y) const;
     void senseFood(SnakeBody food);
     // Set map for collision detection
     void setMap(Map* map);
@@ -63,7 +63,8 @@ public:
     bool checkCollision();
     bool changeDirection(Direction newDirection);
     std::vector<SnakeBody>& getSnake();
-    int getLength();
+    const std::vector<SnakeBody>& getSnake() const;
+    int getLength() const;
     SnakeBody createNewHead();
     bool moveFoward();
     
@@ -77,6 +78,8 @@ public:
     void setNextTurnDirection(bool isLeftTurn);
     // 检查是否达到了终点
     bool reachedEndpoint(int endX, int endY) const;
+
+    Direction getDirection() const;
 
 private:
     const int mGameBoardWidth;
