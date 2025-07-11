@@ -700,9 +700,7 @@ void Game::startGame()
     
     while(true){
         mReturnToModeSelect = false;
-        if (!selectLevel()) {
-            break; //用户选择退出
-        }
+        // 删除重复的selectLevel()调用，因为它已经在main.cpp中调用过一次
         switch(mCurrentMode) {
             case GameMode::Classic:
             case GameMode::Timed: {
