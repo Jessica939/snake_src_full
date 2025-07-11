@@ -155,7 +155,7 @@ void Game::createDefaultLevelMaps()
 
 Game::~Game()
 {
-    for (int i = 0; i < this->mWindows.size(); i ++)
+    for (size_t i = 0; i < this->mWindows.size(); i ++)
     {
         delwin(this->mWindows[i]);
     }
@@ -226,8 +226,8 @@ void Game::renderLeaderBoard() const
     {
         pointString = std::to_string(this->mLeaderBoard[i]);
         rank = "#" + std::to_string(i + 1) + ":";
-        mvwprintw(this->mWindows[2], 14 + (i + 1), 1, rank.c_str());
-        mvwprintw(this->mWindows[2], 14 + (i + 1), 5, pointString.c_str());
+        mvwprintw(this->mWindows[2], 14 + (i + 1), 1, "%s", rank.c_str());
+        mvwprintw(this->mWindows[2], 14 + (i + 1), 5, "%s", pointString.c_str());
     }
     wrefresh(this->mWindows[2]);
 }
@@ -248,11 +248,11 @@ bool Game::renderRestartMenu() const
     int offset = 4;
     mvwprintw(menu, 1, 1, "Your Final Score:");
     std::string pointString = std::to_string(this->mPoints);
-    mvwprintw(menu, 2, 1, pointString.c_str());
+    mvwprintw(menu, 2, 1, "%s", pointString.c_str());
     wattron(menu, A_STANDOUT);
-    mvwprintw(menu, 0 + offset, 1, menuItems[0].c_str());
+    mvwprintw(menu, 0 + offset, 1, "%s", menuItems[0].c_str());
     wattroff(menu, A_STANDOUT);
-    mvwprintw(menu, 1 + offset, 1, menuItems[1].c_str());
+    mvwprintw(menu, 1 + offset, 1, "%s", menuItems[1].c_str());
 
     wrefresh(menu);
 
@@ -266,11 +266,11 @@ bool Game::renderRestartMenu() const
             case 'w':
             case KEY_UP:
             {
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                index --;
-                index = (index < 0) ? menuItems.size() - 1 : index;
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                index--;
+                index = (index < 0) ? static_cast<int>(menuItems.size()) - 1 : index;
                 wattron(menu, A_STANDOUT);
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                 wattroff(menu, A_STANDOUT);
                 break;
             }
@@ -278,11 +278,11 @@ bool Game::renderRestartMenu() const
             case 's':
             case KEY_DOWN:
             {
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                index ++;
-                index = (index > menuItems.size() - 1) ? 0 : index;
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                index++;
+                index = (index > static_cast<int>(menuItems.size()) - 1) ? 0 : index;
                 wattron(menu, A_STANDOUT);
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                 wattroff(menu, A_STANDOUT);
                 break;
             }
@@ -334,11 +334,11 @@ bool Game::selectMap()
     mvwprintw(menu, 1, 1, "Select a Map:");
     
     wattron(menu, A_STANDOUT);
-    mvwprintw(menu, 0 + offset, 1, menuItems[0].c_str());
+    mvwprintw(menu, 0 + offset, 1, "%s", menuItems[0].c_str());
     wattroff(menu, A_STANDOUT);
     
-    for (int i = 1; i < menuItems.size(); i++) {
-        mvwprintw(menu, i + offset, 1, menuItems[i].c_str());
+    for (size_t i = 1; i < menuItems.size(); i++) {
+        mvwprintw(menu, static_cast<int>(i) + offset, 1, "%s", menuItems[i].c_str());
     }
 
     wrefresh(menu);
@@ -353,11 +353,11 @@ bool Game::selectMap()
             case 'w':
             case KEY_UP:
             {
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                index --;
-                index = (index < 0) ? menuItems.size() - 1 : index;
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                index--;
+                index = (index < 0) ? static_cast<int>(menuItems.size()) - 1 : index;
                 wattron(menu, A_STANDOUT);
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                 wattroff(menu, A_STANDOUT);
                 break;
             }
@@ -365,11 +365,11 @@ bool Game::selectMap()
             case 's':
             case KEY_DOWN:
             {
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                index ++;
-                index = (index > menuItems.size() - 1) ? 0 : index;
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                index++;
+                index = (index > static_cast<int>(menuItems.size()) - 1) ? 0 : index;
                 wattron(menu, A_STANDOUT);
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                 wattroff(menu, A_STANDOUT);
                 break;
             }
@@ -401,14 +401,14 @@ bool Game::selectMap()
 void Game::renderPoints() const
 {
     std::string pointString = std::to_string(this->mPoints);
-    mvwprintw(this->mWindows[2], 12, 1, pointString.c_str());
+    mvwprintw(this->mWindows[2], 12, 1, "%s", pointString.c_str());
     wrefresh(this->mWindows[2]);
 }
 
 void Game::renderDifficulty() const
 {
     std::string difficultyString = std::to_string(this->mDifficulty);
-    mvwprintw(this->mWindows[2], 9, 1, difficultyString.c_str());
+    mvwprintw(this->mWindows[2], 9, 1, "%s", difficultyString.c_str());
     wrefresh(this->mWindows[2]);
 }
 
@@ -416,7 +416,7 @@ void Game::renderLevel() const
 {
     mvwprintw(this->mWindows[2], 15, 1, "Level");
     std::string levelString = std::to_string(this->mCurrentLevel);
-    mvwprintw(this->mWindows[2], 16, 1, levelString.c_str());
+    mvwprintw(this->mWindows[2], 16, 1, "%s", levelString.c_str());
     wrefresh(this->mWindows[2]);
 }
 
@@ -629,14 +629,14 @@ void Game::controlSnake() const
 
 void Game::renderBoards() const
 {
-    for (int i = 0; i < this->mWindows.size(); i ++)
+    for (size_t i = 0; i < this->mWindows.size(); i ++)
     {
         werase(this->mWindows[i]);
     }
     this->renderInformationBoard();
     this->renderGameBoard();
     this->renderInstructionBoard();
-    for (int i = 0; i < this->mWindows.size(); i ++)
+    for (size_t i = 0; i < this->mWindows.size(); i ++)
     {
         box(this->mWindows[i], 0, 0);
         wrefresh(this->mWindows[i]);
@@ -656,8 +656,6 @@ void Game::adjustDelay()
 
 void Game::runGame()
 {
-    bool moveSuccess;
-    int key;
     while (true)
     {
         this->controlSnake();
@@ -841,13 +839,13 @@ void Game::startGame()
                         int offset = 4;
                         mvwprintw(menu, 1, 1, "Your Final Score:");
                         std::string pointString = std::to_string(this->mPoints);
-                        mvwprintw(menu, 2, 1, pointString.c_str());
+                        mvwprintw(menu, 2, 1, "%s", pointString.c_str());
                         wattron(menu, A_STANDOUT);
-                        mvwprintw(menu, 0 + offset, 1, menuItems[0].c_str());
+                        mvwprintw(menu, 0 + offset, 1, "%s", menuItems[0].c_str());
                         wattroff(menu, A_STANDOUT);
-                        mvwprintw(menu, 1 + offset, 1, menuItems[1].c_str());
-                        mvwprintw(menu, 2 + offset, 1, menuItems[2].c_str());
-                        mvwprintw(menu, 3 + offset, 1, menuItems[3].c_str());
+                        mvwprintw(menu, 1 + offset, 1, "%s", menuItems[1].c_str());
+                        mvwprintw(menu, 2 + offset, 1, "%s", menuItems[2].c_str());
+                        mvwprintw(menu, 3 + offset, 1, "%s", menuItems[3].c_str());
 
                         wrefresh(menu);
 
@@ -861,11 +859,11 @@ void Game::startGame()
                                 case 'w':
                                 case KEY_UP:
                                 {
-                                    mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                                    index --;
-                                    index = (index < 0) ? menuItems.size() - 1 : index;
+                                    mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                                    index--;
+                                    index = (index < 0) ? static_cast<int>(menuItems.size()) - 1 : index;
                                     wattron(menu, A_STANDOUT);
-                                    mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                                    mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                                     wattroff(menu, A_STANDOUT);
                                     break;
                                 }       
@@ -873,11 +871,11 @@ void Game::startGame()
                                 case 's':
                                 case KEY_DOWN:
                                 {
-                                    mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                                    index ++;
-                                    index = (index > menuItems.size() - 1) ? 0 : index;
+                                    mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                                    index++;
+                                    index = (index > static_cast<int>(menuItems.size()) - 1) ? 0 : index;
                                     wattron(menu, A_STANDOUT);
-                                    mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                                    mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                                     wattroff(menu, A_STANDOUT);
                                     break;
                                 }
@@ -910,13 +908,20 @@ void Game::startGame()
                         }
                     }
                 }
-                
-    
-            }
-
+                break;
         }
-    
-       
+        
+        if (mReturnToModeSelect) {
+            // 如果需要返回模式选择，则在这里进行处理
+            if (!selectLevel()) {
+                // 如果选择退出游戏
+                return;
+            }
+        } else {
+            // 否则退出游戏
+            break;
+        }
+    }
 }
 
 // https://en.cppreference.com/w/cpp/io/basic_fstream
@@ -1000,11 +1005,11 @@ bool Game::selectLevel()
     mvwprintw(menu, 1, 1, "Select Game Mode:");
     
     wattron(menu, A_STANDOUT);
-    mvwprintw(menu, 0 + offset, 1, menuItems[0].c_str());
+    mvwprintw(menu, 0 + offset, 1, "%s", menuItems[0].c_str());
     wattroff(menu, A_STANDOUT);
     
-    for (int i = 1; i < menuItems.size(); i++) {
-        mvwprintw(menu, i + offset, 1, menuItems[i].c_str());
+    for (size_t i = 1; i < menuItems.size(); i++) {
+        mvwprintw(menu, static_cast<int>(i) + offset, 1, "%s", menuItems[i].c_str());
     }
 
     wrefresh(menu);
@@ -1019,11 +1024,11 @@ bool Game::selectLevel()
             case 'w':
             case KEY_UP:
             {
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                 index--;
-                index = (index < 0) ? menuItems.size() - 1 : index;
+                index = (index < 0) ? static_cast<int>(menuItems.size()) - 1 : index;
                 wattron(menu, A_STANDOUT);
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                 wattroff(menu, A_STANDOUT);
                 break;
             }
@@ -1031,11 +1036,11 @@ bool Game::selectLevel()
             case 's':
             case KEY_DOWN:
             {
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                 index++;
-                index = (index > menuItems.size() - 1) ? 0 : index;
+                index = (index > static_cast<int>(menuItems.size()) - 1) ? 0 : index;
                 wattron(menu, A_STANDOUT);
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                 wattroff(menu, A_STANDOUT);
                 break;
             }
@@ -1237,9 +1242,6 @@ void Game::controlSnakeLevel4() const
 // 运行第四关特殊逻辑
 void Game::runLevel4()
 {
-    bool moveSuccess;
-    int key;
-    
     // 更新信息面板，显示关卡提示
     mvwprintw(this->mWindows[0], 1, 1, "Level 4: Single Path Challenge");
     mvwprintw(this->mWindows[0], 2, 1, "Press 'T' or SPACE to turn");
@@ -1416,19 +1418,19 @@ bool Game::selectLevelInLevelMode()
     mvwprintw(menu, 1, 1, "Select Level:");
     
     // 渲染菜单项
-    for (int i = 0; i < menuItems.size(); i++) {
+    for (size_t i = 0; i < menuItems.size(); i++) {
         if (i == 0) {
             wattron(menu, A_STANDOUT);
         }
         
         // 如果是已锁定的关卡，显示为灰色
-        if (i < mMaxLevel && mLevelStatus[i] == LevelStatus::Locked) {
+        if (i < static_cast<size_t>(mMaxLevel) && mLevelStatus[i] == LevelStatus::Locked) {
             wattron(menu, A_DIM);
         }
         
-        mvwprintw(menu, i + offset, 1, menuItems[i].c_str());
+        mvwprintw(menu, static_cast<int>(i) + offset, 1, "%s", menuItems[i].c_str());
         
-        if (i < mMaxLevel && mLevelStatus[i] == LevelStatus::Locked) {
+        if (i < static_cast<size_t>(mMaxLevel) && mLevelStatus[i] == LevelStatus::Locked) {
             wattroff(menu, A_DIM);
         }
         
@@ -1450,25 +1452,25 @@ bool Game::selectLevelInLevelMode()
             case KEY_UP:
             {
                 // 移除当前选项的高亮
-                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
                     wattron(menu, A_DIM);
                 }
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
                     wattroff(menu, A_DIM);
                 }
                 
                 // 选择前一个选项
                 index--;
-                index = (index < 0) ? menuItems.size() - 1 : index;
+                index = (index < 0) ? static_cast<int>(menuItems.size()) - 1 : index;
                 
                 // 高亮新选项
                 wattron(menu, A_STANDOUT);
-                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
                     wattron(menu, A_DIM);
                 }
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
                     wattroff(menu, A_DIM);
                 }
                 wattroff(menu, A_STANDOUT);
@@ -1479,25 +1481,25 @@ bool Game::selectLevelInLevelMode()
             case KEY_DOWN:
             {
                 // 移除当前选项的高亮
-                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
                     wattron(menu, A_DIM);
                 }
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
                     wattroff(menu, A_DIM);
                 }
                 
                 // 选择下一个选项
                 index++;
-                index = (index > menuItems.size() - 1) ? 0 : index;
+                index = (index > static_cast<int>(menuItems.size()) - 1) ? 0 : index;
                 
                 // 高亮新选项
                 wattron(menu, A_STANDOUT);
-                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
                     wattron(menu, A_DIM);
                 }
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
                     wattroff(menu, A_DIM);
                 }
                 wattroff(menu, A_STANDOUT);
@@ -1514,16 +1516,16 @@ bool Game::selectLevelInLevelMode()
     delwin(menu);
     
     // 如果选择了返回模式选择
-    if (index == menuItems.size() - 2) {
+    if (static_cast<size_t>(index) == menuItems.size() - 2) {
         mReturnToModeSelect = true;
         return false;
     }
     // 如果选择了退出游戏
-    else if (index == menuItems.size() - 1) {
+    else if (static_cast<size_t>(index) == menuItems.size() - 1) {
         return false;
     }
     // 如果选择了一个锁定的关卡
-    else if (index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
+    else if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
         // 显示提示信息
         WINDOW* lockedWin;
         int lockWidth = this->mGameBoardWidth * 0.4;
@@ -1624,7 +1626,7 @@ void Game::renderTimer() const
     std::string timeString = std::to_string(mTimeRemaining) + " s";
     // 清除旧的计时显示
     mvwprintw(this->mWindows[2], 19, 1, "          "); 
-    mvwprintw(this->mWindows[2], 19, 1, timeString.c_str());
+    mvwprintw(this->mWindows[2], 19, 1, "%s", timeString.c_str());
     wrefresh(this->mWindows[2]);
 }
 
@@ -2196,10 +2198,6 @@ bool Game::checkBossAttack()
 // 更新Boss攻击点位置
 void Game::updateBossAttackPoint()
 {
-    // Boss中心位置
-    int centerX = mBossPosition.first + mBossSize / 2;
-    int centerY = mBossPosition.second + mBossSize / 2;
-    
     // 在Boss区域内随机选择一点
     int offsetX = std::rand() % mBossSize;
     int offsetY = std::rand() % mBossSize;
