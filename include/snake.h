@@ -60,6 +60,18 @@ public:
     SnakeBody createNewHead();
     bool moveFoward();
 
+    //AI蛇需要的相关函数
+    SnakeBody& getHead();
+    // 获取当前移动方向，AI需要
+    Direction getDirection() const;
+    // 获取当前方向的相反方向，用于防止AI掉头
+    Direction getOppositeDirection() const;
+    // 预测下一个头部位置，这是智能AI的核心辅助函数
+    SnakeBody getNextHeadPosition(Direction dir) const;
+
+    void grow(int num);
+
+
 private:
     const int mGameBoardWidth;
     const int mGameBoardHeight;
@@ -73,6 +85,9 @@ private:
     
     // Convert InitialDirection to Direction
     Direction convertInitialDirection(InitialDirection dir);
+
+    int mGrowNum = 0;
 };
 
 #endif
+

@@ -1,6 +1,7 @@
 #ifndef GAME_H
 #define GAME_H
 
+
 #ifdef _WIN32
 #include <curses.h>
 #else
@@ -10,9 +11,12 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <chrono> 
 
 #include "snake.h"
 #include "map.h"
+#include "player.h"
+#include "ai_agent.h"
 
 // 关卡类型枚举
 enum class LevelType
@@ -30,6 +34,13 @@ enum class LevelStatus
     Locked = 0,     // 未解锁
     Unlocked = 1,   // 已解锁
     Completed = 2   // 已完成
+};
+//游戏模式枚举
+enum class GameMode {
+    Classic,
+    Level,
+    Timed,
+    Battle
 };
 
 class Game
@@ -59,17 +70,20 @@ public:
     void initializeGame();
     void runGame();
     void renderPoints() const;
+    void renderPoints(int points) const;//新增含参数的
     void renderDifficulty() const;
     void renderLevel() const; // 新增：显示当前关卡
     
     void createRamdonFood();
     void renderFood() const;
     void renderSnake() const;
+    void renderSnake(Snake& snake) const; // ！！修改为可以渲染指定的蛇
     void renderMap() const;
     void controlSnake() const;
+    void controlSnake(int key);//新增，来处理双人
     
     void startGame();
-    bool renderRestartMenu() const;
+    bool renderRestartMenu();
     void adjustDelay();
     bool selectMap();
     bool selectLevel(); // 返回值：true表示继续游戏，false表示退出
@@ -86,6 +100,23 @@ public:
     void updateLevelStatus(); // 更新关卡状态
     bool saveLevelProgress(); // 保存关卡进度
     bool loadLevelProgress(); // 加载关卡进度
+
+    //限时模式的相关函数
+    void initializeTimeAttack();
+    void runTimeAttack();
+    void renderTimer() const;
+
+    //对战模式函数
+    int selectBattleMode(); // 选择 PvP 或 PvE
+    void initializeBattle(bool isVsAI);
+    void runBattle();
+    void processBattleInput(int key);
+    void updateBattleAI();
+    bool checkBattleCollisions(bool& p1_alive, bool& p2_alive);
+    void renderBattleUI() const;
+    int renderBattleEndScreen(const std::string& winnerInfo) const;
+    void spawnFoodFromDeadSnake(Snake& deadSnake);
+    Direction keyToDirection(int key, Direction currentDir) const;
     
 
 private:
@@ -109,10 +140,10 @@ private:
     // Food information
     SnakeBody mFood;
     const char mFoodSymbol = '#';
-    int mPoints = 0;
     int mDifficulty = 0;
     int mBaseDelay = 100;
     int mDelay;
+    int mPoints = 0;                     
     const std::string mRecordBoardFilePath = "record.dat";
     std::vector<int> mLeaderBoard;
     const int mNumLeaders = 3;
@@ -130,6 +161,32 @@ private:
     std::vector<LevelStatus> mLevelStatus; // 关卡状态列表
     const std::string mLevelProgressFilePath = "level_progress.dat"; // 关卡进度文件路径
     std::vector<std::string> mLevelMapFiles = {"maps/level1.txt", "maps/level2.txt", "maps/level3.txt", "maps/level4.txt", "maps/level5.txt"}; // 关卡地图文件
+
+    //限时模式相关变量
+    GameMode mCurrentMode;
+    std::chrono::time_point<std::chrono::steady_clock> mTimeAttackStartTime;
+    int mTimeAttackDurationSeconds = 120; 
+    int mTimeRemaining;
+
+    //为“玩家2”新增的平行变量
+    std::unique_ptr<Snake> mPtrSnake2;
+    int mPoints2;
+    PlayerControls mControls2;
+    bool mIsPlayer2AI;
+    std::unique_ptr<AIAgent> mAgent; // AI算法实例
+
+    int mP1_lastMoveKey; 
+    int mP2_lastMoveKey; 
+
+    
+    
+    //加速状态
+    bool mP1_isBoosting = false;
+    bool mP2_isBoosting = false;
+
+    //用于存放蛇死亡后变成的食物
+    std::vector<SnakeBody> mBonusFoods;
+
 };
 
 #endif

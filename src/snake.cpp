@@ -318,21 +318,32 @@ SnakeBody Snake::createNewHead()
 /*
  * If eat food, return true, otherwise return false
  */
+// snake.cpp
 bool Snake::moveFoward()
 {
-    if (this->touchFood())
-    {
-        SnakeBody newHead = this->mFood;
-        this->mSnake.insert(this->mSnake.begin(), newHead); 
-        return true;
+    // 这个判断结果将决定本回合是否发生“普通增长”，并作为函数的最终返回值。
+    bool ateMainFood = this->touchFood();
+
+    // 确定新蛇头的位置
+    SnakeBody newHead;
+    if (ateMainFood) {
+        newHead = this->mFood;
+    } else {
+        newHead = this->createNewHead();
     }
-    else
-    {
+
+    // 无论是否增长，蛇头总要向前移动。我们将新蛇头插入到身体的最前端。
+    this->mSnake.insert(this->mSnake.begin(), newHead);
+
+    if (mGrowNum > 0) {
+        mGrowNum--;
+    }
+    else if (ateMainFood) {
+    }
+    else {
         this->mSnake.pop_back();
-        SnakeBody newHead = this->createNewHead();
-        this->mSnake.insert(this->mSnake.begin(), newHead); 
-        return false;
     }
+    return ateMainFood;
 }
 
 bool Snake::checkCollision()
@@ -358,3 +369,47 @@ int Snake::getLength()
     return this->mSnake.size();
 }
 
+SnakeBody& Snake::getHead() 
+{
+    return this->mSnake[0];
+}
+
+Direction Snake::getDirection() const
+{
+    return this->mDirection;
+}
+
+Direction Snake::getOppositeDirection() const
+{
+    switch (this->mDirection)
+    {
+        case Direction::Up:    return Direction::Down;
+        case Direction::Down:  return Direction::Up;
+        case Direction::Left:  return Direction::Right;
+        case Direction::Right: return Direction::Left;
+    }
+    return Direction::Up; 
+}
+
+SnakeBody Snake::getNextHeadPosition(Direction dir) const
+{
+    if (mSnake.empty()) return SnakeBody(0,0);
+
+    const SnakeBody& head = mSnake[0];
+    int nextX = head.getX();
+    int nextY = head.getY();
+
+    switch (dir)
+    {
+        case Direction::Up:    nextY--; break;
+        case Direction::Down:  nextY++; break;
+        case Direction::Left:  nextX--; break;
+        case Direction::Right: nextX++; break;
+    }
+    return SnakeBody(nextX, nextY);
+}
+
+void Snake::grow(int num)
+{
+    this->mGrowNum += num;
+}
