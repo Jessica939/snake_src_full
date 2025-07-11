@@ -234,7 +234,7 @@ void Game::renderLeaderBoard() const
     wrefresh(this->mWindows[2]);
 }
 
-bool Game::renderRestartMenu() 
+bool Game::renderRestartMenu() const
 {
     WINDOW * menu;
     int width = this->mGameBoardWidth * 0.5;
@@ -304,7 +304,6 @@ bool Game::renderRestartMenu()
     }
     else
     {
-        mReturnToModeSelect = true;
         return false;
     }
     
