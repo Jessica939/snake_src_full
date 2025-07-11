@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <chrono> 
 
 #include "snake.h"
 #include "map.h"
@@ -30,6 +31,12 @@ enum class LevelStatus
     Locked = 0,     // 未解锁
     Unlocked = 1,   // 已解锁
     Completed = 2   // 已完成
+};
+//游戏模式枚举
+enum class GameMode {
+    Classic,
+    Level,
+    Timed
 };
 
 class Game
@@ -86,6 +93,12 @@ public:
     void updateLevelStatus(); // 更新关卡状态
     bool saveLevelProgress(); // 保存关卡进度
     bool loadLevelProgress(); // 加载关卡进度
+
+    //限时模式的相关函数
+    void initializeTimeAttack();
+    void runTimeAttack();
+    void renderTimer() const;
+
     
     // 第四关特殊功能方法
     void initializeLevel4(); // 初始化第四关特殊设置
@@ -141,6 +154,13 @@ private:
     const char mEndpointSymbol = 'X'; // 终点标记符号
     bool mHasEndpoint = false; // 是否有终点标记
     const char mSingleKeyTurnSymbol = 'T'; // 单键转向按键
+
+    //限时模式相关变量
+    GameMode mCurrentMode;
+    std::chrono::time_point<std::chrono::steady_clock> mTimeAttackStartTime;
+    int mTimeAttackDurationSeconds = 120; 
+    int mTimeRemaining;
+
 };
 
 #endif
