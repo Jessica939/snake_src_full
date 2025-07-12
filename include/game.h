@@ -104,11 +104,14 @@ private:
     int mLevelTargetPoints = 5;
     bool mReturnToModeSelect = false;
     bool mIsLevelMode = false;
+    bool mIsLevelRetry = false; // 标记是否是重试关卡
     const std::string mLevelProgressFilePath = "level_progress.dat";
     std::vector<std::string> mLevelMapFiles = {
         "maps/level1.txt", "maps/level2.txt", "maps/level3.txt",
         "maps/level4.txt", "maps/level5.txt"
     };
+    // ====== 关卡3模式选择 ======
+    int mLevel3ModeChoice = 0; // 0: alone, 1: with ally
 
     void createDefaultLevelMaps();
     void initializeLevel(int level);
@@ -120,7 +123,9 @@ private:
     bool saveLevelProgress();
     bool loadLevelProgress();
     void renderLevel() const;
-    void displayLevelIntroduction(int level); // 新增：显示关卡开场介绍文字
+    void displayLevelIntroduction(int level); // 显示关卡开场介绍文字
+    void displayLevelCompletion(int level);   // 显示关卡通关后的文字叙述
+    void runLevel3Mode1();                    // 第三关模式一：镜像之舞
 
     // === 第四关特殊逻辑 ===
     void initializeLevel4();

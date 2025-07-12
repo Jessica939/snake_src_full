@@ -11,7 +11,7 @@
 #include <filesystem>
 
 #include "game.h"
-#include "map.h"
+#include "map.h"  // Make sure map.h is included for InitialDirection enum
 
 Game::Game()
 {
@@ -724,8 +724,21 @@ void Game::renderSnake() const
 
 void Game::controlSnake() const
 {
+    // 设置为非阻塞模式
+    nodelay(stdscr, TRUE);
+    
     int key;
     key = getch();
+    
+    // 如果没有按键输入（-1），则不改变方向
+    if(key == -1) {
+        return;
+    }
+    
+    // 如果是ESC键，不执行任何操作（防止ESC键导致游戏暂停）
+    if(key == 27) {  // 27是ESC键的ASCII值
+        return;
+    }
     
     // 如果是第四关，使用单键转弯控制
     if (mCurrentLevel == 4) {
@@ -804,6 +817,44 @@ void Game::adjustDelay()
 
 void Game::runGame()
 {
+    // 设置为非阻塞模式
+    nodelay(stdscr, TRUE);
+    
+    // 添加一个准备阶段，让玩家有时间反应
+    {
+        // 渲染当前状态，让玩家看到蛇的初始位置
+        werase(this->mWindows[1]);
+        box(this->mWindows[1], 0, 0);
+        this->renderMap();
+        this->renderSnake();
+        this->renderFood();
+        
+        // 创建一个倒计时窗口
+        WINDOW* countdownWin;
+        int width = 24;
+        int height = 5;
+        int startX = (this->mGameBoardWidth - width) / 2;
+        int startY = (this->mGameBoardHeight - height) / 2 + this->mInformationHeight;
+        
+        countdownWin = newwin(height, width, startY, startX);
+        box(countdownWin, 0, 0);
+        mvwprintw(countdownWin, 0, 8, "GET READY");
+        
+        // 倒计时3秒
+        for (int i = 3; i > 0; i--) {
+            mvwprintw(countdownWin, 2, 9, "READY: %d", i);
+            wrefresh(countdownWin);
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+        
+        mvwprintw(countdownWin, 2, 10, "GO!   ");
+        wrefresh(countdownWin);
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        
+        // 删除倒计时窗口
+        delwin(countdownWin);
+    }
+    
     while (true)
     {
         this->controlSnake();
@@ -841,6 +892,8 @@ void Game::runGame()
 
 void Game::startGame()
 {
+    // 初始化时设置非阻塞模式
+    nodelay(stdscr, TRUE);
     refresh();
     
     
@@ -889,8 +942,11 @@ void Game::startGame()
             
                     // 检查是否通过当前关卡
                     if (this->isLevelCompleted()) {
-                    // 标记当前关卡为已完成
+                                            // 标记当前关卡为已完成
                         this->mLevelStatus[mCurrentLevel - 1] = LevelStatus::Completed;
+                
+                        // 显示通关后的文字叙述
+                        this->displayLevelCompletion(mCurrentLevel);
                 
                         // 如果不是最后一关，解锁下一关
                         if (mCurrentLevel < mMaxLevel) {
@@ -913,23 +969,41 @@ void Game::startGame()
                         mvwprintw(levelCompleteWin, 1, 1, "Level %d Completed!", mCurrentLevel);
                         mvwprintw(levelCompleteWin, 2, 1, "Your Score: %d", this->mPoints);
                 
-                        // 根据是否是最后一关显示不同的提示
-                        if (mCurrentLevel < mMaxLevel) {
+                        // 根据是否是最后一关或第一关显示不同的提示
+                        if (mCurrentLevel == 1) {
+                            // 第一关通过自动进入第二关
                             mvwprintw(levelCompleteWin, 3, 1, "Level %d Unlocked!", mCurrentLevel + 1);
+                            mvwprintw(levelCompleteWin, 4, 1, "Entering Level 2 automatically...");
+                            wrefresh(levelCompleteWin);
+                            
+                            // 短暂延迟后自动继续
+                            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                        } else if (mCurrentLevel < mMaxLevel) {
+                            mvwprintw(levelCompleteWin, 3, 1, "Level %d Unlocked!", mCurrentLevel + 1);
+                            mvwprintw(levelCompleteWin, 4, 1, "Press Space to continue...");
+                            wrefresh(levelCompleteWin);
+                            
+                            // 等待用户按空格继续
+                            int key;
+                            while (true) {
+                                key = getch();
+                                if (key == ' ' || key == 10)
+                                    break;
+                                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                            }
                         } else {
                             mvwprintw(levelCompleteWin, 3, 1, "You completed all levels!");
-                        }
-                
-                        mvwprintw(levelCompleteWin, 4, 1, "Press Space to continue...");
-                        wrefresh(levelCompleteWin);
-                
-                        // 等待用户按空格继续
-                        int key;
-                        while (true) {
-                            key = getch();
-                            if (key == ' ' || key == 10)
-                                break;
-                            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                            mvwprintw(levelCompleteWin, 4, 1, "Press Space to continue...");
+                            wrefresh(levelCompleteWin);
+                            
+                            // 等待用户按空格继续
+                            int key;
+                            while (true) {
+                                key = getch();
+                                if (key == ' ' || key == 10)
+                                    break;
+                                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                            }
                         }
                 
                         delwin(levelCompleteWin);
@@ -946,6 +1020,7 @@ void Game::startGame()
                             wrefresh(gameCompleteWin);
                     
                             // 等待用户按空格继续
+                            int key;
                             while (true) {
                                 key = getch();
                                 if (key == ' ' || key == 10)
@@ -956,10 +1031,18 @@ void Game::startGame()
                             delwin(gameCompleteWin);
                         }
                 
-                        // 返回关卡选择界面
-                        if (!this->selectLevelInLevelMode()) {
-                            // 用户选择退出
-                            break;
+                        // 如果是第一关通过，自动进入第二关
+                        if (mCurrentLevel == 1) {
+                            // 自动进入第二关
+                            mCurrentLevel = 2;
+                            mIsLevelRetry = false; // 重置重试标志
+                            continue;
+                        } else {
+                            // 其他关卡返回关卡选择界面
+                            if (!this->selectLevelInLevelMode()) {
+                                // 用户选择退出
+                                break;
+                            }
                         }
                 
                     } else {
@@ -1031,23 +1114,33 @@ void Game::startGame()
                         delwin(menu);
 
                         if (index == 0) {
-                            // 重新尝试当前关卡，不做任何改变
+                            // 重新尝试当前关卡，设置重试标志
+                            mIsLevelRetry = true;
                             continue;
                         } else if (index == 1) {
-                            // 返回关卡选择界面
+                            // 返回关卡选择界面，重置重试标志
+                            mIsLevelRetry = false;
                             if (!this->selectLevelInLevelMode()) {
                                 // 用户选择退出
                                 break;
                             }
                         } else if (index == 2) {
-                            // 返回到模式选择
+                            // 返回到模式选择，重置重试标志
+                            mIsLevelRetry = false;
                             mReturnToModeSelect = true;
-                            break;
+                            break; // 先退出当前循环
                         } else {
-                            // 退出游戏
+                            // 退出游戏，重置重试标志
+                            mIsLevelRetry = false;
                             break;
                         }
                     }
+                }
+                
+                // 检查是否需要返回到模式选择界面
+                if (mReturnToModeSelect) {
+                    playAgain = false; // 结束当前游戏模式循环
+                    break; // 退出关卡模式循环
                 }
                     break;
                 case GameMode::Battle: {
@@ -1210,6 +1303,7 @@ bool Game::selectLevel()
     // 设置游戏模式
     mCurrentMode = static_cast<GameMode>(index);
     mReturnToModeSelect = false; // 重置返回标志
+    mIsLevelRetry = false;       // 重置重试标志
     
     return true;
 }
@@ -1244,34 +1338,45 @@ void Game::displayLevelIntroduction(int level)
     switch (level) {
         case 1:
             introText = {
-                "THE BEGINNING",
+                " The Eternal Trial",
                 "",
+                "The world is falling apart before your eyes.",
+                "The warmth of the nest, the gentle kiss of parents, the melody of a lullaby... everything becomes a distant and vague echo.",
+                "You are thrown into the end of time, a cage called the Stasis Ruins.",
+                "Sadness and fear wrap around you like ice, but in this dead silence, your parents' last words ignite a faint spark in your mind:",
+                "My child, before you embark on your journey, you must learn to survive in eternal loneliness.",
+                "This is their first teaching and your only guidepost.",
+                "Stay alive.",
+                "In order to feel the warmth again, in order to find out the truth, in order to... no longer be alone.",
                 "This is your first adventure in this barren land.",
                 "You must find enough food to survive.",
                 "",
-                "OBJECTIVE: Collect 5 pieces of food to prove your survival skills!"
+                "OBJECTIVE: Collect 100 pieces of food to learn to survive in eternal loneliness!"
             };
             break;
         case 2:
             introText = {
-                "SPEED CHALLENGE",
+                "The Arrow of Time",
                 "",
-                "You've mastered basic survival skills.",
-                "Now you need to improve your speed and reflexes.",
-                "Food is more scattered in this area, and you need to be more agile.",
+                "You have entered the \"realm of flowing light\".",
+                "This is the time and space eroded by the remaining power of the \"Mechanical Master\", turning time into the most deadly weapon.",
+                "Here, a moment of hesitation will be left behind by the torrent of time.",
+                "The second lesson from parents sounded at the right time, like a warning bell:",
+                "Remember, time is both your enemy and your weapon. You have to learn to harness it instead of being swallowed up by it.",
+                "You take a deep breath and sink the power of \"Tough Heart\" into the depths of your consciousness.",
+                "Now you have to be faster than time.",
                 "",
-                "OBJECTIVE: Collect 8 pieces of food while moving at high speed!"
+                "OBJECTIVE: Collect 8 pieces of food within 30 seconds!"
             };
             break;
         case 3:
             introText = {
-                "MAZE ADVENTURE",
-                "",
-                "Ahead lies a complex maze area.",
-                "The gaps between walls become your pathways.",
-                "Move carefully and avoid collisions with walls.",
-                "",
-                "OBJECTIVE: Collect 10 pieces of food in the maze to prove your navigation skills!"
+                "Your longing has awakened a spiritual imprint sleeping here.",
+                "A gentle yet powerful voice, the combined voice of your parents, echoes from the water:",
+                "\"We never left you, child. Feel our presence. You are never fighting alone.\"",
+                "In the center of the pool, light gathers, forming a 'Soul Shadow' made of pure energy. It is both a trial and a guardian.",
+                "Now, how will you face this memory?",
+                ""
             };
             break;
         case 4:
@@ -1359,8 +1464,24 @@ void Game::displayLevelIntroduction(int level)
         return wrappedLines;
     };
     
+    // 设置getch为非阻塞模式，以便检测按键
+    nodelay(stdscr, TRUE);
+    
+    // 在窗口底部显示跳过提示
+    mvwprintw(introWin, height - 2, 2, "Press ESC to skip");
+    wrefresh(introWin);
+    
+    bool skip = false;
+    
     // 显示每一行原始文字（可能会自动换行）
     for (size_t i = 0; i < introText.size(); i++) {
+        // 检查是否按下ESC键跳过
+        int ch = getch();
+        if (ch == 27) { // ESC键的ASCII码是27
+            skip = true;
+            break;
+        }
+        
         const std::string& originalLine = introText[i];
         
         // 如果是空行，只显示很短的时间
@@ -1373,7 +1494,20 @@ void Game::displayLevelIntroduction(int level)
                 }
             }
             wrefresh(introWin);
-            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+            
+            // 在等待期间检查是否按下ESC键
+            auto start = std::chrono::steady_clock::now();
+            while (std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::steady_clock::now() - start).count() < 300) {
+                ch = getch();
+                if (ch == 27) {
+                    skip = true;
+                    break;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+            
+            if (skip) break;
             continue;
         }
         
@@ -1404,25 +1538,92 @@ void Game::displayLevelIntroduction(int level)
             for (size_t j = 0; j < line.length(); j++) {
                 mvwaddch(introWin, startLine + static_cast<int>(lineIdx), startX + static_cast<int>(j), line[j]);
                 wrefresh(introWin);
-                // 每个字符显示后短暂暂停，营造打字机效果
+                
+                // 每个字符显示后短暂暂停，同时检查是否按下ESC键
+                ch = getch();
+                if (ch == 27) {
+                    skip = true;
+                    break;
+                }
                 std::this_thread::sleep_for(std::chrono::milliseconds(30));
+            }
+            
+            if (skip) break;
+        }
+        
+        if (skip) break;
+        
+        // 显示完整行后等待一段时间，同时检查是否按下ESC键
+        auto start = std::chrono::steady_clock::now();
+        while (std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::steady_clock::now() - start).count() < displayTime) {
+            ch = getch();
+            if (ch == 27) {
+                skip = true;
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+        
+        if (skip) break;
+    }
+    
+    // 如果跳过，立即显示所有文本的最后一行
+    if (skip && !introText.empty()) {
+        // 清除显示区域
+        for (int y = 3; y < height - 3; y++) {
+            wmove(introWin, y, 2);
+            for (int x = 2; x < width - 2; x++) {
+                waddch(introWin, ' ');
             }
         }
         
-        // 显示完整行后等待一段时间
-        std::this_thread::sleep_for(std::chrono::milliseconds(displayTime));
-    }
-    
-    // 清除所有文本
-    for (int y = 3; y < height - 3; y++) {
-        wmove(introWin, y, 2);
-        for (int x = 2; x < width - 2; x++) {
-            waddch(introWin, ' ');
+        // 找到最后一个非空行
+        std::string lastLine;
+        for (auto it = introText.rbegin(); it != introText.rend(); ++it) {
+            if (!it->empty()) {
+                lastLine = *it;
+                break;
+            }
+        }
+        
+        if (!lastLine.empty()) {
+            // 将最后一行按需换行
+            std::vector<std::string> wrappedLines = wrapText(lastLine);
+            
+            // 计算起始行，使文本垂直居中
+            int startLine = (height - wrappedLines.size()) / 2;
+            if (startLine < 3) startLine = 3;
+            
+            // 显示最后一行
+            for (size_t lineIdx = 0; lineIdx < wrappedLines.size(); lineIdx++) {
+                const std::string& line = wrappedLines[lineIdx];
+                
+                // 计算当前行的水平居中位置
+                int startX = (width - line.length()) / 2;
+                if (startX < 2) startX = 2;
+                
+                mvwprintw(introWin, startLine + static_cast<int>(lineIdx), startX, "%s", line.c_str());
+            }
+            wrefresh(introWin);
         }
     }
     
-    // 显示按键提示
-    mvwprintw(introWin, height - 2, 2, "Press SPACE to continue...");
+    // 恢复getch为阻塞模式
+    nodelay(stdscr, FALSE);
+    
+    // 如果没有跳过，清除所有文本
+    if (!skip) {
+        for (int y = 3; y < height - 3; y++) {
+            wmove(introWin, y, 2);
+            for (int x = 2; x < width - 2; x++) {
+                waddch(introWin, ' ');
+            }
+        }
+    }
+    
+    // 显示按键提示（替换ESC跳过提示）
+    mvwprintw(introWin, height - 2, 2, "Press SPACE to continue...                ");
     
     wrefresh(introWin);
     
@@ -1435,9 +1636,302 @@ void Game::displayLevelIntroduction(int level)
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     
+    // For level 3,弹出模式选择框
+    if (level == 3) {
+        // 清除introWin内容
+        for (int y = 2; y < height - 2; y++) {
+            wmove(introWin, y, 2);
+            for (int x = 2; x < width - 2; x++) {
+                waddch(introWin, ' ');
+            }
+        }
+        box(introWin, 0, 0);
+        // 选项内容
+        std::vector<std::string> choices = {
+            "*Face the trial alone*",
+            "*Fight alongside an ally*"
+        };
+        std::vector<std::string> descs = {
+            "You decide to face the test yourself, to listen to their wordless teachings.",
+            "You choose to trust the companion by your side, inviting them into this place of memory."
+        };
+        int choiceIdx = 0;
+        int choiceY = height / 2 - 2;
+        int descY = choiceY + 3;
+        // 包装选项和描述文本
+        auto wrapText = [width](const std::string& text) -> std::vector<std::string> {
+            int maxDisplayWidth = width - 8;
+            std::vector<std::string> wrappedLines;
+            if (text.empty()) {
+                wrappedLines.push_back("");
+                return wrappedLines;
+            }
+            std::istringstream wordStream(text);
+            std::string word;
+            std::string currentLine;
+            while (wordStream >> word) {
+                if (currentLine.length() + word.length() + 1 > static_cast<size_t>(maxDisplayWidth) && !currentLine.empty()) {
+                    wrappedLines.push_back(currentLine);
+                    currentLine = word;
+                } else {
+                    if (!currentLine.empty()) currentLine += " ";
+                    currentLine += word;
+                }
+            }
+            if (!currentLine.empty()) wrappedLines.push_back(currentLine);
+            if (wrappedLines.empty()) {
+                std::string line;
+                for (char c : text) {
+                    if (line.length() >= static_cast<size_t>(maxDisplayWidth)) {
+                        wrappedLines.push_back(line);
+                        line.clear();
+                    }
+                    line += c;
+                }
+                if (!line.empty()) wrappedLines.push_back(line);
+            }
+            return wrappedLines;
+        };
+        // 渲染函数
+        auto renderChoices = [&](int highlightIdx) {
+            int y = choiceY;
+            for (int i = 0; i < (int)choices.size(); ++i) {
+                std::vector<std::string> lines = wrapText(choices[i]);
+                for (size_t l = 0; l < lines.size(); ++l, ++y) {
+                    int startX = (width - lines[l].length()) / 2;
+                    if (startX < 4) startX = 4;
+                    if (i == highlightIdx) wattron(introWin, A_STANDOUT);
+                    mvwprintw(introWin, y, startX, "%s", lines[l].c_str());
+                    if (i == highlightIdx) wattroff(introWin, A_STANDOUT);
+                }
+            }
+        };
+        auto renderDesc = [&](int idx) {
+            std::vector<std::string> lines = wrapText(descs[idx]);
+            int y = descY;
+            for (size_t l = 0; l < lines.size(); ++l, ++y) {
+                int startX = (width - lines[l].length()) / 2;
+                if (startX < 4) startX = 4;
+                mvwprintw(introWin, y, startX, "%s", lines[l].c_str());
+            }
+        };
+        // 渲染初始选项和描述
+        renderChoices(choiceIdx);
+        renderDesc(choiceIdx);
+        wrefresh(introWin);
+        // 选项循环
+        int key = 0;
+        while (true) {
+            key = getch();
+            if (key == 'W' || key == 'w' || key == KEY_UP) {
+                // 上移
+                renderChoices(-1); // 先清除高亮
+                choiceIdx = (choiceIdx - 1 + choices.size()) % choices.size();
+                renderChoices(choiceIdx);
+            } else if (key == 'S' || key == 's' || key == KEY_DOWN) {
+                // 下移
+                renderChoices(-1);
+                choiceIdx = (choiceIdx + 1) % choices.size();
+                renderChoices(choiceIdx);
+            } else if (key == ' ' || key == 10) {
+                // 确认
+                break;
+            }
+            // 清空描述区
+            for (int y = descY; y < descY + 3; ++y) {
+                mvwprintw(introWin, y, 4, "%*s", width - 8, "");
+            }
+            renderDesc(choiceIdx);
+            wrefresh(introWin);
+            std::this_thread::sleep_for(std::chrono::milliseconds(80));
+        }
+        // 记录选择，后续可用成员变量保存
+        mLevel3ModeChoice = choiceIdx; // 0: alone, 1: with ally
+
+        // 如果选择了模式一，显示模式一的剧情前文本
+        if (mLevel3ModeChoice == 0) {
+            // 清空窗口内容
+            for (int y = 2; y < height - 2; y++) {
+                wmove(introWin, y, 2);
+                for (int x = 2; x < width - 2; x++) {
+                    waddch(introWin, ' ');
+                }
+            }
+            box(introWin, 0, 0);
+            // 标题
+            std::string modeTitle = "The Mirror Dance";
+            mvwprintw(introWin, 1, (width - modeTitle.length()) / 2, "%s", modeTitle.c_str());
+            // 剧情文本
+            std::vector<std::string> storyText = {
+                "In that wordless dance, you came to understand your parents' hearts.",
+                "Every move the shadow made was a consequence of your own. You learned empathy, foresight, and guardianship.",
+                "You understood that 'coexistence' is not merely sharing a space, but a connection of souls. Even across worlds, love can move in perfect sync."
+            };
+            // 包装文本
+            auto wrapText = [width](const std::string& text) -> std::vector<std::string> {
+                int maxDisplayWidth = width - 8;
+                std::vector<std::string> wrappedLines;
+                if (text.empty()) {
+                    wrappedLines.push_back("");
+                    return wrappedLines;
+                }
+                std::istringstream wordStream(text);
+                std::string word;
+                std::string currentLine;
+                while (wordStream >> word) {
+                    if (currentLine.length() + word.length() + 1 > static_cast<size_t>(maxDisplayWidth) && !currentLine.empty()) {
+                        wrappedLines.push_back(currentLine);
+                        currentLine = word;
+                    } else {
+                        if (!currentLine.empty()) currentLine += " ";
+                        currentLine += word;
+                    }
+                }
+                if (!currentLine.empty()) wrappedLines.push_back(currentLine);
+                if (wrappedLines.empty()) {
+                    std::string line;
+                    for (char c : text) {
+                        if (line.length() >= static_cast<size_t>(maxDisplayWidth)) {
+                            wrappedLines.push_back(line);
+                            line.clear();
+                        }
+                        line += c;
+                    }
+                    if (!line.empty()) wrappedLines.push_back(line);
+                }
+                return wrappedLines;
+            };
+
+            // 设置getch为非阻塞模式，以便检测按键
+            nodelay(stdscr, TRUE);
+            
+            // 在窗口底部显示跳过提示
+            mvwprintw(introWin, height - 2, 2, "Press ESC to skip");
+            wrefresh(introWin);
+            
+            bool skip = false;
+            const int displayTime = 1500; // 每段显示时间（毫秒）
+            
+            // 逐行显示剧情文本
+            for (size_t paraIdx = 0; paraIdx < storyText.size(); paraIdx++) {
+                // 检查是否按下ESC键跳过
+                int ch = getch();
+                if (ch == 27) { // ESC键的ASCII码是27
+                    skip = true;
+                    break;
+                }
+                
+                // 将段落按需换行
+                std::vector<std::string> wrappedLines = wrapText(storyText[paraIdx]);
+                
+                // 清除显示区域
+                for (int y = 3; y < height - 3; y++) {
+                    wmove(introWin, y, 2);
+                    for (int x = 2; x < width - 2; x++) {
+                        waddch(introWin, ' ');
+                    }
+                }
+                
+                // 计算起始行，使文本垂直居中
+                int startLine = (height - wrappedLines.size()) / 2;
+                if (startLine < 3) startLine = 3;
+                
+                // 逐行显示包装后的文本
+                for (size_t lineIdx = 0; lineIdx < wrappedLines.size(); lineIdx++) {
+                    const std::string& line = wrappedLines[lineIdx];
+                    
+                    // 计算当前行的水平居中位置
+                    int startX = (width - line.length()) / 2;
+                    if (startX < 2) startX = 2;
+                    
+                    // 逐个字符显示当前行
+                    for (size_t j = 0; j < line.length(); j++) {
+                        mvwaddch(introWin, startLine + static_cast<int>(lineIdx), startX + static_cast<int>(j), line[j]);
+                        wrefresh(introWin);
+                        
+                        // 每个字符显示后短暂暂停，同时检查是否按下ESC键
+                        ch = getch();
+                        if (ch == 27) {
+                            skip = true;
+                            break;
+                        }
+                        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+                    }
+                    
+                    if (skip) break;
+                }
+                
+                if (skip) break;
+                
+                // 显示完整段落后等待一段时间，同时检查是否按下ESC键
+                auto start = std::chrono::steady_clock::now();
+                while (std::chrono::duration_cast<std::chrono::milliseconds>(
+                       std::chrono::steady_clock::now() - start).count() < displayTime) {
+                    ch = getch();
+                    if (ch == 27) {
+                        skip = true;
+                        break;
+                    }
+                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                }
+                
+                if (skip) break;
+            }
+            
+            // 如果跳过，立即显示最后一段
+            if (skip && !storyText.empty()) {
+                // 清除显示区域
+                for (int y = 3; y < height - 3; y++) {
+                    wmove(introWin, y, 2);
+                    for (int x = 2; x < width - 2; x++) {
+                        waddch(introWin, ' ');
+                    }
+                }
+                
+                // 找到最后一段
+                const std::string& lastPara = storyText.back();
+                
+                // 将最后一段按需换行
+                std::vector<std::string> wrappedLines = wrapText(lastPara);
+                
+                // 计算起始行，使文本垂直居中
+                int startLine = (height - wrappedLines.size()) / 2;
+                if (startLine < 3) startLine = 3;
+                
+                // 显示最后一段
+                for (size_t lineIdx = 0; lineIdx < wrappedLines.size(); lineIdx++) {
+                    const std::string& line = wrappedLines[lineIdx];
+                    
+                    // 计算当前行的水平居中位置
+                    int startX = (width - line.length()) / 2;
+                    if (startX < 2) startX = 2;
+                    
+                    mvwprintw(introWin, startLine + static_cast<int>(lineIdx), startX, "%s", line.c_str());
+                }
+                wrefresh(introWin);
+            }
+            
+            // 恢复getch为阻塞模式
+            nodelay(stdscr, FALSE);
+            
+            // 显示按键提示（替换ESC跳过提示）
+            mvwprintw(introWin, height - 2, 2, "Press SPACE to continue...                ");
+            wrefresh(introWin);
+            
+            // 等待空格或回车
+            int key;
+            while (true) {
+                key = getch();
+                if (key == ' ' || key == 10)
+                    break;
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+        }
+    }
+
     // 删除窗口
     delwin(introWin);
-    
+
     // 重新绘制游戏界面
     werase(this->mWindows[1]);
     box(this->mWindows[1], 0, 0);
@@ -1455,7 +1949,7 @@ void Game::initializeLevel(int level)
     switch (level) {
         case 1:
             mCurrentLevelType = LevelType::Normal;
-            mLevelTargetPoints = 5;
+            mLevelTargetPoints = 10;  // 第一关目标设置为10个食物
             break;
         case 2:
             mCurrentLevelType = LevelType::Speed;
@@ -1470,16 +1964,20 @@ void Game::initializeLevel(int level)
             mLevelTargetPoints = 12;
             // 初始化第四关特殊设置
             this->initializeLevel4();
-            // 显示开场介绍
-            this->displayLevelIntroduction(level);
+            // 显示开场介绍（除非是重试）
+            if (!mIsLevelRetry) {
+                this->displayLevelIntroduction(level);
+            }
             return; // 第四关有特殊初始化，直接返回
         case 5:
             mCurrentLevelType = LevelType::Custom2;
             mLevelTargetPoints = 15;
             // 初始化第五关特殊设置
             this->initializeLevel5();
-            // 显示开场介绍
-            this->displayLevelIntroduction(level);
+            // 显示开场介绍（除非是重试）
+            if (!mIsLevelRetry) {
+                this->displayLevelIntroduction(level);
+            }
             return; // 第五关有特殊初始化，直接返回
         default:
             mCurrentLevelType = LevelType::Normal;
@@ -1512,19 +2010,50 @@ void Game::initializeLevel(int level)
     this->mPtrSnake.reset(new Snake(this->mGameBoardWidth, this->mGameBoardHeight, this->mInitialSnakeLength));
     this->mPtrSnake->setMap(this->mPtrMap.get());
     
-    // 尝试寻找合适的蛇初始位置
+    // 尝试寻找合适的蛇初始位置，确保有足够的安全空间
     bool snakeInitialized = false;
+    
+    // 首先尝试找到一个有非常大的安全空间的位置 (10格)
     std::vector<std::pair<SnakeBody, InitialDirection>> validPositions =
-        this->mPtrMap->getValidSnakePositions(this->mInitialSnakeLength, 6);
+        this->mPtrMap->getValidSnakePositions(this->mInitialSnakeLength, 10);
     
     if (!validPositions.empty()) {
-        int idx = std::rand() % validPositions.size();
-        auto [startPos, direction] = validPositions[idx];
+        // 选择更靠近中央的位置
+        int bestIdx = 0;
+        int centerX = this->mGameBoardWidth / 2;
+        int centerY = this->mGameBoardHeight / 2;
+        int minDist = this->mGameBoardWidth + this->mGameBoardHeight; // 初始最大距离
+        
+        for (size_t i = 0; i < validPositions.size(); i++) {
+            auto [pos, dir] = validPositions[i];
+            int dx = pos.getX() - centerX;
+            int dy = pos.getY() - centerY;
+            int dist = std::abs(dx) + std::abs(dy); // 曼哈顿距离
+            
+            if (dist < minDist) {
+                minDist = dist;
+                bestIdx = i;
+            }
+        }
+        
+        auto [startPos, direction] = validPositions[bestIdx];
         this->mPtrSnake->initializeSnake(startPos.getX(), startPos.getY(), direction);
         snakeInitialized = true;
     }
     
     // 如果没有找到理想的位置，尝试降低空间要求
+    if (!snakeInitialized) {
+        validPositions = this->mPtrMap->getValidSnakePositions(this->mInitialSnakeLength, 6);
+        
+        if (!validPositions.empty()) {
+            int idx = std::rand() % validPositions.size();
+            auto [startPos, direction] = validPositions[idx];
+            this->mPtrSnake->initializeSnake(startPos.getX(), startPos.getY(), direction);
+            snakeInitialized = true;
+        }
+    }
+    
+    // 如果还是没有找到合适的位置，再降低要求
     if (!snakeInitialized) {
         validPositions = this->mPtrMap->getValidSnakePositions(this->mInitialSnakeLength, 3);
         
@@ -1536,6 +2065,7 @@ void Game::initializeLevel(int level)
         }
     }
     
+    // 最后的备选方案，使用中心位置
     if (!snakeInitialized) {
         this->mPtrSnake->initializeSnake();
     }
@@ -1547,7 +2077,7 @@ void Game::initializeLevel(int level)
     // 设置难度参数（不同关卡可以有不同的初始难度）
     switch (mCurrentLevelType) {
         case LevelType::Speed:
-            this->mDifficulty = 2;  // 速度关卡初始难度更高
+            this->mDifficulty = 0;  // 速度关卡难度降低，让蛇移动更慢
             break;
         case LevelType::Custom1:
         case LevelType::Custom2:
@@ -1559,10 +2089,17 @@ void Game::initializeLevel(int level)
     }
     
     this->mPoints = 0;
-    this->mDelay = this->mBaseDelay * pow(0.75, this->mDifficulty);
+    // 第二关速度调慢：延迟为基础延迟的2倍
+    if (level == 2) {
+        this->mDelay = this->mBaseDelay * 2.0;
+    } else {
+        this->mDelay = this->mBaseDelay * pow(0.75, this->mDifficulty);
+    }
     
-    // 显示开场介绍
-    this->displayLevelIntroduction(level);
+    // 显示开场介绍（除非是重试）
+    if (!mIsLevelRetry) {
+        this->displayLevelIntroduction(level);
+    }
 }
 
 // 初始化第四关特殊设置
@@ -1699,7 +2236,12 @@ void Game::loadNextLevel()
 
 bool Game::isLevelCompleted()
 {
-    // 当前关卡完成条件：达到目标分数
+    // 第二关特殊逻辑：需要在时间限制内达到目标分数
+    if (mCurrentLevel == 2) {
+        return (mPoints >= mLevelTargetPoints);
+    }
+    
+    // 其他关卡正常逻辑
     return (mPoints >= mLevelTargetPoints);
 }
 
@@ -1711,6 +2253,15 @@ void Game::runLevel()
     this->renderPoints();
     this->renderLevel();
     
+    // 设置非阻塞模式，确保游戏不会在等待输入时卡住
+    nodelay(stdscr, TRUE);
+    
+    // 如果是第三关模式一，使用镜像之舞逻辑
+    if (mCurrentLevel == 3 && mLevel3ModeChoice == 0) {
+        this->runLevel3Mode1();
+        return;
+    }
+    
     // 如果是第四关，使用特殊的运行逻辑
     if (mCurrentLevel == 4) {
         this->runLevel4();
@@ -1721,6 +2272,50 @@ void Game::runLevel()
     if (mCurrentLevel == 5) {
         this->runLevel5();
         return;
+    }
+    
+    // 添加一个准备阶段，让玩家有时间反应
+    {
+        // 渲染当前状态，让玩家看到蛇的初始位置
+        werase(this->mWindows[1]);
+        box(this->mWindows[1], 0, 0);
+        this->renderMap();
+        this->renderSnake();
+        this->renderFood();
+        
+        // 创建一个倒计时窗口
+        WINDOW* countdownWin;
+        int width = 24;
+        int height = 5;
+        int startX = (this->mGameBoardWidth - width) / 2;
+        int startY = (this->mGameBoardHeight - height) / 2 + this->mInformationHeight;
+        
+        countdownWin = newwin(height, width, startY, startX);
+        box(countdownWin, 0, 0);
+        mvwprintw(countdownWin, 0, 8, "GET READY");
+        
+        // 倒计时3秒
+        for (int i = 3; i > 0; i--) {
+            mvwprintw(countdownWin, 2, 9, "READY: %d", i);
+            wrefresh(countdownWin);
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+        
+        mvwprintw(countdownWin, 2, 10, "GO!   ");
+        wrefresh(countdownWin);
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        
+        // 删除倒计时窗口
+        delwin(countdownWin);
+    }
+    
+    // 为第二关设置时间计时
+    std::chrono::time_point<std::chrono::steady_clock> startTime;
+    const int timeLimitSeconds = 30; // 第二关时间限制：30秒
+    bool hasTimeLimit = (mCurrentLevel == 2);
+    
+    if (hasTimeLimit) {
+        startTime = std::chrono::steady_clock::now();
     }
     
     // 其他关卡的运行逻辑
@@ -1740,6 +2335,28 @@ void Game::runLevel()
         {
             // 如果碰撞，关卡失败
             break;
+        }
+        
+        // 检查时间限制（第二关）
+        if (hasTimeLimit) {
+            auto currentTime = std::chrono::steady_clock::now();
+            auto elapsedSeconds = std::chrono::duration_cast<std::chrono::seconds>(
+                currentTime - startTime).count();
+            int remainingTime = timeLimitSeconds - static_cast<int>(elapsedSeconds);
+            
+            // 在游戏面板上显示剩余时间
+            mvwprintw(this->mWindows[1], 1, 1, "Time: %d s ", remainingTime);
+            
+            // 如果时间到，结束游戏
+            if (remainingTime <= 0) {
+                // 时间到但没有达到目标分数，关卡失败
+                if (mPoints < mLevelTargetPoints) {
+                    mvwprintw(this->mWindows[1], this->mGameBoardHeight / 2, this->mGameBoardWidth / 2 - 10, "TIME'S UP! FAILED!");
+                    wrefresh(this->mWindows[1]);
+                    std::this_thread::sleep_for(std::chrono::seconds(2));
+                    break;
+                }
+            }
         }
         
         this->renderSnake();
@@ -1951,6 +2568,7 @@ bool Game::selectLevelInLevelMode()
     // 选择了有效的关卡
     else {
         mCurrentLevel = index + 1;
+        mIsLevelRetry = false; // 首次选择关卡时，重置重试标志
         return true;
     }
 }
@@ -2069,6 +2687,9 @@ void Game::runTimeAttack()
         this->renderDifficulty();
         this->renderPoints();
         this->renderTimer(); // 在每一帧都渲染计时器
+        
+        // 在游戏界面上显示剩余时间
+        mvwprintw(this->mWindows[1], 1, 1, "Time: %d s ", mTimeRemaining);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
         refresh();
@@ -2862,4 +3483,523 @@ void Game::renderWinnerText(const std::string& winner) const {
     getch();
     nodelay(stdscr, TRUE); // 恢复非阻塞模式
     delwin(menu);
+}
+
+// 显示关卡通关后的文字叙述
+void Game::displayLevelCompletion(int level)
+{
+    // 清除屏幕并刷新，以确保界面正确显示
+    werase(this->mWindows[1]);
+    box(this->mWindows[1], 0, 0);
+    wrefresh(this->mWindows[1]);
+    
+    // 创建一个窗口用于显示通关文字
+    WINDOW* completeWin;
+    int width = this->mGameBoardWidth * 0.8;
+    int height = this->mGameBoardHeight * 0.7;
+    int startX = this->mGameBoardWidth * 0.1;
+    int startY = this->mGameBoardHeight * 0.15 + this->mInformationHeight;
+
+    completeWin = newwin(height, width, startY, startX);
+    box(completeWin, 0, 0);
+    
+    // 设置标题
+    std::string title = "LEVEL " + std::to_string(level) + " COMPLETED";
+    mvwprintw(completeWin, 1, (width - title.length()) / 2, "%s", title.c_str());
+    
+    // 根据关卡显示不同的通关文字
+    std::vector<std::string> completionText;
+    
+    switch (level) {
+        case 1:
+            completionText = {
+                "An eternity could have passed.",
+                "In this endless solitude, you were not consumed.",
+                "You forged your sorrow into sustenance and your confusion into strength. Every bite was a declaration of your will to live; every inch of growth was an answer to your parents' lesson.",
+                "You are no longer the frightened hatchling cowering in the dark. Your spirit has been tempered, as hard and unbreakable as a diamond.",
+                "",
+                "[Item Acquired]: *Memory Shard - The Heart of Fortitude*",
+                "",
+                "This is the first gift your parents left you—the \"Heart of Fortitude.\"",
+                "As it appears, the stagnant space around you begins to tremble. Like a compass, the shard points you toward a new direction, toward a rift engulfed in a chaotic temporal storm.",
+                "You understand now. The trial... has only just begun.",
+            };
+            break;
+        case 2:
+            completionText = {
+                "You succeeded.",
+                "In this race against the clock, you learned to maintain focus and precision under extreme pressure.",
+                "You no longer fear the fleeting moments; instead, you have come to understand their rhythm. You now grasp the cold, efficient terror of The Mechanos—and have found a way to navigate its laws.",
+                "",
+                "[Item Acquired]: *Memory Shard - The Heart of Celerity*",
+                "",
+                "The two shards circle you, their powers beginning to resonate.",
+                "No longer pointing to a random rift, they now work in concert to open a new gateway—a path to the deepest corner of your heart, to the hallowed ground where memory and longing reside.",
+            };
+            break;
+        case 3:
+            completionText = {
+                "THE MAZE CONQUERED",
+                "",
+                "Through twists and turns, dead ends and narrow passages, you persevered.",
+                "The maze was not just a test of navigation, but of patience and determination.",
+                "",
+                "[Item Acquired]: *Memory Shard - The Heart of Wisdom*",
+                "",
+                "This third shard resonates with the others, creating patterns of light that sketch",
+                "familiar yet foreign landscapes in the air around you.",
+                "",
+                "You sense that the barriers between worlds are thinning, that each trial",
+                "brings you closer to the truth of your origin and purpose."
+            };
+            break;
+        case 4:
+            completionText = {
+                "THE PATH DISCOVERED",
+                "",
+                "Beyond the confines of simple survival, you've found direction.",
+                "The exit wasn't just a way out - it was a way forward.",
+                "",
+                "With each step toward your destination, fragments of memory returned.",
+                "A civilization. A catastrophe. A desperate plan.",
+                "",
+                "You are not the first to walk these halls, but you may be the last to matter."
+            };
+            break;
+        case 5:
+            completionText = {
+                "THE GUARDIAN FALLS",
+                "",
+                "The mighty sentinel, last defense of the ancients, lies defeated.",
+                "Its purpose fulfilled not in victory but in worthy challenge.",
+                "",
+                "As its systems power down, a final message plays:",
+                "\"Protocol complete. Subject viable. Stasis containment terminated.\"",
+                "",
+                "The walls of your prison begin to dissolve, revealing a world beyond -",
+                "not the one you remember, but one waiting to be reborn.",
+                "",
+                "You step forward, no longer just survivor, but inheritor."
+            };
+            break;
+        default:
+            completionText = {
+                "CHALLENGE COMPLETE",
+                "",
+                "You have overcome this trial, but the journey continues...",
+                "",
+                "What awaits in the next challenge?"
+            };
+    }
+    
+    // 实现文本自动换行的显示效果
+    const int maxDisplayWidth = width - 6; // 可显示的最大宽度（留边距）
+    
+    // 辅助函数：将长文本按单词分割成适合宽度的多行
+    auto wrapText = [maxDisplayWidth](const std::string& text) -> std::vector<std::string> {
+        std::vector<std::string> wrappedLines;
+        if (text.empty()) {
+            wrappedLines.push_back("");
+            return wrappedLines;
+        }
+        
+        std::istringstream wordStream(text);
+        std::string word;
+        std::string currentLine;
+        
+        while (wordStream >> word) {
+            // 如果加上这个词会超出宽度，且当前行不为空，则另起一行
+            if (currentLine.length() + word.length() + 1 > static_cast<size_t>(maxDisplayWidth) && !currentLine.empty()) {
+                wrappedLines.push_back(currentLine);
+                currentLine = word;
+            } 
+            // 如果是第一个词或者可以加入当前行
+            else {
+                if (!currentLine.empty()) {
+                    currentLine += " ";
+                }
+                currentLine += word;
+            }
+        }
+        
+        if (!currentLine.empty()) {
+            wrappedLines.push_back(currentLine);
+        }
+        
+        return wrappedLines;
+    };
+    
+    // 设置getch为非阻塞模式，以便检测按键
+    nodelay(stdscr, TRUE);
+    
+    // 在窗口底部显示跳过提示
+    mvwprintw(completeWin, height - 2, 2, "Press ESC to skip");
+    wrefresh(completeWin);
+    
+    bool skip = false;
+    
+    // 显示每一行原始文字（可能会自动换行）
+    for (size_t i = 0; i < completionText.size(); i++) {
+        // 检查是否按下ESC键跳过
+        int ch = getch();
+        if (ch == 27) { // ESC键的ASCII码是27
+            skip = true;
+            break;
+        }
+        
+        const std::string& originalLine = completionText[i];
+        
+        // 如果是空行，只显示很短的时间
+        if (originalLine.empty()) {
+            // 清除显示区域
+            for (int y = 3; y < height - 3; y++) {
+                wmove(completeWin, y, 2);
+                for (int x = 2; x < width - 2; x++) {
+                    waddch(completeWin, ' ');
+                }
+            }
+            wrefresh(completeWin);
+            
+            // 在等待期间检查是否按下ESC键
+            auto start = std::chrono::steady_clock::now();
+            while (std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::steady_clock::now() - start).count() < 300) {
+                ch = getch();
+                if (ch == 27) {
+                    skip = true;
+                    break;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+            
+            if (skip) break;
+            continue;
+        }
+        
+        // 将原始行按需换行
+        std::vector<std::string> wrappedLines = wrapText(originalLine);
+        
+        // 清除显示区域
+        for (int y = 3; y < height - 3; y++) {
+            wmove(completeWin, y, 2);
+            for (int x = 2; x < width - 2; x++) {
+                waddch(completeWin, ' ');
+            }
+        }
+        
+        // 计算起始行，使文本垂直居中
+        int startLine = (height - wrappedLines.size()) / 2;
+        if (startLine < 3) startLine = 3;
+        
+        // 逐行显示包装后的文本
+        for (size_t lineIdx = 0; lineIdx < wrappedLines.size(); lineIdx++) {
+            const std::string& line = wrappedLines[lineIdx];
+            
+            // 计算当前行的水平居中位置
+            int startPos = (width - line.length()) / 2;
+            if (startPos < 2) startPos = 2;
+            
+            // 逐个字符显示当前行
+            for (size_t j = 0; j < line.length(); j++) {
+                mvwaddch(completeWin, startLine + static_cast<int>(lineIdx), startPos + static_cast<int>(j), line[j]);
+                wrefresh(completeWin);
+                
+                // 每个字符显示后短暂暂停，同时检查是否按下ESC键
+                ch = getch();
+                if (ch == 27) {
+                    skip = true;
+                    break;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(30));
+            }
+            
+            if (skip) break;
+        }
+        
+        if (skip) break;
+        
+        // 显示完整行后等待一段时间，同时检查是否按下ESC键
+        auto start = std::chrono::steady_clock::now();
+        while (std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::steady_clock::now() - start).count() < 2000) {
+            ch = getch();
+            if (ch == 27) {
+                skip = true;
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+        
+        if (skip) break;
+    }
+    
+    // 如果跳过，立即显示所有文本的最后一行
+    if (skip && !completionText.empty()) {
+        // 清除显示区域
+        for (int y = 3; y < height - 3; y++) {
+            wmove(completeWin, y, 2);
+            for (int x = 2; x < width - 2; x++) {
+                waddch(completeWin, ' ');
+            }
+        }
+        
+        // 找到最后一个非空行
+        std::string lastLine;
+        for (auto it = completionText.rbegin(); it != completionText.rend(); ++it) {
+            if (!it->empty()) {
+                lastLine = *it;
+                break;
+            }
+        }
+        
+        if (!lastLine.empty()) {
+            // 将最后一行按需换行
+            std::vector<std::string> wrappedLines = wrapText(lastLine);
+            
+            // 计算起始行，使文本垂直居中
+            int startLine = (height - wrappedLines.size()) / 2;
+            if (startLine < 3) startLine = 3;
+            
+            // 显示最后一行
+            for (size_t lineIdx = 0; lineIdx < wrappedLines.size(); lineIdx++) {
+                const std::string& line = wrappedLines[lineIdx];
+                
+                // 计算当前行的水平居中位置
+                int startPos = (width - line.length()) / 2;
+                if (startPos < 2) startPos = 2;
+                
+                mvwprintw(completeWin, startLine + static_cast<int>(lineIdx), startPos, "%s", line.c_str());
+            }
+            wrefresh(completeWin);
+        }
+    }
+    
+    // 恢复getch为阻塞模式
+    nodelay(stdscr, FALSE);
+    
+    // 如果没有跳过，清除所有文本
+    if (!skip) {
+        for (int y = 3; y < height - 3; y++) {
+            wmove(completeWin, y, 2);
+            for (int x = 2; x < width - 2; x++) {
+                waddch(completeWin, ' ');
+            }
+        }
+    }
+    
+    // 显示按键提示（替换ESC跳过提示）
+    mvwprintw(completeWin, height - 2, 2, "Press SPACE to continue...                ");
+    wrefresh(completeWin);
+    
+    // 等待用户按空格键继续
+    int key;
+    while (true) {
+        key = getch();
+        if (key == ' ' || key == 10) // 空格键或回车键
+            break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    
+    // 删除窗口
+    delwin(completeWin);
+    
+    // 重新绘制游戏界面
+    werase(this->mWindows[1]);
+    box(this->mWindows[1], 0, 0);
+    wrefresh(this->mWindows[1]);
+}
+
+// 实现第三关模式一：镜像之舞
+void Game::runLevel3Mode1()
+{
+    // 确保初始化时侧边栏正确显示
+    this->renderInstructionBoard();
+    this->renderDifficulty();
+    this->renderPoints();
+    this->renderLevel();
+    
+    // 设置非阻塞模式，确保游戏不会在等待输入时卡住
+    nodelay(stdscr, TRUE);
+    
+    // 添加一个准备阶段，让玩家有时间反应
+    {
+        // 渲染当前状态，让玩家看到蛇的初始位置
+        werase(this->mWindows[1]);
+        box(this->mWindows[1], 0, 0);
+        this->renderMap();
+        this->renderSnake();
+        this->renderFood();
+        
+        // 创建一个倒计时窗口
+        WINDOW* countdownWin;
+        int width = 24;
+        int height = 5;
+        int startX = (this->mGameBoardWidth - width) / 2;
+        int startY = (this->mGameBoardHeight - height) / 2 + this->mInformationHeight;
+        
+        countdownWin = newwin(height, width, startY, startX);
+        box(countdownWin, 0, 0);
+        mvwprintw(countdownWin, 0, 8, "GET READY");
+        
+        // 倒计时3秒
+        for (int i = 3; i > 0; i--) {
+            mvwprintw(countdownWin, 2, 9, "READY: %d", i);
+            wrefresh(countdownWin);
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+        
+        mvwprintw(countdownWin, 2, 10, "GO!   ");
+        wrefresh(countdownWin);
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        
+        // 删除倒计时窗口
+        delwin(countdownWin);
+    }
+    
+    // 创建影子蛇 - 玩家的镜像
+    std::unique_ptr<Snake> shadowSnake = std::make_unique<Snake>(this->mGameBoardWidth, this->mGameBoardHeight, this->mInitialSnakeLength);
+    shadowSnake->setMap(this->mPtrMap.get());
+    
+    // 获取当前蛇的位置和方向
+    int playerX = this->mPtrSnake->getSnake()[0].getX();
+    int playerY = this->mPtrSnake->getSnake()[0].getY();
+    Direction playerDir = this->mPtrSnake->getDirection();
+    
+    // 计算镜像位置 - 以游戏区域中心为镜像点
+    int centerX = this->mGameBoardWidth / 2;
+    int centerY = this->mGameBoardHeight / 2;
+    int shadowX = 2 * centerX - playerX;
+    int shadowY = 2 * centerY - playerY;
+    
+    // 计算镜像方向
+    Direction shadowDir;
+    switch (playerDir) {
+        case Direction::Up:
+            shadowDir = Direction::Down;
+            break;
+        case Direction::Down:
+            shadowDir = Direction::Up;
+            break;
+        case Direction::Left:
+            shadowDir = Direction::Right;
+            break;
+        case Direction::Right:
+            shadowDir = Direction::Left;
+            break;
+    }
+    
+    // 初始化影子蛇 - 需要转换为InitialDirection枚举
+    InitialDirection shadowInitDir;
+    switch (shadowDir) {
+        case Direction::Up:
+            shadowInitDir = InitialDirection::Up;
+            break;
+        case Direction::Down:
+            shadowInitDir = InitialDirection::Down;
+            break;
+        case Direction::Left:
+            shadowInitDir = InitialDirection::Left;
+            break;
+        case Direction::Right:
+            shadowInitDir = InitialDirection::Right;
+            break;
+    }
+    shadowSnake->initializeSnake(shadowX, shadowY, shadowInitDir);
+    
+    // 游戏主循环
+    while (true)
+    {
+        // 处理玩家输入
+        this->controlSnake();
+        
+        // 清除游戏区域
+        werase(this->mWindows[1]);
+        box(this->mWindows[1], 0, 0);
+        
+        // 渲染地图
+        this->renderMap();
+        
+        // 移动玩家蛇
+        bool playerEatFood = this->mPtrSnake->moveFoward();
+        bool playerCollision = this->mPtrSnake->checkCollision();
+        
+        // 获取玩家蛇的新方向
+        Direction playerNewDir = this->mPtrSnake->getDirection();
+        
+        // 计算影子蛇的镜像方向
+        Direction shadowNewDir;
+        switch (playerNewDir) {
+            case Direction::Up:
+                shadowNewDir = Direction::Down;
+                break;
+            case Direction::Down:
+                shadowNewDir = Direction::Up;
+                break;
+            case Direction::Left:
+                shadowNewDir = Direction::Right;
+                break;
+            case Direction::Right:
+                shadowNewDir = Direction::Left;
+                break;
+        }
+        
+        // 设置影子蛇的方向
+        shadowSnake->changeDirection(shadowNewDir);
+        
+        // 移动影子蛇
+        shadowSnake->moveFoward();
+        bool shadowCollision = shadowSnake->checkCollision();
+        
+        // 检查玩家或影子是否碰撞
+        if (playerCollision || shadowCollision)
+        {
+            // 游戏结束
+            break;
+        }
+        
+        // 处理吃食物
+        if (playerEatFood)
+        {
+            this->mPoints += 1;
+            this->createRamdonFood();
+            this->mPtrSnake->senseFood(this->mFood);
+            shadowSnake->senseFood(this->mFood);
+            this->adjustDelay();
+            
+            // 检查是否完成关卡目标
+            if (this->isLevelCompleted())
+            {
+                // 如果达到目标分数，关卡通过
+                this->renderFood();
+                this->renderDifficulty();
+                this->renderPoints();
+                this->renderLevel();
+                refresh();
+                break;
+            }
+        }
+        
+        // 渲染玩家蛇
+        this->renderSnake();
+        
+        // 渲染影子蛇 - 使用不同的符号
+        const std::vector<SnakeBody>& shadowBody = shadowSnake->getSnake();
+        for (const auto& segment : shadowBody) {
+            mvwaddch(this->mWindows[1], segment.getY(), segment.getX(), '%');
+        }
+        
+        // 渲染食物和状态信息
+        this->renderFood();
+        this->renderDifficulty();
+        this->renderPoints();
+        this->renderLevel();
+        
+        // 添加提示文字
+        mvwprintw(this->mWindows[1], 1, 1, "Mirror Dance: Watch your shadow!");
+        
+        // 游戏延迟
+        std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
+        
+        refresh();
+    }
 }
