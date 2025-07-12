@@ -5,14 +5,14 @@ CXX = g++
 # -std=c++17: 启用C++17标准
 # -Wall: 显示所有警告信息
 # -g: 生成调试信息 (发布时可替换为 -O2)
-CXXFLAGS = -std=c++17 -Wall -g
+CXXFLAGS = -std=c++17 -Wall -g -Iinclude
 
 # 可执行文件的名称
 TARGET = snakegame
 
 # 源文件列表
 # 如果未来添加了新的 .cpp 文件，请在此处添加
-SOURCES = main.cpp game.cpp snake.cpp map.cpp ai.cpp
+SOURCES = src/main.cpp src/game.cpp src/snake.cpp src/map.cpp src/ai.cpp
 
 # 目标文件列表
 # 根据源文件列表自动生成对应的 .o 文件名
@@ -59,4 +59,3 @@ clean:
 	@echo "==> Cleaning up build files and saved data..."
 	-$(RM) $(TARGET) $(OBJECTS) leaderboard.bin level_progress.bin
 	@echo "==> Cleanup complete."
-
