@@ -971,6 +971,7 @@ void Game::startGame()
                         }
                     }
                 }
+                    break;
                 case GameMode::Battle: {
                     if (!selectBattleType()) {
                         playAgain = false; // 如果用户从类型选择返回，则退出playAgain循环
@@ -1804,12 +1805,20 @@ void Game::initializeBattle(BattleType type) {
 
     // 将蛇放置在相对的角落
     mPtrSnake->initializeSnake(5, 5, InitialDirection::Right);
-    mPtrSnake2->initializeSnake(mGameBoardWidth - 6, mGameBoardHeight - 6, InitialDirection::Left);
+    mPtrSnake2->initializeSnake(10, 10, InitialDirection::Left);
 
     mPtrSnake->setMap(mPtrMap.get());
     mPtrSnake2->setMap(mPtrMap.get());
 
+    // 创建食物（在蛇设置地图之后）
     createRamdonFood();
+    
+    // 确保食物被正确创建，如果没有可用位置，创建一个默认食物
+    if (mFood.getX() == 0 && mFood.getY() == 0) {
+        // 在中心位置创建一个食物
+        mFood = SnakeBody(mGameBoardWidth / 2, mGameBoardHeight / 2);
+    }
+    
     mPoints = 0;
     mPoints2 = 0;
     mDelay = mBaseDelay;
@@ -1819,6 +1828,8 @@ void Game::initializeBattle(BattleType type) {
 
 void Game::runBattle() {
     std::string winner = "";
+    nodelay(stdscr, TRUE); // Set getch() to be non-blocking
+    
     while (winner.empty()) {
         int key = getch();
         if (key != ERR) {
@@ -1835,6 +1846,11 @@ void Game::runBattle() {
         box(mWindows[1], 0, 0);
         renderMap();
 
+        // 渲染蛇和食物（在移动之前）
+        renderSnakes();
+        renderFood();
+        renderBattleStatus();
+
         // 同步食物信息并移动两条蛇
         mPtrSnake->senseFood(mFood);
         mPtrSnake2->senseFood(mFood);
@@ -1844,7 +1860,6 @@ void Game::runBattle() {
         // 检查碰撞
         winner = checkBattleCollisions();
         if (!winner.empty()) {
-            renderSnakes();
             wrefresh(mWindows[1]);
             break; // 如果有胜负，跳出循环
         }
@@ -1855,11 +1870,7 @@ void Game::runBattle() {
             if (p2_ate) mPoints2++;
             createRamdonFood();
         }
-
-        // 渲染所有元素
-        renderSnakes();
-        renderFood();
-        renderBattleStatus();
+        
 
         // 实现加速逻辑
         long currentDelay = mBaseDelay;
@@ -1869,6 +1880,7 @@ void Game::runBattle() {
         std::this_thread::sleep_for(std::chrono::milliseconds(currentDelay));
         wrefresh(mWindows[1]);
     }
+    nodelay(stdscr, FALSE);
     renderWinnerText(winner); // 显示胜利者
 }
 
@@ -1912,7 +1924,9 @@ std::string Game::checkBattleCollisions() {
     }
 
     if (p1_dead && p2_dead) return "Draw!";       // 平局
-    if (p1_dead) return "Player 2 Wins!"; // 玩家2胜利
+    if (p1_dead) {
+            return (mCurrentBattleType == BattleType::PlayerVsAI) ? "AI Wins!" : "Player 2 Wins!";
+        }
     if (p2_dead) return "Player 1 Wins!"; // 玩家1胜利
 
     return ""; // 没有碰撞发生
