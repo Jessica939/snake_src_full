@@ -10,146 +10,107 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include <chrono> 
+#include <chrono>
 
+// 自定义模块
 #include "snake.h"
 #include "map.h"
+#include "ai.h"
 
-// 游戏模式枚举
-enum class GameMode
-{
-    Classic = 0, // 经典模式
-    Level = 1,   // 关卡模式
-    Timed = 2    // 限时模式
-};
+// ========== 枚举定义 ==========
+enum class GameMode { Classic, Level, Timed, Battle };
+enum class LevelType { Normal, Speed, Maze, Custom1, Custom2 };
+enum class LevelStatus { Locked, Unlocked, Completed };
+enum class BossState { Red, Green };
+enum class BattleType { PlayerVsPlayer, PlayerVsAI };
 
-// 关卡类型枚举
-enum class LevelType
-{
-    Normal, // 普通关卡
-    Speed,  // 速度挑战
-    Maze,   // 迷宫闯关
-    Custom1, // 自定义关卡1 - 单键转向
-    Custom2  // 自定义关卡2 - Boss战
-};
-
-// 关卡状态枚举
-enum class LevelStatus
-{
-    Locked,    // 未解锁
-    Unlocked,  // 已解锁
-    Completed  // 已完成
-};
-
-// Boss状态枚举
-enum class BossState
-{
-    Red,    // 红色危险状态 - 发射旋转激光束
-    Green   // 绿色脆弱状态 - 可被攻击
-};
-
-class Game
-{
+// ========== 游戏主类 ==========
+class Game {
 public:
     Game();
     ~Game();
+
     void startGame();
-    
-    // 把selectLevel()方法改为公有
-    bool selectLevel();
-    
-    // 添加公有的shouldReturnToModeSelect()方法
+
+    // 公共函数
+    bool selectLevel(); // 改为公有
     bool shouldReturnToModeSelect() const { return mReturnToModeSelect; }
-    
+
 private:
-    // 界面相关
+    // ===== 界面控制相关 =====
     std::vector<WINDOW *> mWindows;
     int mScreenHeight, mScreenWidth;
-    int mInformationHeight = 5;
-    int mInstructionWidth = 20;
-    int mGameBoardHeight;
-    int mGameBoardWidth;
+    int mGameBoardHeight, mGameBoardWidth;
+    const int mInformationHeight = 6;
+    const int mInstructionWidth = 18;
+
     void createInformationBoard();
     void renderInformationBoard() const;
     void createGameBoard();
     void renderGameBoard() const;
     void createInstructionBoard();
     void renderInstructionBoard() const;
-    
-    // 蛇和地图
+    void renderBoards() const;
+
+    // ===== 蛇、地图、食物基础信息 =====
     std::unique_ptr<Snake> mPtrSnake;
     std::unique_ptr<Map> mPtrMap;
     SnakeBody mFood;
-    const char mSnakeSymbol = '*';
-    const char mFoodSymbol = '@';
-    const char mWallSymbol = '#';
-    const char mEndpointSymbol = 'X'; // 终点标记符号
-    const char mSingleKeyTurnSymbol = 'T'; // 单键转向按键
-    
-    // 默认关卡地图文件
-    const std::vector<std::string> mLevelMapFiles = {
-        "maps/level1.txt",
-        "maps/level2.txt",
-        "maps/level3.txt",
-        "maps/level4.txt", 
-        "maps/level5.txt"
-    };
-    
-    // 自定义地图文件
-    const std::string mDefaultMapName = "[Default Map]";
-    const std::vector<std::string> mMapFiles = {
-        "maps/map1.txt",
-        "maps/map2.txt",
-        "maps/map3.txt"
-    };
-    
-    // 游戏设置
+    const char mSnakeSymbol = '@';
+    const char mFoodSymbol = '#';
+    const char mWallSymbol = '+';
     int mInitialSnakeLength = 3;
-    
-    // 游戏状态
+
+    // ===== 游戏设置与状态 =====
     int mPoints = 0;
     int mDifficulty = 0;
-    int mDelay = mBaseDelay;
+    int mDelay;
     const int mBaseDelay = 100;
-    
-    // 排行榜系统
-    int mNumLeaders = 5;
+
+    // 排行榜
+    const std::string mRecordBoardFilePath = "record.dat";
     std::vector<int> mLeaderBoard;
-    const char* mRecordBoardFilePath = "record.dat";
+    const int mNumLeaders = 5;
     bool readLeaderBoard();
     bool updateLeaderBoard();
     bool writeLeaderBoard();
     void renderLeaderBoard() const;
-    
-    // 游戏相关函数
-    void renderBoards() const;
-    void initializeGame();
+    void renderPoints() const;
+    void renderDifficulty() const;
+
+    // 食物与控制
     void createRamdonFood();
     void renderFood() const;
     void renderSnake() const;
     void renderMap() const;
     void controlSnake() const;
     void adjustDelay();
+    void initializeGame();
     void runGame();
     bool renderRestartMenu() const;
+    bool renderRestartMenu(bool isBattleMode) const;
+
+    // 地图文件管理
+    const std::string mDefaultMapName = "default";
+    std::vector<std::string> mMapFiles = {"maps/map1.txt", "maps/map2.txt", "maps/map3.txt"};
     bool selectMap();
-    void renderPoints() const;
-    void renderDifficulty() const;
-    
-    // 关卡系统
+
+    // ========== 关卡模式 ==========
     int mCurrentLevel = 1;
-    int mMaxLevel = 5;
-    GameMode mCurrentMode = GameMode::Classic;
+    const int mMaxLevel = 5;
+    GameMode mCurrentMode;
     LevelType mCurrentLevelType = LevelType::Normal;
     std::vector<LevelStatus> mLevelStatus;
-    int mLevelTargetPoints = 0;
-    const char* mLevelProgressFilePath = "level_progress.dat";
+    int mLevelTargetPoints = 5;
     bool mReturnToModeSelect = false;
-    
-    // 创建默认的关卡地图
+    bool mIsLevelMode = false;
+    const std::string mLevelProgressFilePath = "level_progress.dat";
+    std::vector<std::string> mLevelMapFiles = {
+        "maps/level1.txt", "maps/level2.txt", "maps/level3.txt",
+        "maps/level4.txt", "maps/level5.txt"
+    };
+
     void createDefaultLevelMaps();
-    
-    // 关卡系统函数
     void initializeLevel(int level);
     void loadNextLevel();
     bool isLevelCompleted();
@@ -159,61 +120,80 @@ private:
     bool saveLevelProgress();
     bool loadLevelProgress();
     void renderLevel() const;
-    
-    // 第四关特殊设置
+
+    // === 第四关特殊逻辑 ===
     void initializeLevel4();
     void runLevel4();
-    bool mHasEndpoint = false;
-    SnakeBody mEndpoint;
     void renderEndpoint() const;
     void controlSnakeLevel4() const;
-    
-    // 第五关Boss战设置
+    SnakeBody mEndpoint;
+    const char mEndpointSymbol = 'X';
+    const char mSingleKeyTurnSymbol = 'T';
+    bool mHasEndpoint = false;
+
+    // === 第五关 Boss 战 ===
     void initializeLevel5();
     void runLevel5();
     int mBossHP = 5;
     int mBossSize = 5;
-    std::pair<int, int> mBossPosition; // Boss左上角的位置
+    std::pair<int, int> mBossPosition;
     BossState mBossState = BossState::Red;
-    
-    // Boss状态计时
-    float mBossStateDuration = 0.0f; // 当前状态持续时间
-    const float mRedStateDuration = 6.0f;    // 红色状态持续6秒
-    const float mGreenStateDuration = 3.0f;  // 绿色状态持续3秒（原为2秒）
-    std::chrono::time_point<std::chrono::steady_clock> mBossStateStartTime; // 状态开始时间
-    
-    // 蛇无敌状态控制
+
+    float mBossStateDuration = 0.0f;
+    const float mRedStateDuration = 6.0f;
+    const float mGreenStateDuration = 3.0f;
+    std::chrono::time_point<std::chrono::steady_clock> mBossStateStartTime;
+
     bool mSnakeInvincible = false;
     std::chrono::time_point<std::chrono::steady_clock> mInvincibleStartTime;
-    const float mInvincibleDuration = 2.0f; // 无敌状态持续2秒
-    
-    // Boss攻击点
-    SnakeBody mBossAttackPoint; // Boss的攻击点位置
-    void updateBossAttackPoint(); // 更新攻击点位置
-    
+    const float mInvincibleDuration = 2.0f;
+
+    SnakeBody mBossAttackPoint;
     int mBossStateTimer = 0;
     int mBossStateChangeDuration = 50;
     double mLaserAngle = 0.0;
     double mLaserRotationSpeed = 2.0;
     int mLaserLength = 0;
-    
-    // Boss战相关函数
+
     void updateBossState();
     void renderBoss();
+    void updateBossAttackPoint();
     void updateAndRenderLasers();
     void renderLaser(int x1, int y1, int x2, int y2, char symbol);
     bool checkLaserCollision();
     bool checkSnakeLaserCollision(const std::vector<SnakeBody>& snake, int x1, int y1, int x2, int y2);
-    double pointToLineDistance(int x0, int y0, int x1, int y1, int x2, int y2);
     bool checkBossAttack();
-    
-    // 限时模式
+    double pointToLineDistance(int x0, int y0, int x1, int y1, int x2, int y2);
+
+
+    // ========== 限时模式 ==========
     void initializeTimeAttack();
     void runTimeAttack();
     void renderTimer() const;
+
     int mTimeAttackDurationSeconds = 120;
     int mTimeRemaining = 0;
     std::chrono::time_point<std::chrono::steady_clock> mTimeAttackStartTime;
+
+    // ========== 对战模式 ==========
+    BattleType mCurrentBattleType;
+    std::unique_ptr<Snake> mPtrSnake2;
+    std::unique_ptr<AI> mPtrAI;
+    int mPoints2 = 0;
+    const char mSnakeSymbol2 = '&';
+    bool selectBattleType();
+    void initializeBattle(BattleType type);
+    void runBattle();
+    void controlSnakes(int key);
+    std::string checkBattleCollisions();
+    void renderSnakes() const;
+    void renderBattleStatus() const;
+    void renderWinnerText(const std::string& winner) const;
+
+    // 加速功能（对战模式用）
+    const int mAccelDelay = 40;
+    bool mAccelerateP1 = false;
+    bool mAccelerateP2 = false;
 };
 
 #endif // GAME_H

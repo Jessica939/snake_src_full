@@ -20,6 +20,7 @@ public:
     Map(int width, int height);
     ~Map();
 
+    void initializeEmptyMap();
     void loadDefaultMap();
     bool loadMapFromFile(const std::string& filename);
     bool saveMapToFile(const std::string& filename);
@@ -50,7 +51,7 @@ private:
     int mHeight;
     std::vector<std::vector<TileType>> mTiles;
     
-    void initializeEmptyMap();
+    
 };
 
 #endif 

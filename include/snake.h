@@ -35,40 +35,11 @@ enum class TurnMode
 class SnakeBody
 {
 public:
-    // 默认构造函数
-    SnakeBody() : mX(0), mY(0) {}
-    
-    SnakeBody(int x, int y)
-    {
-        this->mX = x;
-        this->mY = y;
-    }
-
-    int getX() const
-    {
-        return this->mX;
-    }
-
-    int getY() const
-    {
-        return this->mY;
-    }
-
-    void setX(int x)
-    {
-        this->mX = x;
-    }
-
-    void setY(int y)
-    {
-        this->mY = y;
-    }
-
-    bool operator==(const SnakeBody& sb) const
-    {
-        return ((this->mX == sb.mX) && (this->mY == sb.mY));
-    }
-
+    SnakeBody();
+    SnakeBody(int x, int y);
+    int getX() const;
+    int getY() const;
+    bool operator == (const SnakeBody& snakeBody) const;
 private:
     int mX, mY;
 };
@@ -77,15 +48,38 @@ private:
 class Snake
 {
 public:
-    Snake(int gameBoardWidth, int gameBoardHeight, int initLength);
+    //Snake();
+    Snake(int gameBoardWidth, int gameBoardHeight, int initialSnakeLength);
+    // Set random seed
+    void setRandomSeed();
+    // Initialize snake
+    void initializeSnake();
+    // Initialize snake at specific position
+    void initializeSnake(int startX, int startY);
+    // Initialize snake at specific position with specific direction
+    void initializeSnake(int startX, int startY, InitialDirection direction);
+    // Check if the snake is on the coordinate
+    // bool isSnakeOn(int x, int y);
+    // Checking API for generating random food
+    bool isPartOfSnake(int x, int y) const;
+    void senseFood(SnakeBody food);
+    // Set map for collision detection
+    void setMap(Map* map);
+    // Check if hit wall
+    bool hitWall();
+    bool touchFood();
+    bool hitSelf();
+    bool changeDirection(Direction newDirection);
+    std::vector<SnakeBody>& getSnake();
+    const std::vector<SnakeBody>& getSnake() const;
+    int getLength() const;
+    SnakeBody createNewHead();
     bool moveFoward();
     bool checkCollision() const;
     bool isPartOfSnake(int x, int y) const;
-    void changeDirection(const Direction& dir);
     void initializeSnake();
     void initializeSnake(int headX, int headY, InitialDirection dir = InitialDirection::Right);
     void setMap(const Map* map);
-    void senseFood(const SnakeBody& food);
     int getLength() const;
     std::vector<SnakeBody>& getSnake();
     
@@ -103,6 +97,15 @@ public:
     // 检查是否到达终点（用于第四关）
     bool reachedEndpoint(int x, int y) const;
     
+    // 获取当前转弯模式
+    TurnMode getTurnMode() const;
+
+    // 设置下一次单键转弯的方向
+    void setNextTurnDirection(bool isLeftTurn);
+
+
+    Direction getDirection() const;
+
 private:
     std::vector<SnakeBody> mSnakeBody;
     Direction mDirection;

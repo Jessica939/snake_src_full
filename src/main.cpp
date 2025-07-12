@@ -13,6 +13,16 @@ int main(int argc, char** argv)
     nodelay(stdscr, TRUE);
     // 隐藏光标
     curs_set(0);
+    
+    // 新增：启用并初始化颜色
+    if (has_colors()) {
+        start_color();
+        // 定义颜色对: 1=蛇1(青色), 2=蛇2(黄色), 3=食物(红色)
+        init_pair(1, COLOR_CYAN, COLOR_BLACK);
+        init_pair(2, COLOR_YELLOW, COLOR_BLACK);
+        init_pair(3, COLOR_RED, COLOR_BLACK);
+    }
+
     // 清除屏幕
     clear();
     // 刷新屏幕
@@ -23,31 +33,8 @@ int main(int argc, char** argv)
     // 创建游戏实例
     Game game;
     
-    // 进入游戏循环，使用户能够从classic模式退回到模式选择
-    bool exitGame = false;
-    while (!exitGame) {
-        // 选择游戏模式
-        bool continueGame = game.selectLevel();
-        
-        // 如果用户选择退出，则结束游戏
-        if (!continueGame) {
-            exitGame = true;
-            continue;
-        }
-        
-        // 启动游戏
-        game.startGame();
-        
-        // 如果用户没有选择返回模式选择，则退出游戏
-        if (!game.shouldReturnToModeSelect()) {
-            exitGame = true;
-        }
-        
-        // 刷新屏幕并清除所有输入缓冲
-        clear();
-        refresh();
-        flushinp();
-    }
+    // 启动游戏的主循环
+    game.startGame();
     
     // 结束ncurses环境
     endwin();

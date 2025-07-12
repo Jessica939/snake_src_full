@@ -8,37 +8,41 @@
 #include "snake.h"
 #include "map.h"
 
-// 删除这些函数，因为我们已经在snake.h中内联实现了
-// SnakeBody::SnakeBody()
-// {
-// }
 
-// SnakeBody::SnakeBody(int x, int y): mX(x), mY(y)
-// {
-// }
+SnakeBody::SnakeBody()
+{
 
-// int SnakeBody::getX() const
-// {
-//     return mX;
-// }
-
-// int SnakeBody::getY() const
-// {
-//     return mY;
-// }
-
-// bool SnakeBody::operator == (const SnakeBody& snakeBody)
-// {
-//     return (this->getX() == snakeBody.getX() && this->getY() == snakeBody.getY());
-// }
+}
 
 Snake::Snake(int gameBoardWidth, int gameBoardHeight, int initLength)
     : mGameBoardWidth(gameBoardWidth), mGameBoardHeight(gameBoardHeight), mInitLength(initLength), 
       mPtrMap(nullptr), mFixedLength(false)
 {
-    this->mDirection = Direction::Right;
+    this->initializeSnake();
+    this->setRandomSeed();
     this->mTurnMode = TurnMode::FourDirection;
 }
+
+
+SnakeBody::SnakeBody(int x, int y): mX(x), mY(y)
+{
+}
+
+int SnakeBody::getX() const
+{
+    return mX;
+}
+
+int SnakeBody::getY() const
+{
+    return mY;
+}
+
+bool SnakeBody::operator == (const SnakeBody& snakeBody) const
+{
+    return (this->getX() == snakeBody.getX() && this->getY() == snakeBody.getY());
+}
+
 
 void Snake::setRandomSeed()
 {
@@ -62,6 +66,21 @@ void Snake::initializeSnake()
     }
     this->mDirection = Direction::Up;
 }
+
+void Snake::initializeSnake(int startX, int startY)
+{
+    // 清空旧的蛇身
+    mSnakeBody.clear();
+    
+    // 根据提供的起始位置创建蛇
+    for (int i = 0; i < this->mInitLength; i ++)
+    {
+        // 根据初始方向向下构建蛇身
+        this->mSnakeBody.push_back(SnakeBody(startX, startY + i));
+    }
+    this->mDirection = Direction::Up;
+}
+
 
 void Snake::initializeSnake(int headX, int headY, InitialDirection dir)
 {
@@ -154,7 +173,7 @@ bool Snake::checkCollision() const
     return false;
 }
 
-void Snake::senseFood(const SnakeBody& food)
+void Snake::senseFood(SnakeBody food)
 {
     this->mFood = food;
 }
@@ -164,18 +183,16 @@ std::vector<SnakeBody>& Snake::getSnake()
     return this->mSnakeBody;
 }
 
-void Snake::changeDirection(const Direction& dir)
+bool Snake::changeDirection(Direction newDirection)
 {
-    // 不能直接反向移动
-    if ((mDirection == Direction::Up && dir == Direction::Down) ||
-        (mDirection == Direction::Down && dir == Direction::Up) ||
-        (mDirection == Direction::Left && dir == Direction::Right) ||
-        (mDirection == Direction::Right && dir == Direction::Left))
-    {
-        return;
-    }
+    // 优化：防止蛇180度掉头，但允许保持原方向（实现直行）
+    if (mDirection == Direction::Up && newDirection == Direction::Down) return false;
+    if (mDirection == Direction::Down && newDirection == Direction::Up) return false;
+    if (mDirection == Direction::Left && newDirection == Direction::Right) return false;
+    if (mDirection == Direction::Right && newDirection == Direction::Left) return false;
     
-    this->mDirection = dir;
+    this->mDirection = newDirection;
+    return true; // 返回true表示方向已成功改变或保持
 }
 
 void Snake::setTurnMode(TurnMode mode)
@@ -206,37 +223,19 @@ void Snake::singleKeyTurn()
 
 bool Snake::moveFoward()
 {
-    // 创建新的蛇头
-    SnakeBody newHead = this->mSnakeBody[0];
-    
-    // 根据当前方向移动蛇头
-    switch (this->mDirection) {
-        case Direction::Up:
-            newHead.setY(newHead.getY() - 1);
-            break;
-        case Direction::Down:
-            newHead.setY(newHead.getY() + 1);
-            break;
-        case Direction::Left:
-            newHead.setX(newHead.getX() - 1);
-            break;
-        case Direction::Right:
-            newHead.setX(newHead.getX() + 1);
-            break;
+    if (this->touchFood())
+    {
+        SnakeBody newHead = this->mFood;
+        this->mSnakeBody.insert(this->mSnakeBody.begin(), newHead); 
+        return true;
     }
-    
-    // 将新头部插入到蛇身的最前面
-    this->mSnakeBody.insert(this->mSnakeBody.begin(), newHead);
-    
-    // 检查是否吃到食物
-    bool eatFood = (newHead.getX() == this->mFood.getX() && newHead.getY() == this->mFood.getY());
-    
-    // 如果没有吃到食物，或者是固定长度模式，则移除蛇尾
-    if (!eatFood || mFixedLength) {
+    else
+    {
         this->mSnakeBody.pop_back();
+        SnakeBody newHead = this->createNewHead();
+        this->mSnakeBody.insert(this->mSnakeBody.begin(), newHead); 
+        return false;
     }
-    
-    return eatFood;
 }
 
 int Snake::getLength() const
@@ -263,3 +262,111 @@ bool Snake::reachedEndpoint(int x, int y) const
     return false;
 }
 
+
+int Snake::getLength() const
+{
+    return this->mSnakeBody.size();
+}
+
+const std::vector<SnakeBody>& Snake::getSnake() const {
+    return this->mSnakeBody;
+}
+
+Direction Snake::getDirection() const {return mDirection;}
+
+
+bool Snake::hitWall()
+{
+    SnakeBody& head = this->mSnakeBody[0];
+    int headX = head.getX();
+    int headY = head.getY();
+    
+    // Check boundary walls
+    if (headX <= 0 || headX >= this->mGameBoardWidth - 1)
+    {
+        return true;
+    }
+    if (headY <= 0 || headY >= this->mGameBoardHeight - 1)
+    {
+        return true;
+    }
+    
+    // Check map walls if map is available
+    if (mPtrMap != nullptr && mPtrMap->isWall(headX, headY))
+    {
+        return true;
+    }
+    
+    return false;
+}
+
+/*
+ * The snake head is overlapping with its body
+ */
+bool Snake::hitSelf()
+{
+    SnakeBody& head = this->mSnakeBody[0];
+    // Exclude the snake head
+    for (int i = 1; i < this->mSnakeBody.size(); i ++)
+    {
+        if (this->mSnakeBody[i] == head)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+SnakeBody Snake::createNewHead()
+{
+    SnakeBody& head = this->mSnakeBody[0];
+    int headX = head.getX();
+    int headY = head.getY();
+    int headXNext;
+    int headYNext;
+
+    switch (this->mDirection)
+    {
+        case Direction::Up:
+        {
+            headXNext = headX;
+            headYNext = headY - 1;
+            break;
+        }
+        case Direction::Down:
+        {
+            headXNext = headX;
+            headYNext = headY + 1;
+            break;
+        }
+        case Direction::Left:
+        {
+            headXNext = headX - 1;
+            headYNext = headY;
+            break;
+        }
+        case Direction::Right:
+        {
+            headXNext = headX + 1;
+            headYNext = headY;
+            break;
+        }
+    }
+
+    SnakeBody newHead = SnakeBody(headXNext, headYNext);
+
+    return newHead;
+}
+
+bool Snake::touchFood()
+{
+    SnakeBody newHead = this->createNewHead();
+    if (this->mFood == newHead)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}

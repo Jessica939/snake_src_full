@@ -1,55 +1,61 @@
 # 编译器设置
 CXX = g++
-CXXFLAGS = -O2 -Wall -Iinclude
 
-# 源文件和目标文件
-SRC_DIR = src
-INCLUDE_DIR = include
-OBJ_FILES = main.o game.o snake.o map.o
+# 编译选项
+# -std=c++17: 启用C++17标准
+# -Wall: 显示所有警告信息
+# -g: 生成调试信息 (发布时可替换为 -O2)
+CXXFLAGS = -std=c++17 -Wall -g -Iinclude
 
-# 最终目标
+# 可执行文件的名称
 TARGET = snakegame
 
-# 使用一个简单的判断来检测操作系统
+# 源文件列表
+# 如果未来添加了新的 .cpp 文件，请在此处添加
+SOURCES = src/main.cpp src/game.cpp src/snake.cpp src/map.cpp src/ai.cpp
+
+# 目标文件列表
+# 根据源文件列表自动生成对应的 .o 文件名
+OBJECTS = $(SOURCES:.cpp=.o)
+
+
+
+# 默认链接选项和清理命令
+LDFLAGS = -lncurses
+RM = rm -f
+
+# 检测操作系统并覆盖设置
+# Windows NT (通常用于 MinGW/MSYS2 环境)
 ifeq ($(OS),Windows_NT)
-  # Windows系统
-  JOBS = 4
-else
-  # Linux/Unix系统
-  JOBS = $(shell nproc 2>/dev/null || echo 2)
+    TARGET := $(TARGET).exe  # Windows下可执行文件通常有.exe后缀
+    LDFLAGS = -lpdcurses     # Windows下使用PDCurses
+    RM = del /Q /F           # Windows下使用del命令
 endif
 
-# MAKEFLAGS设置，为默认make命令启用并行编译
-MAKEFLAGS += -j$(JOBS)
 
-# 默认目标
+# --- 规则定义 ---
+
+# 默认目标：all
+.PHONY: all
 all: $(TARGET)
 
-# 链接最终可执行文件
-$(TARGET): $(OBJ_FILES)
-	$(CXX) -o $@ $^ -lcurses
+# 链接规则
+# 从所有的目标文件(.o)生成最终的可执行文件
+$(TARGET): $(OBJECTS)
+	@echo "==> Linking all object files..."
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+	@echo "==> Build finished successfully!"
+	@echo "==> Run the game with: ./$(TARGET)"
 
-# 编译源文件为目标文件的规则
-main.o: $(SRC_DIR)/main.cpp $(INCLUDE_DIR)/game.h
-	$(CXX) $(CXXFLAGS) -c $<
+# 编译规则 (模式规则)
+# 将每个 .cpp 文件编译成对应的 .o 文件
+%.o: %.cpp
+	@echo "==> Compiling $<..."
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-game.o: $(SRC_DIR)/game.cpp $(INCLUDE_DIR)/game.h $(INCLUDE_DIR)/snake.h $(INCLUDE_DIR)/map.h
-	$(CXX) $(CXXFLAGS) -c $<
-
-snake.o: $(SRC_DIR)/snake.cpp $(INCLUDE_DIR)/snake.h $(INCLUDE_DIR)/map.h
-	$(CXX) $(CXXFLAGS) -c $<
-
-map.o: $(SRC_DIR)/map.cpp $(INCLUDE_DIR)/map.h
-	$(CXX) $(CXXFLAGS) -c $<
-
-# 清理编译产物
+# 清理规则
+.PHONY: clean
 clean:
-	rm -f *.o 
-	rm -f $(TARGET)
-	rm -f record.dat
-
-# 增量编译（不重新生成已经最新的文件）
-.PHONY: all clean
-
-# 避免删除中间文件
-.PRECIOUS: $(OBJ_FILES)
+	@echo "==> Cleaning up build files and saved data..."
+	-$(RM) $(TARGET) $(OBJECTS) leaderboard.bin level_progress.bin
+	@echo "==> Cleanup complete."
