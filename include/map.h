@@ -12,7 +12,13 @@ enum class TileType
     Food = 2
 };
 
-// InitialDirection 已在 snake.h 中定义，这里不再重复定义
+enum class InitialDirection
+{
+    Left,
+    Right,
+    Up,
+    Down
+};
 
 class Map
 {

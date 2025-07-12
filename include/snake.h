@@ -7,13 +7,8 @@
 class Map;
 
 // 蛇初始方向枚举
-enum class InitialDirection
-{
-    Left,
-    Right,
-    Up,
-    Down
-};
+enum class InitialDirection;
+
 
 // 方向枚举
 enum class Direction
@@ -76,15 +71,10 @@ public:
     SnakeBody createNewHead();
     bool moveFoward();
     bool checkCollision() const;
-    bool isPartOfSnake(int x, int y) const;
-    void initializeSnake();
-    void initializeSnake(int headX, int headY, InitialDirection dir = InitialDirection::Right);
-    void setMap(const Map* map);
-    int getLength() const;
-    std::vector<SnakeBody>& getSnake();
     
-    // 添加setRandomSeed方法声明
-    void setRandomSeed();
+    
+    void setMap(const Map* map);
+    
     
     // 转弯模式相关
     void setTurnMode(TurnMode mode);

@@ -132,7 +132,7 @@ bool Snake::isPartOfSnake(int x, int y) const
     return false;
 }
 
-void Snake::setMap(const Map* map)
+void Snake::setMap(Map* map)
 {
     this->mPtrMap = map;
 }
