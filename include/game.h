@@ -120,6 +120,7 @@ private:
     bool saveLevelProgress();
     bool loadLevelProgress();
     void renderLevel() const;
+    void displayLevelIntroduction(int level); // 新增：显示关卡开场介绍文字
 
     // === 第四关特殊逻辑 ===
     void initializeLevel4();

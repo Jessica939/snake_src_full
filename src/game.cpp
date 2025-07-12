@@ -200,15 +200,49 @@ void Game::createInstructionBoard()
 
 void Game::renderInstructionBoard() const
 {
-    mvwprintw(this->mWindows[2], 1, 1, "Manual");
+    // 清除并重新绘制边框
+    werase(this->mWindows[2]);
+    box(this->mWindows[2], 0, 0);
 
-    mvwprintw(this->mWindows[2], 3, 1, "Up: W");
-    mvwprintw(this->mWindows[2], 4, 1, "Down: S");
-    mvwprintw(this->mWindows[2], 5, 1, "Left: A");
-    mvwprintw(this->mWindows[2], 6, 1, "Right: D");
+    // 标题
+    wattron(this->mWindows[2], A_BOLD);
+    mvwprintw(this->mWindows[2], 1, 1, "CONTROLS");
+    wattroff(this->mWindows[2], A_BOLD);
 
-    mvwprintw(this->mWindows[2], 8, 1, "Difficulty");
-    mvwprintw(this->mWindows[2], 11, 1, "Points");
+    // 控制说明
+    mvwprintw(this->mWindows[2], 3, 1, "Up: W/↑");
+    mvwprintw(this->mWindows[2], 4, 1, "Down: S/↓");
+    mvwprintw(this->mWindows[2], 5, 1, "Left: A/←");
+    mvwprintw(this->mWindows[2], 6, 1, "Right: D/→");
+    mvwprintw(this->mWindows[2], 7, 1, "Pause: P");
+    mvwprintw(this->mWindows[2], 8, 1, "Quit: Q");
+
+    // 分隔线
+    mvwhline(this->mWindows[2], 10, 1, ACS_HLINE, this->mInstructionWidth - 2);
+
+    // 游戏信息标题
+    wattron(this->mWindows[2], A_BOLD);
+    mvwprintw(this->mWindows[2], 11, 1, "GAME INFO");
+    wattroff(this->mWindows[2], A_BOLD);
+
+    // 游戏状态
+    mvwprintw(this->mWindows[2], 13, 1, "Level:");
+    mvwprintw(this->mWindows[2], 14, 1, "Difficulty:");
+    mvwprintw(this->mWindows[2], 15, 1, "Score:");
+    mvwprintw(this->mWindows[2], 16, 1, "Target:");
+
+    // 分隔线
+    mvwhline(this->mWindows[2], 18, 1, ACS_HLINE, this->mInstructionWidth - 2);
+
+    // 符号说明
+    wattron(this->mWindows[2], A_BOLD);
+    mvwprintw(this->mWindows[2], 19, 1, "SYMBOLS");
+    wattroff(this->mWindows[2], A_BOLD);
+
+    mvwprintw(this->mWindows[2], 21, 1, "@: Snake");
+    mvwprintw(this->mWindows[2], 22, 1, "#: Food");
+    mvwprintw(this->mWindows[2], 23, 1, "+: Wall");
+    mvwprintw(this->mWindows[2], 24, 1, "X: Exit");
 
     wrefresh(this->mWindows[2]);
 }
@@ -470,23 +504,61 @@ bool Game::selectMap()
 
 void Game::renderPoints() const
 {
+    // 显示当前得分
     std::string pointString = std::to_string(this->mPoints);
-    mvwprintw(this->mWindows[2], 12, 1, "%s", pointString.c_str());
+    mvwprintw(this->mWindows[2], 15, 8, "%s", pointString.c_str());
+    
+    // 显示目标分数（仅在关卡模式中）
+    if (mCurrentMode == GameMode::Level && mCurrentLevel <= mMaxLevel) {
+        std::string targetString = std::to_string(mLevelTargetPoints);
+        mvwprintw(this->mWindows[2], 16, 8, "%s", targetString.c_str());
+    } else {
+        mvwprintw(this->mWindows[2], 16, 8, "N/A");
+    }
+    
     wrefresh(this->mWindows[2]);
 }
 
 void Game::renderDifficulty() const
 {
     std::string difficultyString = std::to_string(this->mDifficulty);
-    mvwprintw(this->mWindows[2], 9, 1, "%s", difficultyString.c_str());
+    mvwprintw(this->mWindows[2], 14, 12, "%s", difficultyString.c_str());
     wrefresh(this->mWindows[2]);
 }
 
 void Game::renderLevel() const
 {
-    mvwprintw(this->mWindows[2], 15, 1, "Level");
-    std::string levelString = std::to_string(this->mCurrentLevel);
-    mvwprintw(this->mWindows[2], 16, 1, "%s", levelString.c_str());
+    // 显示当前关卡
+    if (mCurrentMode == GameMode::Level && mCurrentLevel <= mMaxLevel) {
+        std::string levelString = std::to_string(this->mCurrentLevel);
+        mvwprintw(this->mWindows[2], 13, 8, "%s", levelString.c_str());
+        
+        // 显示关卡类型
+        std::string typeString;
+        switch (mCurrentLevelType) {
+            case LevelType::Normal:
+                typeString = "Normal";
+                break;
+            case LevelType::Speed:
+                typeString = "Speed";
+                break;
+            case LevelType::Maze:
+                typeString = "Maze";
+                break;
+            case LevelType::Custom1:
+                typeString = "Special";
+                break;
+            case LevelType::Custom2:
+                typeString = "Boss";
+                break;
+            default:
+                typeString = "Unknown";
+        }
+        mvwprintw(this->mWindows[2], 13, 10, "(%s)", typeString.c_str());
+    } else {
+        mvwprintw(this->mWindows[2], 13, 8, "Classic");
+    }
+    
     wrefresh(this->mWindows[2]);
 }
 
@@ -1142,9 +1214,242 @@ bool Game::selectLevel()
     return true;
 }
 
+void Game::displayLevelIntroduction(int level)
+{
+    // 确保所有面板都被绘制
+    this->renderBoards();
+    
+    // 清除游戏区域并刷新，以准备显示介绍文字
+    werase(this->mWindows[1]);
+    box(this->mWindows[1], 0, 0);
+    wrefresh(this->mWindows[1]);
+    
+    // 创建一个窗口用于显示开场文字
+    WINDOW* introWin;
+    int width = this->mGameBoardWidth * 0.8;
+    int height = this->mGameBoardHeight * 0.6;
+    int startX = this->mGameBoardWidth * 0.1;
+    int startY = this->mGameBoardHeight * 0.2 + this->mInformationHeight;
+
+    introWin = newwin(height, width, startY, startX);
+    box(introWin, 0, 0);
+    
+    // 设置标题
+    std::string title = "LEVEL " + std::to_string(level);
+    mvwprintw(introWin, 1, (width - title.length()) / 2, "%s", title.c_str());
+    
+    // 根据关卡显示不同的开场文字
+    std::vector<std::string> introText;
+    
+    switch (level) {
+        case 1:
+            introText = {
+                "THE BEGINNING",
+                "",
+                "This is your first adventure in this barren land.",
+                "You must find enough food to survive.",
+                "",
+                "OBJECTIVE: Collect 5 pieces of food to prove your survival skills!"
+            };
+            break;
+        case 2:
+            introText = {
+                "SPEED CHALLENGE",
+                "",
+                "You've mastered basic survival skills.",
+                "Now you need to improve your speed and reflexes.",
+                "Food is more scattered in this area, and you need to be more agile.",
+                "",
+                "OBJECTIVE: Collect 8 pieces of food while moving at high speed!"
+            };
+            break;
+        case 3:
+            introText = {
+                "MAZE ADVENTURE",
+                "",
+                "Ahead lies a complex maze area.",
+                "The gaps between walls become your pathways.",
+                "Move carefully and avoid collisions with walls.",
+                "",
+                "OBJECTIVE: Collect 10 pieces of food in the maze to prove your navigation skills!"
+            };
+            break;
+        case 4:
+            introText = {
+                "FIND THE EXIT",
+                "",
+                "This area is special - besides finding food,",
+                "you need to locate the exit to the next area.",
+                "One-way paths will change your direction, be extra careful!",
+                "",
+                "OBJECTIVE: Collect enough food and find the exit!"
+            };
+            break;
+        case 5:
+            introText = {
+                "FINAL CHALLENGE: BOSS BATTLE",
+                "",
+                "You've finally reached the ultimate challenge - facing the mighty guardian.",
+                "It will attack you with lasers, but when it's weak (green state),",
+                "you can launch attacks against it.",
+                "",
+                "OBJECTIVE: Defeat the BOSS to complete all challenges!"
+            };
+            break;
+        default:
+            introText = {
+                "UNKNOWN ADVENTURE",
+                "",
+                "A new challenge awaits you ahead...",
+                "",
+                "Are you ready?"
+            };
+    }
+    
+    // 实现每行文字单独显示，并自动换行的效果
+    const int displayTime = 2000; // 每行显示时间（毫秒）
+    const int maxDisplayWidth = width - 6; // 可显示的最大宽度（留边距）
+    
+    // 辅助函数：将长文本按单词分割成适合宽度的多行
+    auto wrapText = [maxDisplayWidth](const std::string& text) -> std::vector<std::string> {
+        std::vector<std::string> wrappedLines;
+        if (text.empty()) {
+            wrappedLines.push_back("");
+            return wrappedLines;
+        }
+        
+        std::istringstream wordStream(text);
+        std::string word;
+        std::string currentLine;
+        
+        while (wordStream >> word) {
+            // 如果加上这个词会超出宽度，且当前行不为空，则另起一行
+            if (currentLine.length() + word.length() + 1 > static_cast<size_t>(maxDisplayWidth) && !currentLine.empty()) {
+                wrappedLines.push_back(currentLine);
+                currentLine = word;
+            } 
+            // 如果是第一个词或者可以加入当前行
+            else {
+                if (!currentLine.empty()) {
+                    currentLine += " ";
+                }
+                currentLine += word;
+            }
+        }
+        
+        if (!currentLine.empty()) {
+            wrappedLines.push_back(currentLine);
+        }
+        
+        // 如果没有成功分行（可能是因为单词太长），强制按字符分割
+        if (wrappedLines.empty()) {
+            std::string line;
+            for (char c : text) {
+                if (line.length() >= static_cast<size_t>(maxDisplayWidth)) {
+                    wrappedLines.push_back(line);
+                    line.clear();
+                }
+                line += c;
+            }
+            if (!line.empty()) {
+                wrappedLines.push_back(line);
+            }
+        }
+        
+        return wrappedLines;
+    };
+    
+    // 显示每一行原始文字（可能会自动换行）
+    for (size_t i = 0; i < introText.size(); i++) {
+        const std::string& originalLine = introText[i];
+        
+        // 如果是空行，只显示很短的时间
+        if (originalLine.empty()) {
+            // 清除显示区域
+            for (int y = 3; y < height - 3; y++) {
+                wmove(introWin, y, 2);
+                for (int x = 2; x < width - 2; x++) {
+                    waddch(introWin, ' ');
+                }
+            }
+            wrefresh(introWin);
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+            continue;
+        }
+        
+        // 将原始行按需换行
+        std::vector<std::string> wrappedLines = wrapText(originalLine);
+        
+        // 清除显示区域
+        for (int y = 3; y < height - 3; y++) {
+            wmove(introWin, y, 2);
+            for (int x = 2; x < width - 2; x++) {
+                waddch(introWin, ' ');
+            }
+        }
+        
+        // 计算起始行，使文本垂直居中
+        int startLine = (height - wrappedLines.size()) / 2;
+        if (startLine < 3) startLine = 3;
+        
+        // 逐行显示包装后的文本
+        for (size_t lineIdx = 0; lineIdx < wrappedLines.size(); lineIdx++) {
+            const std::string& line = wrappedLines[lineIdx];
+            
+            // 计算当前行的水平居中位置
+            int startX = (width - line.length()) / 2;
+            if (startX < 2) startX = 2;
+            
+            // 逐个字符显示当前行
+            for (size_t j = 0; j < line.length(); j++) {
+                mvwaddch(introWin, startLine + static_cast<int>(lineIdx), startX + static_cast<int>(j), line[j]);
+                wrefresh(introWin);
+                // 每个字符显示后短暂暂停，营造打字机效果
+                std::this_thread::sleep_for(std::chrono::milliseconds(30));
+            }
+        }
+        
+        // 显示完整行后等待一段时间
+        std::this_thread::sleep_for(std::chrono::milliseconds(displayTime));
+    }
+    
+    // 清除所有文本
+    for (int y = 3; y < height - 3; y++) {
+        wmove(introWin, y, 2);
+        for (int x = 2; x < width - 2; x++) {
+            waddch(introWin, ' ');
+        }
+    }
+    
+    // 显示按键提示
+    mvwprintw(introWin, height - 2, 2, "Press SPACE to continue...");
+    
+    wrefresh(introWin);
+    
+    // 等待用户按空格键继续
+    int key;
+    while (true) {
+        key = getch();
+        if (key == ' ' || key == 10) // 空格键或回车键
+            break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    
+    // 删除窗口
+    delwin(introWin);
+    
+    // 重新绘制游戏界面
+    werase(this->mWindows[1]);
+    box(this->mWindows[1], 0, 0);
+    wrefresh(this->mWindows[1]);
+}
+
 void Game::initializeLevel(int level)
 {
     mCurrentLevel = level;
+    
+    // 重新绘制界面
+    this->renderBoards();
     
     // 根据关卡设置关卡类型
     switch (level) {
@@ -1165,12 +1470,16 @@ void Game::initializeLevel(int level)
             mLevelTargetPoints = 12;
             // 初始化第四关特殊设置
             this->initializeLevel4();
+            // 显示开场介绍
+            this->displayLevelIntroduction(level);
             return; // 第四关有特殊初始化，直接返回
         case 5:
             mCurrentLevelType = LevelType::Custom2;
             mLevelTargetPoints = 15;
             // 初始化第五关特殊设置
             this->initializeLevel5();
+            // 显示开场介绍
+            this->displayLevelIntroduction(level);
             return; // 第五关有特殊初始化，直接返回
         default:
             mCurrentLevelType = LevelType::Normal;
@@ -1251,6 +1560,9 @@ void Game::initializeLevel(int level)
     
     this->mPoints = 0;
     this->mDelay = this->mBaseDelay * pow(0.75, this->mDifficulty);
+    
+    // 显示开场介绍
+    this->displayLevelIntroduction(level);
 }
 
 // 初始化第四关特殊设置
@@ -1324,6 +1636,12 @@ void Game::runLevel4()
     mvwprintw(this->mWindows[0], 3, 1, "Reach the 'X' mark to win!");
     wrefresh(this->mWindows[0]);
     
+    // 确保侧边栏正确显示
+    this->renderInstructionBoard();
+    this->renderDifficulty();
+    this->renderPoints();
+    this->renderLevel();
+    
     while (true)
     {
         // 使用单键控制
@@ -1387,6 +1705,12 @@ bool Game::isLevelCompleted()
 
 void Game::runLevel()
 {
+    // 确保初始化时侧边栏正确显示
+    this->renderInstructionBoard();
+    this->renderDifficulty();
+    this->renderPoints();
+    this->renderLevel();
+    
     // 如果是第四关，使用特殊的运行逻辑
     if (mCurrentLevel == 4) {
         this->runLevel4();
