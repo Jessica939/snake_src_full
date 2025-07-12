@@ -15,7 +15,7 @@ SnakeBody::SnakeBody()
 }
 
 Snake::Snake(int gameBoardWidth, int gameBoardHeight, int initLength)
-    : mGameBoardWidth(gameBoardWidth), mGameBoardHeight(gameBoardHeight), mInitLength(initLength), 
+    : mGameBoardWidth(gameBoardWidth), mGameBoardHeight(gameBoardHeight), mInitLength(initLength),
       mPtrMap(nullptr), mFixedLength(false)
 {
     this->initializeSnake();
@@ -162,7 +162,7 @@ bool Snake::checkCollision() const
     if (!mFixedLength) {
         for (size_t i = 1; i < this->mSnakeBody.size(); i++)
         {
-            if (head.getX() == this->mSnakeBody[i].getX() && 
+            if (head.getX() == this->mSnakeBody[i].getX() &&
                 head.getY() == this->mSnakeBody[i].getY())
             {
                 return true;
@@ -226,22 +226,18 @@ bool Snake::moveFoward()
     if (this->touchFood())
     {
         SnakeBody newHead = this->mFood;
-        this->mSnakeBody.insert(this->mSnakeBody.begin(), newHead); 
+        this->mSnakeBody.insert(this->mSnakeBody.begin(), newHead);
         return true;
     }
     else
     {
         this->mSnakeBody.pop_back();
         SnakeBody newHead = this->createNewHead();
-        this->mSnakeBody.insert(this->mSnakeBody.begin(), newHead); 
+        this->mSnakeBody.insert(this->mSnakeBody.begin(), newHead);
         return false;
     }
 }
 
-int Snake::getLength() const
-{
-    return this->mSnakeBody.size();
-}
 
 void Snake::setFixedLength(bool fixed)
 {

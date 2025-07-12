@@ -1,13 +1,13 @@
 #include <string>
 #include <iostream>
-#include <cmath> 
+#include <cmath>
 
 // For terminal delay
 #include <chrono>
 #include <thread>
 
 #include <fstream>
-#include <algorithm> 
+#include <algorithm>
 #include <filesystem>
 
 #include "game.h"
@@ -98,8 +98,8 @@ void Game::createDefaultLevelMaps()
                     case 3: // 第三关：迷宫布局
                         for (int y = 0; y < height; y++) {
                             for (int x = 0; x < width; x++) {
-                                if (x == 0 || y == 0 || x == width - 1 || y == height - 1 || 
-                                    (x % 10 == 5 && y % 8 != 0) || 
+                                if (x == 0 || y == 0 || x == width - 1 || y == height - 1 ||
+                                    (x % 10 == 5 && y % 8 != 0) ||
                                     (y % 8 == 4 && x % 10 != 0)) {
                                     mapFile << "1 ";
                                 } else {
@@ -112,7 +112,7 @@ void Game::createDefaultLevelMaps()
                     case 4: // 第四关：自定义关卡1
                         for (int y = 0; y < height; y++) {
                             for (int x = 0; x < width; x++) {
-                                if (x == 0 || y == 0 || x == width - 1 || y == height - 1 || 
+                                if (x == 0 || y == 0 || x == width - 1 || y == height - 1 ||
                                     (x == width/2 && y < height/2) ||
                                     (y == height/2 && x > width/2)) {
                                     mapFile << "1 ";
@@ -216,7 +216,7 @@ void Game::renderInstructionBoard() const
 
 void Game::renderLeaderBoard() const
 {
-    // If there is not too much space, skip rendering the leader board 
+    // If there is not too much space, skip rendering the leader board
     if (this->mScreenHeight - this->mInformationHeight - 14 - 2 < 3 * 2)
     {
         return;
@@ -505,7 +505,7 @@ void Game::initializeGame()
     bool snakeInitialized = false;
     
     // 首先尝试最理想的空间要求 (6格)
-    std::vector<std::pair<SnakeBody, InitialDirection>> validPositions = 
+    std::vector<std::pair<SnakeBody, InitialDirection>> validPositions =
         this->mPtrMap->getValidSnakePositions(this->mInitialSnakeLength, 6);
     
     if (!validPositions.empty()) {
@@ -787,7 +787,7 @@ void Game::startGame()
                     } else {
                         initializeTimeAttack();
                     }
-                    renderBoards(); 
+                    renderBoards();
                     if (mCurrentMode == GameMode::Classic) {
                         runGame();
                     } else {
@@ -935,7 +935,7 @@ void Game::startGame()
                                     mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                                     wattroff(menu, A_STANDOUT);
                                     break;
-                                }       
+                                }
                                 case 'S':
                                 case 's':
                                 case KEY_DOWN:
@@ -987,7 +987,7 @@ void Game::startGame()
                     renderBoards();
                     runBattle();
                     // 传入 true，让菜单显示 "Battle Over!"
-                    playAgain = renderRestartMenu(true); 
+                    playAgain = renderRestartMenu(true);
                     break;
                 }
 
@@ -1069,7 +1069,7 @@ bool Game::selectLevel()
     box(menu, 0, 0);
     
     std::vector<std::string> menuItems = {
-        "Classic Mode", 
+        "Classic Mode",
         "Level Mode",
         "Timed Mode",
         "Battle Mode",
@@ -1205,7 +1205,7 @@ void Game::initializeLevel(int level)
     
     // 尝试寻找合适的蛇初始位置
     bool snakeInitialized = false;
-    std::vector<std::pair<SnakeBody, InitialDirection>> validPositions = 
+    std::vector<std::pair<SnakeBody, InitialDirection>> validPositions =
         this->mPtrMap->getValidSnakePositions(this->mInitialSnakeLength, 6);
     
     if (!validPositions.empty()) {
@@ -1701,7 +1701,7 @@ void Game::renderTimer() const
     mvwprintw(this->mWindows[2], 18, 1, "Time Left:");
     std::string timeString = std::to_string(mTimeRemaining) + " s";
     // 清除旧的计时显示
-    mvwprintw(this->mWindows[2], 19, 1, "          "); 
+    mvwprintw(this->mWindows[2], 19, 1, "          ");
     mvwprintw(this->mWindows[2], 19, 1, "%s", timeString.c_str());
     wrefresh(this->mWindows[2]);
 }
@@ -1711,19 +1711,19 @@ void Game::runTimeAttack()
 {
     while (true)
     {
-        //计时器逻辑 
+        //计时器逻辑
         auto now = std::chrono::steady_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - mTimeAttackStartTime);
         mTimeRemaining = mTimeAttackDurationSeconds - elapsed.count();
 
-        // 游戏结束条件 
+        // 游戏结束条件
         bool collision = mPtrSnake->checkCollision();
         if (collision || mTimeRemaining <= 0) {
             // 如果撞墙或时间到，则结束游戏
             break;
         }
 
-        // 游戏循环核心 
+        // 游戏循环核心
         this->controlSnake();
         werase(this->mWindows[1]);
         box(this->mWindows[1], 0, 0);
@@ -2154,7 +2154,7 @@ bool Game::checkSnakeLaserCollision(const std::vector<SnakeBody>& snake, int x1,
         }
         
         // 检查蛇是否在游戏区域内，如果不在则不会碰撞
-        if (snakeX < 0 || snakeX > mGameBoardWidth - 1 || 
+        if (snakeX < 0 || snakeX > mGameBoardWidth - 1 ||
             snakeY < 0 || snakeY > mGameBoardHeight - 1)
         {
             continue;

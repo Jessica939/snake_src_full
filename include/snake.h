@@ -114,4 +114,4 @@ private:
     bool mFixedLength = false;
 };
 
-#endif
+#endif // SNAKE_H
