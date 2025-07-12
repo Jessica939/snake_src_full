@@ -1888,16 +1888,22 @@ void Game::controlSnakes(int key) {
     mAccelerateP1 = false;
     mAccelerateP2 = false;
 
-    // 玩家1控制 (WASD)
-    switch(key) {
-        case 'W': case 'w': if(mPtrSnake->changeDirection(Direction::Up)) mAccelerateP1 = true; break;
-        case 'S': case 's': if(mPtrSnake->changeDirection(Direction::Down)) mAccelerateP1 = true; break;
-        case 'A': case 'a': if(mPtrSnake->changeDirection(Direction::Left)) mAccelerateP1 = true; break;
-        case 'D': case 'd': if(mPtrSnake->changeDirection(Direction::Right)) mAccelerateP1 = true; break;
-    }
-
-    // 玩家2控制 (方向键)，仅在PVP模式下
-    if (mCurrentBattleType == BattleType::PlayerVsPlayer) {
+    if (mCurrentBattleType == BattleType::PlayerVsAI) {
+        // 玩家1用方向键
+        switch(key) {
+            case KEY_UP:    if(mPtrSnake->changeDirection(Direction::Up)) mAccelerateP1 = true; break;
+            case KEY_DOWN:  if(mPtrSnake->changeDirection(Direction::Down)) mAccelerateP1 = true; break;
+            case KEY_LEFT:  if(mPtrSnake->changeDirection(Direction::Left)) mAccelerateP1 = true; break;
+            case KEY_RIGHT: if(mPtrSnake->changeDirection(Direction::Right)) mAccelerateP1 = true; break;
+        }
+    } else if (mCurrentBattleType == BattleType::PlayerVsPlayer) {
+        // 玩家1用WASD，玩家2用方向键
+        switch(key) {
+            case 'W': case 'w': if(mPtrSnake->changeDirection(Direction::Up)) mAccelerateP1 = true; break;
+            case 'S': case 's': if(mPtrSnake->changeDirection(Direction::Down)) mAccelerateP1 = true; break;
+            case 'A': case 'a': if(mPtrSnake->changeDirection(Direction::Left)) mAccelerateP1 = true; break;
+            case 'D': case 'd': if(mPtrSnake->changeDirection(Direction::Right)) mAccelerateP1 = true; break;
+        }
         switch(key) {
             case KEY_UP:    if(mPtrSnake2->changeDirection(Direction::Up)) mAccelerateP2 = true; break;
             case KEY_DOWN:  if(mPtrSnake2->changeDirection(Direction::Down)) mAccelerateP2 = true; break;
