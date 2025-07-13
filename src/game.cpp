@@ -1985,7 +1985,7 @@ void Game::initializeLevel(int level)
     switch (level) {
         case 1:
             mCurrentLevelType = LevelType::Normal;
-            mLevelTargetPoints = 10;  // 第一关目标设置为10个食物
+            mLevelTargetPoints = 100;  // 第一关目标设置为100个食物
             break;
         case 2:
             mCurrentLevelType = LevelType::Speed;
