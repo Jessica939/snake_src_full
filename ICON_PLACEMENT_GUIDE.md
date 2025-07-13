@@ -7,9 +7,11 @@
 
 ```cpp
 // 设置按钮位置（根据modeselect.png的布局调整）
-directionButton->setGeometry(350, 300, 140, 50);    // Direction按钮（剧情模式）
-classicButton->setGeometry(350, 370, 140, 50);      // Classic按钮（经典模式）
-exitButton->setGeometry(350, 440, 140, 50);         // Exit按钮
+// 图片尺寸：1536x1175
+directionButton->setGeometry(1136, 325, 225, 190);    // Direction按钮（剧情模式）
+classicButton->setGeometry(135, 541, 230, 190);       // Classic按钮（经典模式）
+shopButton->setGeometry(1200, 220, 180, 175);         // Shop按钮（商店）
+exitButton->setGeometry(1174, 500, 171, 180);         // Exit按钮
 ```
 
 ### 如何调整按钮位置
@@ -20,16 +22,23 @@ exitButton->setGeometry(350, 440, 140, 50);         // Exit按钮
    - `x, y` 是按钮左上角坐标
    - `width, height` 是按钮尺寸
 
-### 按钮样式自定义
+### 按钮样式自定义（完全透明设计）
 在同一函数中可以修改 `buttonStyle` 变量：
 ```cpp
 QString buttonStyle = 
     "QPushButton {"
-    "    background-color: rgba(70, 130, 180, 200);"  // 背景色
-    "    border: 2px solid white;"                    // 边框
-    "    border-radius: 15px;"                        // 圆角
-    "    color: white;"                               // 文字颜色
-    "    font-size: 18px;"                           // 字体大小
+    "    background-color: transparent;"              // 透明背景
+    "    border: none;"                               // 无边框
+    "    color: transparent;"                         // 透明文字
+    "    font-size: 1px;"                            // 最小字体
+    "}"
+    "QPushButton:hover {"
+    "    background-color: transparent;"              // 悬停时保持透明
+    "    border: none;"                               // 悬停时无边框
+    "}"
+    "QPushButton:pressed {"
+    "    background-color: transparent;"              // 按下时保持透明
+    "    border: none;"                               // 按下时无边框
     "}"
 ```
 
@@ -114,11 +123,16 @@ QString completedStyle =
 ## 4. 图片资源规格建议
 
 ### 模式选择背景 (`modeselect.png`)
-- **推荐尺寸**: 800x600 像素
+- **当前尺寸**: 1536x1175 像素
 - **格式**: PNG（支持透明度）
 - **设计要点**: 
-  - 中央区域（300-500x区域）保持相对简洁，用于放置按钮
+  - 按钮分布区域：左下角（Classic）、右上角（Direction、Shop、Exit）
   - 可以有装饰性元素，但不要干扰按钮可读性
+- **按钮布局**:
+  - Direction: 右上区域 (1136, 325)
+  - Classic: 左下区域 (135, 541)  
+  - Shop: 右上区域 (1200, 220)
+  - Exit: 右中区域 (1174, 500)
 
 ### 关卡地图背景 (`worldmap.png`)
 - **推荐尺寸**: 800x600 像素

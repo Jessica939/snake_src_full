@@ -3,8 +3,8 @@ CXX = g++
 CXXFLAGS = -O2 -Wall -Iinclude -std=c++17 -fPIC
 
 # Qt设置
-QT_INCLUDES = $(shell pkg-config --cflags Qt5Core Qt5Widgets Qt5Gui)
-QT_LIBS = $(shell pkg-config --libs Qt5Core Qt5Widgets Qt5Gui)
+QT_INCLUDES = $(shell pkg-config --cflags Qt5Core Qt5Widgets Qt5Gui Qt5Multimedia)
+QT_LIBS = $(shell pkg-config --libs Qt5Core Qt5Widgets Qt5Gui Qt5Multimedia)
 MOC = moc
 
 # 源文件和目标文件
