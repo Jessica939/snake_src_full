@@ -11,7 +11,7 @@ MOC = moc
 SRC_DIR = src
 GUI_DIR = gui
 INCLUDE_DIR = include
-OBJ_FILES = main.o game.o snake.o map.o mode_select_window.o story_level_window.o gui_manager.o gui_manager_moc.o mode_select_window_moc.o story_level_window_moc.o
+OBJ_FILES = main.o game.o snake.o map.o ai.o mode_select_window.o story_level_window.o gui_manager.o gui_manager_moc.o mode_select_window_moc.o story_level_window_moc.o
 
 # 可执行文件的名称
 TARGET = snakegame
@@ -46,6 +46,9 @@ snake.o: $(SRC_DIR)/snake.cpp $(INCLUDE_DIR)/snake.h $(INCLUDE_DIR)/map.h
 	$(CXX) $(CXXFLAGS) -c $<
 
 map.o: $(SRC_DIR)/map.cpp $(INCLUDE_DIR)/map.h
+	$(CXX) $(CXXFLAGS) -c $<
+
+ai.o: $(SRC_DIR)/ai.cpp $(INCLUDE_DIR)/ai.h
 	$(CXX) $(CXXFLAGS) -c $<
 
 # GUI相关编译规则
