@@ -4577,7 +4577,17 @@ void Game::updateViewport()
     int maxOffsetX = mPtrMap->getWidth() - mGameBoardWidth;
     int maxOffsetY = mPtrMap->getHeight() - mGameBoardHeight;
     
-    // 应用边界约束
-    mViewOffsetX = std::max(0, std::min(idealOffsetX, maxOffsetX));
-    mViewOffsetY = std::max(0, std::min(idealOffsetY, maxOffsetY));
+    // 特殊处理第四关：允许视窗在Y轴方向上超出正常的地图边界
+    // 这样即使蛇头到了y=18及以上的位置也能正确显示
+    if (mPtrSnake->getTurnMode() == TurnMode::SingleKey) {
+        // 对于第四关，不限制Y轴方向的最大偏移
+        mViewOffsetX = std::max(0, std::min(idealOffsetX, maxOffsetX));
+        
+        // Y轴只限制最小值，不限制最大值
+        mViewOffsetY = std::max(0, idealOffsetY);
+    } else {
+        // 其他关卡正常限制视窗边界
+        mViewOffsetX = std::max(0, std::min(idealOffsetX, maxOffsetX));
+        mViewOffsetY = std::max(0, std::min(idealOffsetY, maxOffsetY));
+    }
 }

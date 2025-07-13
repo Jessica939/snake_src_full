@@ -145,26 +145,31 @@ bool Snake::checkCollision() const
     int headY = head.getY();
     
     // 检查是否撞到地图边界（确保只有蛇头真正进入边界时才判定为碰撞）
-    if (headX < 0 || headX > this->mGameBoardWidth - 1 ||
-        headY < 0 || headY > this->mGameBoardHeight - 1)
-    {
-        return true;
+    // 第四关（单键转向模式）特殊处理：不检查y=18的边界限制
+    if (mTurnMode == TurnMode::SingleKey) {
+        // 仅检查x轴边界和y轴最小边界，允许y值可以达到18及更大
+        if (headX < 0 || headX > this->mGameBoardWidth - 1 || headY < 0) {
+            return true;
+        }
+    } else {
+        // 其他关卡正常检查所有边界
+        if (headX < 0 || headX > this->mGameBoardWidth - 1 ||
+            headY < 0 || headY > this->mGameBoardHeight - 1) {
+            return true;
+        }
     }
     
     // 检查是否撞到地图中的墙（确保只有蛇头真正进入墙时才判定为碰撞）
-    if (mPtrMap != nullptr && mPtrMap->isWall(headX, headY))
-    {
+    if (mPtrMap != nullptr && mPtrMap->isWall(headX, headY)) {
         return true;
     }
     
     // 检查是否撞到自己（除了蛇头外的身体部分）
     // 在第五关（固定长度模式）中，不检查蛇身碰撞
     if (!mFixedLength) {
-        for (size_t i = 1; i < this->mSnakeBody.size(); i++)
-        {
+        for (size_t i = 1; i < this->mSnakeBody.size(); i++) {
             if (head.getX() == this->mSnakeBody[i].getX() &&
-                head.getY() == this->mSnakeBody[i].getY())
-            {
+                head.getY() == this->mSnakeBody[i].getY()) {
                 return true;
             }
         }
@@ -347,6 +352,10 @@ const std::vector<SnakeBody>& Snake::getSnake() const {
 
 Direction Snake::getDirection() const {return mDirection;}
 
+TurnMode Snake::getTurnMode() const 
+{
+    return mTurnMode;
+}
 
 bool Snake::hitWall()
 {
