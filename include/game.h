@@ -81,6 +81,12 @@ public:
     int getItemCount(ItemType item) const;
     void addItem(ItemType item, int count = 1);
     bool useItem(ItemType item); // 使用道具（后续实现）
+    
+    // 存档相关
+    void saveGame() const; // 保存游戏状态
+    bool loadGame(); // 加载游戏状态
+    bool hasSaveFile() const; // 检查是否有存档文件
+    void deleteSaveFile() const; // 删除存档文件
 
 private:
     // ===== 界面控制相关 =====
@@ -114,7 +120,7 @@ private:
     FoodType mCurrentFoodType = FoodType::Normal;
     SnakeBody mSpecialFood;
     bool mHasSpecialFood = false;
-    const char mSpecialFoodSymbol = '&'; // 改为&符号，更容易识别
+    const char mSpecialFoodSymbol = '*'; // 
     std::chrono::time_point<std::chrono::steady_clock> mSpecialFoodSpawnTime;
     const float mSpecialFoodDuration = 5.0f;
     
@@ -155,6 +161,9 @@ private:
     void renderLeaderBoard() const;
     void renderPoints() const;
     void renderDifficulty() const;
+    
+    // 存档文件路径
+    const std::string mSaveFilePath = "game_save.dat";
 
     // 食物与控制
     void createRamdonFood();
@@ -318,7 +327,7 @@ private:
     void handleAcceleration(int key); // 处理长按加速
     bool isKeyPressed(int key); // 检查按键是否被按下
     
-    // 新增：食物效果处理
+    // 食物效果处理
     int getFoodEffect(FoodType foodType) const; // 获取食物效果
     void handleFoodEffect(FoodType foodType);   // 处理食物效果
     bool touchFood();
@@ -329,6 +338,7 @@ private:
 };
 
 #endif // GAME_H
+
 
 
 

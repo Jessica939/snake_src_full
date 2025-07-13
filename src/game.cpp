@@ -235,11 +235,13 @@ void Game::renderInstructionBoard() const
         mvwprintw(this->mWindows[2], 14, 1, "1-Cheat 2-Portal");
         mvwprintw(this->mWindows[2], 15, 1, "3-Attack");
         mvwprintw(this->mWindows[2], 16, 1, "4-Shield");
+        mvwprintw(this->mWindows[2], 17, 1, "Save: F");
     } else {
         mvwprintw(this->mWindows[2], 13, 1, "                ");
         mvwprintw(this->mWindows[2], 14, 1, "                ");
         mvwprintw(this->mWindows[2], 15, 1, "                ");
         mvwprintw(this->mWindows[2], 16, 1, "                ");
+        mvwprintw(this->mWindows[2], 17, 1, "Save: F");
     }
 
     wrefresh(this->mWindows[2]);
@@ -1061,6 +1063,19 @@ void Game::controlSnake() const
     int key;
     key = getch();
     
+    // 处理存档功能
+    if (key == 'f' || key == 'F') {
+        const_cast<Game*>(this)->saveGame();
+        // 显示保存成功信息
+        WINDOW* saveWin = newwin(3, 30, mGameBoardHeight/2 + mInformationHeight, mGameBoardWidth/2 - 15);
+        box(saveWin, 0, 0);
+        mvwprintw(saveWin, 1, 1, "Game Saved!");
+        wrefresh(saveWin);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        delwin(saveWin);
+        return;
+    }
+    
     // 处理道具使用
     const_cast<Game*>(this)->handleItemUsage(key);
     
@@ -1211,11 +1226,6 @@ void Game::runGame()
                 deactivateShield();
                 continue;
             } else {
-                // 在蛇死亡时，将蛇的尸体转换为食物
-                const std::vector<SnakeBody>& snakeBody = this->mPtrSnake->getSnake();
-                this->createCorpseFoods(snakeBody);
-                this->mPtrSnake->senseCorpseFoods(this->mCorpseFoods);
-                
                 // 使用生命系统而不是直接结束游戏
                 if (!this->mPtrSnake->loseLife()) {
                     // 没有剩余生命了，游戏结束
@@ -1284,20 +1294,23 @@ void Game::runGame()
         }
         if (eatCorpseFood == true && !mCorpseFoods.empty())
         {
-            // 处理尸体食物效果
-            handleFoodEffect(FoodType::Normal); // 尸体食物按普通食物处理
-            // 移除被吃掉的尸体食物
-            SnakeBody eatenCorpse = this->mPtrSnake->getEatenCorpseFood();
-            if (eatenCorpse.getX() != -1 && eatenCorpse.getY() != -1) {
-                mCorpseFoods.erase(
-                    std::remove_if(mCorpseFoods.begin(), mCorpseFoods.end(),
-                        [&eatenCorpse](const SnakeBody& corpse) {
-                            return corpse.getX() == eatenCorpse.getX() && corpse.getY() == eatenCorpse.getY();
-                        }),
-                    mCorpseFoods.end()
-                );
-                // 更新蛇感知的尸体食物列表
-                this->mPtrSnake->senseCorpseFoods(this->mCorpseFoods);
+            // 只在对战模式下处理尸体食物
+            if (mCurrentMode == GameMode::Battle) {
+                // 处理尸体食物效果
+                handleFoodEffect(FoodType::Normal); // 尸体食物按普通食物处理
+                // 移除被吃掉的尸体食物
+                SnakeBody eatenCorpse = this->mPtrSnake->getEatenCorpseFood();
+                if (eatenCorpse.getX() != -1 && eatenCorpse.getY() != -1) {
+                    mCorpseFoods.erase(
+                        std::remove_if(mCorpseFoods.begin(), mCorpseFoods.end(),
+                            [&eatenCorpse](const SnakeBody& corpse) {
+                                return corpse.getX() == eatenCorpse.getX() && corpse.getY() == eatenCorpse.getY();
+                            }),
+                        mCorpseFoods.end()
+                    );
+                    // 更新蛇感知的尸体食物列表
+                    this->mPtrSnake->senseCorpseFoods(this->mCorpseFoods);
+                }
             }
         }
         if (eatRandomItem == true && mHasRandomItem)
@@ -1364,6 +1377,8 @@ void Game::startGame()
                     }
                     updateLeaderBoard();
                     writeLeaderBoard();
+                    // 游戏结束时自动保存
+                    saveGame();
                     playAgain = renderRestartMenu();
                     break;
                 }
@@ -1463,6 +1478,8 @@ void Game::startGame()
                         // 关卡失败，显示游戏结束信息
                         this->updateLeaderBoard();
                         this->writeLeaderBoard();
+                        // 游戏结束时自动保存
+                        this->saveGame();
                         WINDOW * menu;
                         int width = this->mGameBoardWidth * 0.5;
                         int height = this->mGameBoardHeight * 0.5;
@@ -1555,6 +1572,8 @@ void Game::startGame()
                     initializeBattle(mCurrentBattleType);
                     renderBoards();
                     runBattle();
+                    // 游戏结束时自动保存
+                    saveGame();
                     // 传入 true，让菜单显示 "Battle Over!"
                     playAgain = renderRestartMenu(true);
                     break;
@@ -1648,6 +1667,7 @@ bool Game::selectLevel()
             "Timed Mode",
             "Battle Mode",
             "Shop",
+            "Load Game",
             "Exit Game"
         };
 
@@ -1705,11 +1725,38 @@ bool Game::selectLevel()
         }
         delwin(menu);
 
-        if (index == 5) { // Exit Game
+        if (index == 6) { // Exit Game
             return false;
         } else if (index == 4) { // Shop
             showShopMenu(); // 这里调用你的商店界面函数
             continue; // 回到主菜单
+        } else if (index == 5) { // Load Game
+            if (hasSaveFile()) {
+                if (loadGame()) {
+                    mReturnToModeSelect = false;
+                    return true; // 成功加载存档，开始游戏
+                } else {
+                    // 加载失败，显示错误信息
+                    WINDOW* errorWin = newwin(5, 40, startY + height/2, startX + width/2 - 20);
+                    box(errorWin, 0, 0);
+                    mvwprintw(errorWin, 1, 1, "Failed to load save file!");
+                    mvwprintw(errorWin, 2, 1, "Press any key to continue...");
+                    wrefresh(errorWin);
+                    getch();
+                    delwin(errorWin);
+                    continue; // 回到主菜单
+                }
+            } else {
+                // 没有存档文件，显示提示
+                WINDOW* noSaveWin = newwin(5, 40, startY + height/2, startX + width/2 - 20);
+                box(noSaveWin, 0, 0);
+                mvwprintw(noSaveWin, 1, 1, "No save file found!");
+                mvwprintw(noSaveWin, 2, 1, "Press any key to continue...");
+                wrefresh(noSaveWin);
+                getch();
+                delwin(noSaveWin);
+                continue; // 回到主菜单
+            }
         } else {
             mCurrentMode = static_cast<GameMode>(index);
             mReturnToModeSelect = false;
@@ -2090,20 +2137,23 @@ void Game::runLevel()
         }
         if (eatCorpseFood == true && !mCorpseFoods.empty())
         {
-            // 处理尸体食物效果
-            handleFoodEffect(FoodType::Normal); // 尸体食物按普通食物处理
-            // 移除被吃掉的尸体食物
-            SnakeBody eatenCorpse = this->mPtrSnake->getEatenCorpseFood();
-            if (eatenCorpse.getX() != -1 && eatenCorpse.getY() != -1) {
-                mCorpseFoods.erase(
-                    std::remove_if(mCorpseFoods.begin(), mCorpseFoods.end(),
-                        [&eatenCorpse](const SnakeBody& corpse) {
-                            return corpse.getX() == eatenCorpse.getX() && corpse.getY() == eatenCorpse.getY();
-                        }),
-                    mCorpseFoods.end()
-                );
-                // 更新蛇感知的尸体食物列表
-                this->mPtrSnake->senseCorpseFoods(this->mCorpseFoods);
+            // 只在对战模式下处理尸体食物
+            if (mCurrentMode == GameMode::Battle) {
+                // 处理尸体食物效果
+                handleFoodEffect(FoodType::Normal); // 尸体食物按普通食物处理
+                // 移除被吃掉的尸体食物
+                SnakeBody eatenCorpse = this->mPtrSnake->getEatenCorpseFood();
+                if (eatenCorpse.getX() != -1 && eatenCorpse.getY() != -1) {
+                    mCorpseFoods.erase(
+                        std::remove_if(mCorpseFoods.begin(), mCorpseFoods.end(),
+                            [&eatenCorpse](const SnakeBody& corpse) {
+                                return corpse.getX() == eatenCorpse.getX() && corpse.getY() == eatenCorpse.getY();
+                            }),
+                        mCorpseFoods.end()
+                    );
+                    // 更新蛇感知的尸体食物列表
+                    this->mPtrSnake->senseCorpseFoods(this->mCorpseFoods);
+                }
             }
         }
         if (eatRandomItem == true && mHasRandomItem)
@@ -4150,6 +4200,278 @@ void Game::handleFoodEffect(FoodType foodType) {
         }
     }
 }
+
+// ====== 存档功能实现 ======
+
+void Game::saveGame() const {
+    std::ofstream ofs(mSaveFilePath, std::ios::binary);
+    if (!ofs) {
+        return;
+    }
+    
+    // 保存游戏模式
+    int currentMode = static_cast<int>(mCurrentMode);
+    ofs.write(reinterpret_cast<const char*>(&currentMode), sizeof(currentMode));
+    
+    // 保存当前关卡
+    ofs.write(reinterpret_cast<const char*>(&mCurrentLevel), sizeof(mCurrentLevel));
+    
+    // 保存分数
+    ofs.write(reinterpret_cast<const char*>(&mPoints), sizeof(mPoints));
+    ofs.write(reinterpret_cast<const char*>(&mPoints2), sizeof(mPoints2));
+    
+    // 保存生命值
+    int lives1 = mPtrSnake ? mPtrSnake->getLives() : mPlayerLives;
+    int lives2 = mPtrSnake2 ? mPtrSnake2->getLives() : mPlayer2Lives;
+    ofs.write(reinterpret_cast<const char*>(&lives1), sizeof(lives1));
+    ofs.write(reinterpret_cast<const char*>(&lives2), sizeof(lives2));
+    
+    // 保存蛇的状态
+    if (mPtrSnake) {
+        const auto& snake1 = mPtrSnake->getSnake();
+        int size1 = snake1.size();
+        ofs.write(reinterpret_cast<const char*>(&size1), sizeof(size1));
+        for (const auto& body : snake1) {
+            int x = body.getX();
+            int y = body.getY();
+            ofs.write(reinterpret_cast<const char*>(&x), sizeof(x));
+            ofs.write(reinterpret_cast<const char*>(&y), sizeof(y));
+        }
+        int dir1 = static_cast<int>(mPtrSnake->getDirection());
+        ofs.write(reinterpret_cast<const char*>(&dir1), sizeof(dir1));
+    }
+    
+    if (mPtrSnake2) {
+        const auto& snake2 = mPtrSnake2->getSnake();
+        int size2 = snake2.size();
+        ofs.write(reinterpret_cast<const char*>(&size2), sizeof(size2));
+        for (const auto& body : snake2) {
+            int x = body.getX();
+            int y = body.getY();
+            ofs.write(reinterpret_cast<const char*>(&x), sizeof(x));
+            ofs.write(reinterpret_cast<const char*>(&y), sizeof(y));
+        }
+        int dir2 = static_cast<int>(mPtrSnake2->getDirection());
+        ofs.write(reinterpret_cast<const char*>(&dir2), sizeof(dir2));
+    }
+    
+    // 保存食物位置
+    int foodX = mFood.getX();
+    int foodY = mFood.getY();
+    ofs.write(reinterpret_cast<const char*>(&foodX), sizeof(foodX));
+    ofs.write(reinterpret_cast<const char*>(&foodY), sizeof(foodY));
+    
+    // 保存特殊食物状态
+    ofs.write(reinterpret_cast<const char*>(&mHasSpecialFood), sizeof(mHasSpecialFood));
+    if (mHasSpecialFood) {
+        int specialX = mSpecialFood.getX();
+        int specialY = mSpecialFood.getY();
+        ofs.write(reinterpret_cast<const char*>(&specialX), sizeof(specialX));
+        ofs.write(reinterpret_cast<const char*>(&specialY), sizeof(specialY));
+        int foodType = static_cast<int>(mCurrentFoodType);
+        ofs.write(reinterpret_cast<const char*>(&foodType), sizeof(foodType));
+    }
+    
+    // 保存毒药状态
+    ofs.write(reinterpret_cast<const char*>(&mHasPoison), sizeof(mHasPoison));
+    if (mHasPoison) {
+        int poisonX = mPoison.getX();
+        int poisonY = mPoison.getY();
+        ofs.write(reinterpret_cast<const char*>(&poisonX), sizeof(poisonX));
+        ofs.write(reinterpret_cast<const char*>(&poisonY), sizeof(poisonY));
+    }
+    
+    // 保存尸体食物
+    int corpseCount = mCorpseFoods.size();
+    ofs.write(reinterpret_cast<const char*>(&corpseCount), sizeof(corpseCount));
+    for (const auto& corpse : mCorpseFoods) {
+        int x = corpse.getX();
+        int y = corpse.getY();
+        ofs.write(reinterpret_cast<const char*>(&x), sizeof(x));
+        ofs.write(reinterpret_cast<const char*>(&y), sizeof(y));
+    }
+    
+    // 保存随机道具状态
+    ofs.write(reinterpret_cast<const char*>(&mHasRandomItem), sizeof(mHasRandomItem));
+    if (mHasRandomItem) {
+        int itemX = mRandomItem.getX();
+        int itemY = mRandomItem.getY();
+        ofs.write(reinterpret_cast<const char*>(&itemX), sizeof(itemX));
+        ofs.write(reinterpret_cast<const char*>(&itemY), sizeof(itemY));
+        int itemType = static_cast<int>(mCurrentRandomItemType);
+        ofs.write(reinterpret_cast<const char*>(&itemType), sizeof(itemType));
+    }
+    
+    // 保存关卡状态
+    int levelStatusSize = mLevelStatus.size();
+    ofs.write(reinterpret_cast<const char*>(&levelStatusSize), sizeof(levelStatusSize));
+    for (const auto& status : mLevelStatus) {
+        int statusVal = static_cast<int>(status);
+        ofs.write(reinterpret_cast<const char*>(&statusVal), sizeof(statusVal));
+    }
+    
+    ofs.close();
+}
+
+bool Game::loadGame() {
+    std::ifstream ifs(mSaveFilePath, std::ios::binary);
+    if (!ifs) {
+        return false;
+    }
+    
+    try {
+        // 加载游戏模式
+        int currentMode;
+        ifs.read(reinterpret_cast<char*>(&currentMode), sizeof(currentMode));
+        mCurrentMode = static_cast<GameMode>(currentMode);
+        
+        // 加载当前关卡
+        ifs.read(reinterpret_cast<char*>(&mCurrentLevel), sizeof(mCurrentLevel));
+        
+        // 加载分数
+        ifs.read(reinterpret_cast<char*>(&mPoints), sizeof(mPoints));
+        ifs.read(reinterpret_cast<char*>(&mPoints2), sizeof(mPoints2));
+        
+        // 加载生命值
+        int lives1, lives2;
+        ifs.read(reinterpret_cast<char*>(&lives1), sizeof(lives1));
+        ifs.read(reinterpret_cast<char*>(&lives2), sizeof(lives2));
+        mPlayerLives = lives1;
+        mPlayer2Lives = lives2;
+        
+        // 加载蛇1的状态
+        if (mPtrSnake) {
+            int size1;
+            ifs.read(reinterpret_cast<char*>(&size1), sizeof(size1));
+            std::vector<SnakeBody> snake1;
+            for (int i = 0; i < size1; i++) {
+                int x, y;
+                ifs.read(reinterpret_cast<char*>(&x), sizeof(x));
+                ifs.read(reinterpret_cast<char*>(&y), sizeof(y));
+                snake1.push_back(SnakeBody(x, y));
+            }
+            mPtrSnake->getSnake() = snake1;
+            
+            int dir1;
+            ifs.read(reinterpret_cast<char*>(&dir1), sizeof(dir1));
+            mPtrSnake->changeDirection(static_cast<Direction>(dir1));
+            mPtrSnake->setLives(lives1);
+        }
+        
+        // 加载蛇2的状态
+        if (mPtrSnake2) {
+            int size2;
+            ifs.read(reinterpret_cast<char*>(&size2), sizeof(size2));
+            std::vector<SnakeBody> snake2;
+            for (int i = 0; i < size2; i++) {
+                int x, y;
+                ifs.read(reinterpret_cast<char*>(&x), sizeof(x));
+                ifs.read(reinterpret_cast<char*>(&y), sizeof(y));
+                snake2.push_back(SnakeBody(x, y));
+            }
+            mPtrSnake2->getSnake() = snake2;
+            
+            int dir2;
+            ifs.read(reinterpret_cast<char*>(&dir2), sizeof(dir2));
+            mPtrSnake2->changeDirection(static_cast<Direction>(dir2));
+            mPtrSnake2->setLives(lives2);
+        }
+        
+        // 加载食物位置
+        int foodX, foodY;
+        ifs.read(reinterpret_cast<char*>(&foodX), sizeof(foodX));
+        ifs.read(reinterpret_cast<char*>(&foodY), sizeof(foodY));
+        mFood = SnakeBody(foodX, foodY);
+        
+        // 加载特殊食物状态
+        ifs.read(reinterpret_cast<char*>(&mHasSpecialFood), sizeof(mHasSpecialFood));
+        if (mHasSpecialFood) {
+            int specialX, specialY;
+            ifs.read(reinterpret_cast<char*>(&specialX), sizeof(specialX));
+            ifs.read(reinterpret_cast<char*>(&specialY), sizeof(specialY));
+            mSpecialFood = SnakeBody(specialX, specialY);
+            
+            int foodType;
+            ifs.read(reinterpret_cast<char*>(&foodType), sizeof(foodType));
+            mCurrentFoodType = static_cast<FoodType>(foodType);
+        }
+        
+        // 加载毒药状态
+        ifs.read(reinterpret_cast<char*>(&mHasPoison), sizeof(mHasPoison));
+        if (mHasPoison) {
+            int poisonX, poisonY;
+            ifs.read(reinterpret_cast<char*>(&poisonX), sizeof(poisonX));
+            ifs.read(reinterpret_cast<char*>(&poisonY), sizeof(poisonY));
+            mPoison = SnakeBody(poisonX, poisonY);
+        }
+        
+        // 加载尸体食物
+        int corpseCount;
+        ifs.read(reinterpret_cast<char*>(&corpseCount), sizeof(corpseCount));
+        mCorpseFoods.clear();
+        for (int i = 0; i < corpseCount; i++) {
+            int x, y;
+            ifs.read(reinterpret_cast<char*>(&x), sizeof(x));
+            ifs.read(reinterpret_cast<char*>(&y), sizeof(y));
+            mCorpseFoods.push_back(SnakeBody(x, y));
+        }
+        
+        // 加载随机道具状态
+        ifs.read(reinterpret_cast<char*>(&mHasRandomItem), sizeof(mHasRandomItem));
+        if (mHasRandomItem) {
+            int itemX, itemY;
+            ifs.read(reinterpret_cast<char*>(&itemX), sizeof(itemX));
+            ifs.read(reinterpret_cast<char*>(&itemY), sizeof(itemY));
+            mRandomItem = SnakeBody(itemX, itemY);
+            
+            int itemType;
+            ifs.read(reinterpret_cast<char*>(&itemType), sizeof(itemType));
+            mCurrentRandomItemType = static_cast<ItemType>(itemType);
+        }
+        
+        // 加载关卡状态
+        int levelStatusSize;
+        ifs.read(reinterpret_cast<char*>(&levelStatusSize), sizeof(levelStatusSize));
+        mLevelStatus.clear();
+        for (int i = 0; i < levelStatusSize; i++) {
+            int statusVal;
+            ifs.read(reinterpret_cast<char*>(&statusVal), sizeof(statusVal));
+            mLevelStatus.push_back(static_cast<LevelStatus>(statusVal));
+        }
+        
+        // 同步食物信息给蛇
+        if (mPtrSnake) {
+            mPtrSnake->senseFood(mFood);
+            mPtrSnake->senseSpecialFood(mSpecialFood);
+            mPtrSnake->sensePoison(mPoison);
+            mPtrSnake->senseCorpseFoods(mCorpseFoods);
+            mPtrSnake->senseRandomItem(mRandomItem);
+        }
+        if (mPtrSnake2) {
+            mPtrSnake2->senseFood(mFood);
+            mPtrSnake2->senseSpecialFood(mSpecialFood);
+            mPtrSnake2->sensePoison(mPoison);
+            mPtrSnake2->senseCorpseFoods(mCorpseFoods);
+            mPtrSnake2->senseRandomItem(mRandomItem);
+        }
+        
+        ifs.close();
+        return true;
+    } catch (...) {
+        ifs.close();
+        return false;
+    }
+}
+
+bool Game::hasSaveFile() const {
+    std::ifstream ifs(mSaveFilePath, std::ios::binary);
+    return ifs.good();
+}
+
+void Game::deleteSaveFile() const {
+    std::remove(mSaveFilePath.c_str());
+}
+
 
 
 
