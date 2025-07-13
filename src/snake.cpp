@@ -198,6 +198,11 @@ void Snake::senseRandomItem(SnakeBody randomItem)
     this->mRandomItem = randomItem;
 }
 
+void Snake::senseCorpseFoods(const std::vector<SnakeBody>& corpseFoods)
+{
+    this->mCorpseFoods = corpseFoods;
+}
+
 std::vector<SnakeBody>& Snake::getSnake()
 {
     return this->mSnakeBody;
@@ -253,6 +258,13 @@ bool Snake::moveFoward()
         SnakeBody newHead = this->mFood;
         this->mSnakeBody.insert(this->mSnakeBody.begin(), newHead);
         return true;
+    }
+    else if (this->touchCorpseFood())
+    {
+        // 处理尸体食物，蛇会增长
+        SnakeBody newHead = this->createNewHead();
+        this->mSnakeBody.insert(this->mSnakeBody.begin(), newHead);
+        return true; // 返回true表示吃到了食物
     }
     else
     {
@@ -429,6 +441,30 @@ bool Snake::touchRandomItem() const
     {
         return false;
     }
+}
+
+bool Snake::touchCorpseFood() const
+{
+    SnakeBody newHead = this->createNewHead();
+    // 检查是否碰到任何尸体食物
+    for (const auto& corpseFood : mCorpseFoods) {
+        if (corpseFood == newHead) {
+            return true;
+        }
+    }
+    return false;
+}
+
+SnakeBody Snake::getEatenCorpseFood() const
+{
+    SnakeBody newHead = this->createNewHead();
+    // 返回被吃掉的尸体食物位置
+    for (const auto& corpseFood : mCorpseFoods) {
+        if (corpseFood == newHead) {
+            return corpseFood;
+        }
+    }
+    return SnakeBody(-1, -1); // 返回无效位置
 }
 
 // 无敌模式相关函数实现

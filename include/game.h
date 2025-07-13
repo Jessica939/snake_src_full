@@ -118,6 +118,10 @@ private:
     std::chrono::time_point<std::chrono::steady_clock> mSpecialFoodSpawnTime;
     const float mSpecialFoodDuration = 5.0f;
     
+    // 尸体食物系统
+    std::vector<SnakeBody> mCorpseFoods; // 存储尸体食物的位置
+    const char mCorpseFoodSymbol = 'C'; // 尸体食物符号
+    
     // 随机道具系统
     SnakeBody mRandomItem;
     bool mHasRandomItem = false;
@@ -156,10 +160,12 @@ private:
     void createRamdonFood();
     void createPoison();  // 新增生成毒药函数
     void createSpecialFood();  // 新增生成特殊食物
+    void createCorpseFoods(const std::vector<SnakeBody>& snakeBody); // 新增生成尸体食物
     void createRandomItem();   // 新增生成随机道具
     void renderFood() const;
     void renderPoison() const;  // 新增渲染毒药函数
     void renderSpecialFood() const;  // 新增渲染特殊食物
+    void renderCorpseFoods() const;  // 新增渲染尸体食物
     void renderRandomItem() const;   // 新增渲染随机道具
     void renderSnake() const;
     void renderMap() const;
@@ -261,7 +267,7 @@ private:
     std::unique_ptr<Snake> mPtrSnake2;
     std::unique_ptr<AI> mPtrAI;
     int mPoints2 = 0;
-    const char mSnakeSymbol2 = '*';
+    const char mSnakeSymbol2 = '&';
     bool selectBattleType();
     void initializeBattle(BattleType type);
     void runBattle();
@@ -312,9 +318,14 @@ private:
     void handleAcceleration(int key); // 处理长按加速
     bool isKeyPressed(int key); // 检查按键是否被按下
     
-    // 食物效果处理
+    // 新增：食物效果处理
     int getFoodEffect(FoodType foodType) const; // 获取食物效果
     void handleFoodEffect(FoodType foodType);   // 处理食物效果
+    bool touchFood();
+    bool touchPoison() const;  // 新增检测是否碰到毒药
+    bool touchSpecialFood() const;  // 新增检测是否碰到特殊食物
+    bool touchCorpseFood() const;   // 新增检测是否碰到尸体食物
+    bool touchRandomItem() const;   // 新增检测是否碰到随机道具
 };
 
 #endif // GAME_H

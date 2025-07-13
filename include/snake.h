@@ -61,6 +61,7 @@ public:
     void sensePoison(SnakeBody poison);  // 新增感知毒药
     void senseSpecialFood(SnakeBody specialFood);  // 新增感知特殊食物
     void senseRandomItem(SnakeBody randomItem);    // 新增感知随机道具
+    void senseCorpseFoods(const std::vector<SnakeBody>& corpseFoods); // 新增感知尸体食物
     // Set map for collision detection
     void setMap(Map* map);
     // Check if hit wall
@@ -69,6 +70,8 @@ public:
     bool touchPoison() const;  // 新增检测是否碰到毒药
     bool touchSpecialFood() const;  // 新增检测是否碰到特殊食物
     bool touchRandomItem() const;   // 新增检测是否碰到随机道具
+    bool touchCorpseFood() const;   // 新增检测是否碰到尸体食物
+    SnakeBody getEatenCorpseFood() const; // 新增获取被吃掉的尸体食物位置
     bool hitSelf();
     bool changeDirection(Direction newDirection);
     std::vector<SnakeBody>& getSnake();
@@ -124,6 +127,7 @@ private:
     SnakeBody mPoison;  // 新增毒药位置
     SnakeBody mSpecialFood;  // 新增特殊食物位置
     SnakeBody mRandomItem;   // 新增随机道具位置
+    std::vector<SnakeBody> mCorpseFoods; // 新增尸体食物位置列表
     
     // 地图指针，用于碰撞检测
     const Map* mPtrMap;

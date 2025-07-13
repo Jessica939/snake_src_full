@@ -630,8 +630,10 @@ void Game::createRamdonFood()
         // 将两条蛇的身体合并到一个列表中
         if(mPtrSnake) allParts.insert(allParts.end(), mPtrSnake->getSnake().begin(), mPtrSnake->getSnake().end());
         if(mPtrSnake2) allParts.insert(allParts.end(), mPtrSnake2->getSnake().begin(), mPtrSnake2->getSnake().end());
+        // 添加尸体食物位置到排除列表
+        allParts.insert(allParts.end(), mCorpseFoods.begin(), mCorpseFoods.end());
 
-        // 查找时排除所有蛇的身体部分
+        // 查找时排除所有蛇的身体部分和尸体食物
         availableGrids = this->mPtrMap->getEmptyPositions(allParts);
     } else {
         // 回退到原来的生成方法
@@ -642,6 +644,13 @@ void Game::createRamdonFood()
                 if(this->mPtrSnake->isPartOfSnake(j, i))
                 {
                     continue;
+                }
+                else if(std::find_if(mCorpseFoods.begin(), mCorpseFoods.end(),
+                    [j, i](const SnakeBody& corpse) {
+                        return corpse.getX() == j && corpse.getY() == i;
+                    }) != mCorpseFoods.end())
+                {
+                    continue; // 排除尸体食物位置
                 }
                 else
                 {
@@ -670,8 +679,10 @@ void Game::createPoison()
         // 将两条蛇的身体合并到一个列表中
         if(mPtrSnake) allParts.insert(allParts.end(), mPtrSnake->getSnake().begin(), mPtrSnake->getSnake().end());
         if(mPtrSnake2) allParts.insert(allParts.end(), mPtrSnake2->getSnake().begin(), mPtrSnake2->getSnake().end());
+        // 添加尸体食物位置到排除列表
+        allParts.insert(allParts.end(), mCorpseFoods.begin(), mCorpseFoods.end());
 
-        // 查找时排除所有蛇的身体部分和食物位置
+        // 查找时排除所有蛇的身体部分、食物位置和尸体食物
         availableGrids = this->mPtrMap->getEmptyPositions(allParts);
         
         // 排除食物位置
@@ -695,6 +706,13 @@ void Game::createPoison()
                 else if(j == mFood.getX() && i == mFood.getY())
                 {
                     continue; // 排除食物位置
+                }
+                else if(std::find_if(mCorpseFoods.begin(), mCorpseFoods.end(),
+                    [j, i](const SnakeBody& corpse) {
+                        return corpse.getX() == j && corpse.getY() == i;
+                    }) != mCorpseFoods.end())
+                {
+                    continue; // 排除尸体食物位置
                 }
                 else
                 {
@@ -726,8 +744,10 @@ void Game::createSpecialFood()
         // 将两条蛇的身体合并到一个列表中
         if(mPtrSnake) allParts.insert(allParts.end(), mPtrSnake->getSnake().begin(), mPtrSnake->getSnake().end());
         if(mPtrSnake2) allParts.insert(allParts.end(), mPtrSnake2->getSnake().begin(), mPtrSnake2->getSnake().end());
+        // 添加尸体食物位置到排除列表
+        allParts.insert(allParts.end(), mCorpseFoods.begin(), mCorpseFoods.end());
 
-        // 查找时排除所有蛇的身体部分、普通食物位置和毒药位置
+        // 查找时排除所有蛇的身体部分、普通食物位置、毒药位置和尸体食物
         availableGrids = this->mPtrMap->getEmptyPositions(allParts);
         
         // 排除普通食物位置
@@ -766,6 +786,13 @@ void Game::createSpecialFood()
                 else if(mHasPoison && j == mPoison.getX() && i == mPoison.getY())
                 {
                     continue; // 排除毒药位置
+                }
+                else if(std::find_if(mCorpseFoods.begin(), mCorpseFoods.end(),
+                    [j, i](const SnakeBody& corpse) {
+                        return corpse.getX() == j && corpse.getY() == i;
+                    }) != mCorpseFoods.end())
+                {
+                    continue; // 排除尸体食物位置
                 }
                 else
                 {
@@ -807,8 +834,10 @@ void Game::createRandomItem()
         // 将两条蛇的身体合并到一个列表中
         if(mPtrSnake) allParts.insert(allParts.end(), mPtrSnake->getSnake().begin(), mPtrSnake->getSnake().end());
         if(mPtrSnake2) allParts.insert(allParts.end(), mPtrSnake2->getSnake().begin(), mPtrSnake2->getSnake().end());
+        // 添加尸体食物位置到排除列表
+        allParts.insert(allParts.end(), mCorpseFoods.begin(), mCorpseFoods.end());
 
-        // 查找时排除所有蛇的身体部分、食物位置和毒药位置
+        // 查找时排除所有蛇的身体部分、食物位置、毒药位置和尸体食物
         availableGrids = this->mPtrMap->getEmptyPositions(allParts);
         
         // 排除普通食物位置
@@ -863,6 +892,13 @@ void Game::createRandomItem()
                 {
                     continue; // 排除特殊食物位置
                 }
+                else if(std::find_if(mCorpseFoods.begin(), mCorpseFoods.end(),
+                    [j, i](const SnakeBody& corpse) {
+                        return corpse.getX() == j && corpse.getY() == i;
+                    }) != mCorpseFoods.end())
+                {
+                    continue; // 排除尸体食物位置
+                }
                 else
                 {
                     availableGrids.push_back(SnakeBody(j, i));
@@ -886,17 +922,43 @@ void Game::createRandomItem()
     // 随机选择道具类型
     int itemTypeRand = std::rand() % 100;
     if (itemTypeRand < 30) {
-        mCurrentRandomItemType = ItemType::Portal; // 30%概率
+        mCurrentRandomItemType = ItemType::Portal; // 30%概率传送门
     } else if (itemTypeRand < 50) {
-        mCurrentRandomItemType = ItemType::Cheat;  // 20%概率
+        mCurrentRandomItemType = ItemType::Shield; // 20%概率护盾
     } else if (itemTypeRand < 70) {
-        mCurrentRandomItemType = ItemType::Shield; // 20%概率
+        mCurrentRandomItemType = ItemType::Cheat; // 20%概率作弊
     } else if (itemTypeRand < 85) {
-        mCurrentRandomItemType = ItemType::Attack; // 15%概率
+        mCurrentRandomItemType = ItemType::Attack; // 15%概率攻击
     } else if (itemTypeRand < 95) {
-        mCurrentRandomItemType = ItemType::RandomBox; // 10%概率
+        mCurrentRandomItemType = ItemType::Revive; // 10%概率复活
     } else {
-        mCurrentRandomItemType = ItemType::Revive; // 5%概率
+        mCurrentRandomItemType = ItemType::Poison; // 5%概率毒药
+    }
+}
+
+void Game::createCorpseFoods(const std::vector<SnakeBody>& snakeBody)
+{
+    // 将蛇的尸体（包括头和身体）转换为食物，但排除在墙上的部分
+    mCorpseFoods.clear(); // 清除之前的尸体食物
+    
+    for (const auto& bodyPart : snakeBody) {
+        // 检查是否在墙上
+        bool isOnWall = false;
+        
+        // 检查地图边界
+        if (bodyPart.getX() < 0 || bodyPart.getX() >= mGameBoardWidth ||
+            bodyPart.getY() < 0 || bodyPart.getY() >= mGameBoardHeight) {
+            isOnWall = true;
+        }
+        // 检查地图中的墙
+        else if (mPtrMap && mPtrMap->isWall(bodyPart.getX(), bodyPart.getY())) {
+            isOnWall = true;
+        }
+        
+        // 只有不在墙上的部分才转换为食物
+        if (!isOnWall) {
+            mCorpseFoods.push_back(bodyPart);
+        }
     }
 }
 
@@ -937,6 +999,17 @@ void Game::renderRandomItem() const
         wattroff(this->mWindows[1], COLOR_PAIR(1));
         wrefresh(this->mWindows[1]);
     }
+}
+
+void Game::renderCorpseFoods() const
+{
+    // 渲染所有尸体食物
+    wattron(this->mWindows[1], COLOR_PAIR(3)); // 使用亮红色显示尸体食物，更明显
+    for (const auto& corpseFood : mCorpseFoods) {
+        mvwaddch(this->mWindows[1], corpseFood.getY(), corpseFood.getX(), this->mCorpseFoodSymbol);
+    }
+    wattroff(this->mWindows[1], COLOR_PAIR(3));
+    wrefresh(this->mWindows[1]);
 }
 
 void Game::renderMap() const
@@ -1115,9 +1188,10 @@ void Game::runGame()
         this->renderMap();
         
         bool eatFood = this->mPtrSnake->moveFoward();
-        bool eatPoison = this->mPtrSnake->touchPoison();  // 新增检测是否吃到毒药
-        bool eatSpecialFood = this->mPtrSnake->touchSpecialFood();  // 新增检测是否吃到特殊食物
-        bool eatRandomItem = this->mPtrSnake->touchRandomItem();    // 新增检测是否吃到随机道具
+        bool eatPoison = this->mPtrSnake->touchPoison();
+        bool eatSpecialFood = this->mPtrSnake->touchSpecialFood();
+        bool eatCorpseFood = this->mPtrSnake->touchCorpseFood();
+        bool eatRandomItem = this->mPtrSnake->touchRandomItem();
         bool collision = this->mPtrSnake->checkCollision();
         if (collision == true)
         {
@@ -1137,6 +1211,11 @@ void Game::runGame()
                 deactivateShield();
                 continue;
             } else {
+                // 在蛇死亡时，将蛇的尸体转换为食物
+                const std::vector<SnakeBody>& snakeBody = this->mPtrSnake->getSnake();
+                this->createCorpseFoods(snakeBody);
+                this->mPtrSnake->senseCorpseFoods(this->mCorpseFoods);
+                
                 // 使用生命系统而不是直接结束游戏
                 if (!this->mPtrSnake->loseLife()) {
                     // 没有剩余生命了，游戏结束
@@ -1182,6 +1261,7 @@ void Game::runGame()
                 this->renderFood();
                 this->renderPoison();
                 this->renderSpecialFood();
+                this->renderCorpseFoods();
                 this->renderRandomItem();
                 this->renderDifficulty();
                 this->renderPoints();
@@ -1202,6 +1282,24 @@ void Game::runGame()
             handleFoodEffect(FoodType::Poison);
             mHasPoison = false; // 毒药消失
         }
+        if (eatCorpseFood == true && !mCorpseFoods.empty())
+        {
+            // 处理尸体食物效果
+            handleFoodEffect(FoodType::Normal); // 尸体食物按普通食物处理
+            // 移除被吃掉的尸体食物
+            SnakeBody eatenCorpse = this->mPtrSnake->getEatenCorpseFood();
+            if (eatenCorpse.getX() != -1 && eatenCorpse.getY() != -1) {
+                mCorpseFoods.erase(
+                    std::remove_if(mCorpseFoods.begin(), mCorpseFoods.end(),
+                        [&eatenCorpse](const SnakeBody& corpse) {
+                            return corpse.getX() == eatenCorpse.getX() && corpse.getY() == eatenCorpse.getY();
+                        }),
+                    mCorpseFoods.end()
+                );
+                // 更新蛇感知的尸体食物列表
+                this->mPtrSnake->senseCorpseFoods(this->mCorpseFoods);
+            }
+        }
         if (eatRandomItem == true && mHasRandomItem)
         {
             // 处理随机道具效果
@@ -1211,6 +1309,7 @@ void Game::runGame()
         this->renderFood();
         this->renderPoison();
         this->renderSpecialFood();
+        this->renderCorpseFoods();
         this->renderRandomItem();
         this->renderDifficulty();
         this->renderPoints();
@@ -1906,9 +2005,10 @@ void Game::runLevel()
         this->renderMap();
         
         bool eatFood = this->mPtrSnake->moveFoward();
-        bool eatPoison = this->mPtrSnake->touchPoison();  // 新增检测是否吃到毒药
-        bool eatSpecialFood = this->mPtrSnake->touchSpecialFood();  // 新增检测是否吃到特殊食物
-        bool eatRandomItem = this->mPtrSnake->touchRandomItem();    // 新增检测是否吃到随机道具
+        bool eatPoison = this->mPtrSnake->touchPoison();
+        bool eatSpecialFood = this->mPtrSnake->touchSpecialFood();
+        bool eatCorpseFood = this->mPtrSnake->touchCorpseFood();
+        bool eatRandomItem = this->mPtrSnake->touchRandomItem();
         bool collision = this->mPtrSnake->checkCollision();
         
         if (collision == true)
@@ -1967,6 +2067,7 @@ void Game::runLevel()
                 this->renderFood();
                 this->renderPoison();
                 this->renderSpecialFood();
+                this->renderCorpseFoods();
                 this->renderRandomItem();
                 this->renderDifficulty();
                 this->renderPoints();
@@ -1987,6 +2088,24 @@ void Game::runLevel()
             handleFoodEffect(FoodType::Poison);
             mHasPoison = false; // 毒药消失
         }
+        if (eatCorpseFood == true && !mCorpseFoods.empty())
+        {
+            // 处理尸体食物效果
+            handleFoodEffect(FoodType::Normal); // 尸体食物按普通食物处理
+            // 移除被吃掉的尸体食物
+            SnakeBody eatenCorpse = this->mPtrSnake->getEatenCorpseFood();
+            if (eatenCorpse.getX() != -1 && eatenCorpse.getY() != -1) {
+                mCorpseFoods.erase(
+                    std::remove_if(mCorpseFoods.begin(), mCorpseFoods.end(),
+                        [&eatenCorpse](const SnakeBody& corpse) {
+                            return corpse.getX() == eatenCorpse.getX() && corpse.getY() == eatenCorpse.getY();
+                        }),
+                    mCorpseFoods.end()
+                );
+                // 更新蛇感知的尸体食物列表
+                this->mPtrSnake->senseCorpseFoods(this->mCorpseFoods);
+            }
+        }
         if (eatRandomItem == true && mHasRandomItem)
         {
             // 处理随机道具效果
@@ -1996,6 +2115,7 @@ void Game::runLevel()
         this->renderFood();
         this->renderPoison();
         this->renderSpecialFood();
+        this->renderCorpseFoods();
         this->renderRandomItem();
         this->renderDifficulty();
         this->renderPoints();
@@ -2929,6 +3049,10 @@ void Game::initializeBattle(BattleType type) {
     mPtrSnake->setMap(mPtrMap.get());
     mPtrSnake2->setMap(mPtrMap.get());
 
+    // 同步尸体食物信息（初始为空）
+    mPtrSnake->senseCorpseFoods(mCorpseFoods);
+    mPtrSnake2->senseCorpseFoods(mCorpseFoods);
+
     // 创建食物（在蛇设置地图之后）
     createRamdonFood();
     
@@ -2954,6 +3078,9 @@ void Game::initializeBattle(BattleType type) {
     
     // Battle mode不生成随机道具
     mHasRandomItem = false;
+    
+    // 清空尸体食物列表
+    mCorpseFoods.clear();
     
     mPoints = 0;
     mPoints2 = 0;
@@ -2994,19 +3121,39 @@ void Game::runBattle() {
         renderFood();
         renderPoison();
         renderSpecialFood();
+        renderCorpseFoods();
         renderBattleStatus();
 
         // 同步食物信息并移动两条蛇
         mPtrSnake->senseFood(mFood);
         mPtrSnake2->senseFood(mFood);
+        
+        // 检查两条蛇是否都会到达食物位置
+        bool p1_will_eat = mPtrSnake->touchFood();
+        bool p2_will_eat = mPtrSnake2->touchFood();
+        
+        // 移动蛇
         bool p1_ate = mPtrSnake->moveFoward();
         bool p2_ate = mPtrSnake2->moveFoward();
         
-        // 检测特殊食物、毒药和随机道具碰撞
+        // 如果两条蛇都会到达食物位置，确保它们都增长
+        if (p1_will_eat && p2_will_eat && !p1_ate && !p2_ate) {
+            // 两条蛇都应该增长，但moveFoward可能没有正确处理
+            // 手动让第二条蛇增长
+            auto& snake2 = mPtrSnake2->getSnake();
+            if (!snake2.empty()) {
+                snake2.push_back(snake2.back()); // 复制尾部增加长度
+            }
+            p2_ate = true; // 标记为已吃食物
+        }
+        
+        // 检测特殊食物、毒药、尸体食物和随机道具碰撞
         bool p1_ate_special = mPtrSnake->touchSpecialFood();
         bool p2_ate_special = mPtrSnake2->touchSpecialFood();
         bool p1_ate_poison = mPtrSnake->touchPoison();
         bool p2_ate_poison = mPtrSnake2->touchPoison();
+        bool p1_ate_corpse = mPtrSnake->touchCorpseFood();
+        bool p2_ate_corpse = mPtrSnake2->touchCorpseFood();
         bool p1_ate_random = mPtrSnake->touchRandomItem();
         bool p2_ate_random = mPtrSnake2->touchRandomItem();
 
@@ -3020,6 +3167,12 @@ void Game::runBattle() {
         // 处理碰撞后的重置（如果蛇还活着但发生了碰撞）
         if (mPtrSnake->checkCollision() || mPtrSnake2->isPartOfSnake(mPtrSnake->getSnake().front().getX(), mPtrSnake->getSnake().front().getY())) {
             if (mPtrSnake->isAlive()) {
+                // 在蛇死亡时，将蛇的尸体转换为食物
+                const std::vector<SnakeBody>& snakeBody = mPtrSnake->getSnake();
+                this->createCorpseFoods(snakeBody);
+                this->mPtrSnake->senseCorpseFoods(this->mCorpseFoods);
+                this->mPtrSnake2->senseCorpseFoods(this->mCorpseFoods);
+                
                 // 重置玩家1蛇的位置
                 mPtrSnake->initializeSnake(5, 5, InitialDirection::Right);
                 mPtrSnake->setLives(mPtrSnake->getLives()); // 保持当前生命值
@@ -3028,6 +3181,12 @@ void Game::runBattle() {
         
         if (mPtrSnake2->checkCollision() || mPtrSnake->isPartOfSnake(mPtrSnake2->getSnake().front().getX(), mPtrSnake2->getSnake().front().getY())) {
             if (mPtrSnake2->isAlive()) {
+                // 在蛇死亡时，将蛇的尸体转换为食物
+                const std::vector<SnakeBody>& snakeBody = mPtrSnake2->getSnake();
+                this->createCorpseFoods(snakeBody);
+                this->mPtrSnake->senseCorpseFoods(this->mCorpseFoods);
+                this->mPtrSnake2->senseCorpseFoods(this->mCorpseFoods);
+                
                 // 重置玩家2/AI蛇的位置
                 mPtrSnake2->initializeSnake(mGameBoardWidth - 10, mGameBoardHeight - 10, InitialDirection::Right);
                 mPtrSnake2->setLives(mPtrSnake2->getLives()); // 保持当前生命值
@@ -3038,6 +3197,9 @@ void Game::runBattle() {
         if (p1_ate || p2_ate) {
             if (p1_ate) { mPoints++; addCoins(1); }
             if (p2_ate) mPoints2++;
+            
+
+            
             createRamdonFood();
             
             // 重新生成特殊食物或毒药（100%概率生成）
@@ -3051,6 +3213,10 @@ void Game::runBattle() {
                 this->mPtrSnake->sensePoison(this->mPoison);
                 this->mPtrSnake2->sensePoison(this->mPoison);
             }
+            
+            // 同步尸体食物信息
+            this->mPtrSnake->senseCorpseFoods(this->mCorpseFoods);
+            this->mPtrSnake2->senseCorpseFoods(this->mCorpseFoods);
             
             // 重新生成随机道具（有10%概率）
             if (std::rand() % 100 < 10) {
@@ -3126,6 +3292,69 @@ void Game::runBattle() {
         }
         
 
+        
+        // 处理尸体食物效果
+        if (p1_ate_corpse && !mCorpseFoods.empty()) {
+            // 处理尸体食物效果
+            int effect = getFoodEffect(FoodType::Normal); // 尸体食物按普通食物处理
+            if (effect > 0) {
+                // 正效果：增加长度和点数
+                for (int i = 0; i < effect; i++) {
+                    auto& snake = this->mPtrSnake->getSnake();
+                    if (!snake.empty()) {
+                        snake.push_back(snake.back()); // 复制尾部增加长度
+                    }
+                }
+                this->mPoints += effect;
+                addCoins(effect); // 增加金币
+            }
+            // 移除被吃掉的尸体食物
+            SnakeBody eatenCorpse = this->mPtrSnake->getEatenCorpseFood();
+            if (eatenCorpse.getX() != -1 && eatenCorpse.getY() != -1) {
+                mCorpseFoods.erase(
+                    std::remove_if(mCorpseFoods.begin(), mCorpseFoods.end(),
+                        [&eatenCorpse](const SnakeBody& corpse) {
+                            return corpse.getX() == eatenCorpse.getX() && corpse.getY() == eatenCorpse.getY();
+                        }),
+                    mCorpseFoods.end()
+                );
+                // 更新蛇感知的尸体食物列表
+                this->mPtrSnake->senseCorpseFoods(this->mCorpseFoods);
+                this->mPtrSnake2->senseCorpseFoods(this->mCorpseFoods);
+            }
+            // 蛇长度变化后调整延迟
+            adjustBattleDelay();
+        }
+        if (p2_ate_corpse && !mCorpseFoods.empty()) {
+            // 处理尸体食物效果
+            int effect = getFoodEffect(FoodType::Normal); // 尸体食物按普通食物处理
+            if (effect > 0) {
+                // 正效果：增加长度和点数
+                for (int i = 0; i < effect; i++) {
+                    auto& snake = this->mPtrSnake2->getSnake();
+                    if (!snake.empty()) {
+                        snake.push_back(snake.back()); // 复制尾部增加长度
+                    }
+                }
+                this->mPoints2 += effect;
+            }
+            // 移除被吃掉的尸体食物
+            SnakeBody eatenCorpse = this->mPtrSnake2->getEatenCorpseFood();
+            if (eatenCorpse.getX() != -1 && eatenCorpse.getY() != -1) {
+                mCorpseFoods.erase(
+                    std::remove_if(mCorpseFoods.begin(), mCorpseFoods.end(),
+                        [&eatenCorpse](const SnakeBody& corpse) {
+                            return corpse.getX() == eatenCorpse.getX() && corpse.getY() == eatenCorpse.getY();
+                        }),
+                    mCorpseFoods.end()
+                );
+                // 更新蛇感知的尸体食物列表
+                this->mPtrSnake->senseCorpseFoods(this->mCorpseFoods);
+                this->mPtrSnake2->senseCorpseFoods(this->mCorpseFoods);
+            }
+            // 蛇长度变化后调整延迟
+            adjustBattleDelay();
+        }
         
         // 对战模式中不处理随机道具效果（禁用道具功能）
         if (p1_ate_random && mHasRandomItem) {
@@ -3211,23 +3440,28 @@ std::string Game::checkBattleCollisions() {
     }
 
     // 处理碰撞，减少生命值
+    bool p1_died = false;
+    bool p2_died = false;
+    
     if (p1_collision && mPtrSnake->isAlive()) {
         if (!mPtrSnake->loseLife()) {
-            // 生命值归零，真正死亡
-            if (p2_collision && mPtrSnake2->isAlive()) {
-                if (!mPtrSnake2->loseLife()) {
-                    return "Draw!"; // 双方同时死亡
-                }
-            }
-            return (mCurrentBattleType == BattleType::PlayerVsAI) ? "AI Wins!" : "Player 2 Wins!";
+            p1_died = true; // 生命值归零，真正死亡
         }
     }
 
     if (p2_collision && mPtrSnake2->isAlive()) {
         if (!mPtrSnake2->loseLife()) {
-            // 生命值归零，真正死亡
-            return "Player 1 Wins!";
+            p2_died = true; // 生命值归零，真正死亡
         }
+    }
+
+    // 判断胜负
+    if (p1_died && p2_died) {
+        return "Draw!"; // 双方同时死亡
+    } else if (p1_died) {
+        return (mCurrentBattleType == BattleType::PlayerVsAI) ? "AI Wins!" : "Player 2 Wins!";
+    } else if (p2_died) {
+        return "Player 1 Wins!";
     }
 
     return ""; // 没有真正死亡
