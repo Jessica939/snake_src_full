@@ -35,6 +35,7 @@ public:
     // 公共函数
     bool selectLevel(); // 改为公有
     bool shouldReturnToModeSelect() const { return mReturnToModeSelect; }
+    void initializeLevel(int level); // 移到public以供main.cpp调用
 
 private:
     // ===== 界面控制相关 =====
@@ -114,7 +115,6 @@ private:
     int mLevel3ModeChoice = 0; // 0: alone, 1: with ally
 
     void createDefaultLevelMaps();
-    void initializeLevel(int level);
     void loadNextLevel();
     bool isLevelCompleted();
     void runLevel();
