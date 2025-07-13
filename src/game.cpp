@@ -231,6 +231,12 @@ void Game::renderInstructionBoard() const
     mvwprintw(this->mWindows[2], row++, 2, "Right: D");
     mvwprintw(this->mWindows[2], row++, 2, "Save:  F");
     row++; // 空一行
+    //lives
+    if (mCurrentMode == GameMode::Classic && mPtrSnake != nullptr) {
+            mvwprintw(this->mWindows[2], row++, 1, "Lives");
+            mvwprintw(this->mWindows[2], row++, 2, "%d", mPtrSnake->getLives());
+            row++; // 空一行
+    }
     // Difficulty
     mvwprintw(this->mWindows[2], row++, 1, "Difficulty");
     mvwprintw(this->mWindows[2], row++, 2, "%d", mDifficulty);
