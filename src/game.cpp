@@ -1653,7 +1653,7 @@ void Game::displayLevelIntroduction(int level)
         };
         std::vector<std::string> descs = {
             "You decide to face the test yourself, to listen to their wordless teachings.",
-            "You choose to trust the companion by your side, inviting them into this place of memory."
+            "You choose to trust the companion by your side, inviting them into this place of memory to work together."
         };
         int choiceIdx = 0;
         int choiceY = height / 2 - 2;
@@ -1957,7 +1957,7 @@ void Game::initializeLevel(int level)
             break;
         case 3:
             mCurrentLevelType = LevelType::Maze;
-            mLevelTargetPoints = 10;
+            mLevelTargetPoints = 8; // 只需要8个食物就能过关
             break;
         case 4:
             mCurrentLevelType = LevelType::Custom1;
@@ -2256,9 +2256,13 @@ void Game::runLevel()
     // 设置非阻塞模式，确保游戏不会在等待输入时卡住
     nodelay(stdscr, TRUE);
     
-    // 如果是第三关模式一，使用镜像之舞逻辑
-    if (mCurrentLevel == 3 && mLevel3ModeChoice == 0) {
-        this->runLevel3Mode1();
+    // 如果是第三关，根据模式选择使用不同的运行逻辑
+    if (mCurrentLevel == 3) {
+        if (mLevel3ModeChoice == 0) {
+            this->runLevel3Mode1(); // 模式一：镜像之舞
+        } else {
+            this->runLevel3Mode2(); // 模式二：协作模式
+        }
         return;
     }
     
@@ -3818,6 +3822,15 @@ void Game::runLevel3Mode1()
     this->renderPoints();
     this->renderLevel();
     
+    // 初始化第三关模式一的固定食物位置
+    this->initializeLevel3Mode1Foods();
+    // 设置第一个食物
+    this->setNextLevel3Mode1Food();
+    this->mPtrSnake->senseFood(this->mFood);
+    
+    // 降低蛇的移动速度 - 将延迟增加为原来的1.5倍
+    this->mDelay = this->mBaseDelay * 1.5;
+    
     // 设置非阻塞模式，确保游戏不会在等待输入时卡住
     nodelay(stdscr, TRUE);
     
@@ -3865,26 +3878,26 @@ void Game::runLevel3Mode1()
     int playerY = this->mPtrSnake->getSnake()[0].getY();
     Direction playerDir = this->mPtrSnake->getDirection();
     
-    // 计算镜像位置 - 以游戏区域中心为镜像点
+    // 计算镜像位置 - 以游戏区域中央垂直轴为对称轴
     int centerX = this->mGameBoardWidth / 2;
-    int centerY = this->mGameBoardHeight / 2;
+    // 关于垂直中轴线的对称 (x坐标对称，y坐标不变)
     int shadowX = 2 * centerX - playerX;
-    int shadowY = 2 * centerY - playerY;
+    int shadowY = playerY;
     
     // 计算镜像方向
     Direction shadowDir;
     switch (playerDir) {
         case Direction::Up:
-            shadowDir = Direction::Down;
+            shadowDir = Direction::Up; // 上下方向不变
             break;
         case Direction::Down:
-            shadowDir = Direction::Up;
+            shadowDir = Direction::Down; // 上下方向不变
             break;
         case Direction::Left:
-            shadowDir = Direction::Right;
+            shadowDir = Direction::Right; // 左右方向对称
             break;
         case Direction::Right:
-            shadowDir = Direction::Left;
+            shadowDir = Direction::Left; // 左右方向对称
             break;
     }
     
@@ -3919,6 +3932,10 @@ void Game::runLevel3Mode1()
         // 渲染地图
         this->renderMap();
         
+        // 保存食物的当前位置
+        int foodX = this->mFood.getX();
+        int foodY = this->mFood.getY();
+        
         // 移动玩家蛇
         bool playerEatFood = this->mPtrSnake->moveFoward();
         bool playerCollision = this->mPtrSnake->checkCollision();
@@ -3930,16 +3947,16 @@ void Game::runLevel3Mode1()
         Direction shadowNewDir;
         switch (playerNewDir) {
             case Direction::Up:
-                shadowNewDir = Direction::Down;
+                shadowNewDir = Direction::Up; // 上下方向不变
                 break;
             case Direction::Down:
-                shadowNewDir = Direction::Up;
+                shadowNewDir = Direction::Down; // 上下方向不变
                 break;
             case Direction::Left:
-                shadowNewDir = Direction::Right;
+                shadowNewDir = Direction::Right; // 左右方向对称
                 break;
             case Direction::Right:
-                shadowNewDir = Direction::Left;
+                shadowNewDir = Direction::Left; // 左右方向对称
                 break;
         }
         
@@ -3950,6 +3967,15 @@ void Game::runLevel3Mode1()
         shadowSnake->moveFoward();
         bool shadowCollision = shadowSnake->checkCollision();
         
+        // 手动检查影子蛇是否吃到食物
+        bool shadowEatFood = false;
+        if (!playerEatFood) { // 如果玩家没有吃到食物，检查影子蛇是否吃到
+            const SnakeBody& shadowHead = shadowSnake->getSnake()[0];
+            if (shadowHead.getX() == foodX && shadowHead.getY() == foodY) {
+                shadowEatFood = true;
+            }
+        }
+        
         // 检查玩家或影子是否碰撞
         if (playerCollision || shadowCollision)
         {
@@ -3957,14 +3983,14 @@ void Game::runLevel3Mode1()
             break;
         }
         
-        // 处理吃食物
-        if (playerEatFood)
+        // 处理吃食物 - 玩家蛇或镜像蛇任一吃到食物都算
+        if (playerEatFood || shadowEatFood)
         {
             this->mPoints += 1;
-            this->createRamdonFood();
+            // 使用固定食物列表而不是随机生成
+            this->setNextLevel3Mode1Food();
             this->mPtrSnake->senseFood(this->mFood);
             shadowSnake->senseFood(this->mFood);
-            this->adjustDelay();
             
             // 检查是否完成关卡目标
             if (this->isLevelCompleted())
@@ -3996,6 +4022,490 @@ void Game::runLevel3Mode1()
         
         // 添加提示文字
         mvwprintw(this->mWindows[1], 1, 1, "Mirror Dance: Watch your shadow!");
+        
+        // 游戏延迟
+        std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
+        
+        refresh();
+    }
+}
+
+// 初始化第三关模式一的10个固定食物位置
+void Game::initializeLevel3Mode1Foods()
+{
+    // 清空旧的食物列表
+    mLevel3Mode1Foods.clear();
+    mLevel3FoodIndex = 0;
+    
+
+    mLevel3Mode1Foods.push_back(SnakeBody(7, 4));
+    mLevel3Mode1Foods.push_back(SnakeBody(50, 4));
+    mLevel3Mode1Foods.push_back(SnakeBody(3, 8));
+    mLevel3Mode1Foods.push_back(SnakeBody(59, 8));
+    mLevel3Mode1Foods.push_back(SnakeBody(10, 13));
+    mLevel3Mode1Foods.push_back(SnakeBody(47, 10));
+    mLevel3Mode1Foods.push_back(SnakeBody(15, 10));
+    mLevel3Mode1Foods.push_back(SnakeBody(20, 6));
+
+    
+
+
+}
+
+// 设置下一个固定食物
+void Game::setNextLevel3Mode1Food()
+{
+    if (mLevel3Mode1Foods.empty())
+    {
+        // 如果食物列表为空，则创建随机食物作为备选
+        createRamdonFood();
+        return;
+    }
+    
+    // 设置当前索引对应的食物
+    mFood = mLevel3Mode1Foods[mLevel3FoodIndex];
+    
+    // 更新索引，循环使用食物列表
+    mLevel3FoodIndex = (mLevel3FoodIndex + 1) % mLevel3Mode1Foods.size();
+}
+
+// 实现第三关模式二：协作模式
+void Game::runLevel3Mode2()
+{
+    // 确保初始化时侧边栏正确显示
+    this->renderInstructionBoard();
+    this->renderDifficulty();
+    this->renderPoints();
+    this->renderLevel();
+    
+    // 显示模式二的开场叙述
+    {
+        // 清除游戏区域并刷新，以准备显示介绍文字
+        werase(this->mWindows[1]);
+        box(this->mWindows[1], 0, 0);
+        wrefresh(this->mWindows[1]);
+        
+        // 创建一个窗口用于显示开场文字
+        WINDOW* introWin;
+        int width = this->mGameBoardWidth * 0.8;
+        int height = this->mGameBoardHeight * 0.6;
+        int startX = this->mGameBoardWidth * 0.1;
+        int startY = this->mGameBoardHeight * 0.2 + this->mInformationHeight;
+
+        introWin = newwin(height, width, startY, startX);
+        box(introWin, 0, 0);
+        
+        // 设置标题
+        std::string title = "THE BOND OF TRUST";
+        mvwprintw(introWin, 1, (width - title.length()) / 2, "%s", title.c_str());
+        
+        // 开场叙述文本
+        std::vector<std::string> introText = {
+            "In that seamless coordination, you felt the power of trust.",
+            "Your parents' will acknowledged your companion, entrusting them with the duty of a guardian.",
+            "You shared both risk and reward, protecting each other to claim victory.",
+            "",
+            "You understood that the bonds of family can extend into a wider trust.",
+            "Entrusting your back to a friend is its own form of courage and growth."
+        };
+        
+        // 实现文本自动换行的显示效果
+        const int maxDisplayWidth = width - 6; // 可显示的最大宽度（留边距）
+        
+        // 辅助函数：将长文本按单词分割成适合宽度的多行
+        auto wrapText = [maxDisplayWidth](const std::string& text) -> std::vector<std::string> {
+            std::vector<std::string> wrappedLines;
+            if (text.empty()) {
+                wrappedLines.push_back("");
+                return wrappedLines;
+            }
+            
+            std::istringstream wordStream(text);
+            std::string word;
+            std::string currentLine;
+            
+            while (wordStream >> word) {
+                // 如果加上这个词会超出宽度，且当前行不为空，则另起一行
+                if (currentLine.length() + word.length() + 1 > static_cast<size_t>(maxDisplayWidth) && !currentLine.empty()) {
+                    wrappedLines.push_back(currentLine);
+                    currentLine = word;
+                } 
+                // 如果是第一个词或者可以加入当前行
+                else {
+                    if (!currentLine.empty()) {
+                        currentLine += " ";
+                    }
+                    currentLine += word;
+                }
+            }
+            
+            if (!currentLine.empty()) {
+                wrappedLines.push_back(currentLine);
+            }
+            
+            return wrappedLines;
+        };
+        
+        // 设置getch为非阻塞模式，以便检测按键
+        nodelay(stdscr, TRUE);
+        
+        // 在窗口底部显示跳过提示
+        mvwprintw(introWin, height - 2, 2, "Press ESC to skip");
+        wrefresh(introWin);
+        
+        bool skip = false;
+        
+        // 显示每一行原始文字（可能会自动换行）
+        for (size_t i = 0; i < introText.size(); i++) {
+            // 检查是否按下ESC键跳过
+            int ch = getch();
+            if (ch == 27) { // ESC键的ASCII码是27
+                skip = true;
+                break;
+            }
+            
+            const std::string& originalLine = introText[i];
+            
+            // 如果是空行，只显示很短的时间
+            if (originalLine.empty()) {
+                // 清除显示区域
+                for (int y = 3; y < height - 3; y++) {
+                    wmove(introWin, y, 2);
+                    for (int x = 2; x < width - 2; x++) {
+                        waddch(introWin, ' ');
+                    }
+                }
+                wrefresh(introWin);
+                
+                // 在等待期间检查是否按下ESC键
+                auto start = std::chrono::steady_clock::now();
+                while (std::chrono::duration_cast<std::chrono::milliseconds>(
+                       std::chrono::steady_clock::now() - start).count() < 300) {
+                    ch = getch();
+                    if (ch == 27) {
+                        skip = true;
+                        break;
+                    }
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                }
+                
+                if (skip) break;
+                continue;
+            }
+            
+            // 将原始行按需换行
+            std::vector<std::string> wrappedLines = wrapText(originalLine);
+            
+            // 清除显示区域
+            for (int y = 3; y < height - 3; y++) {
+                wmove(introWin, y, 2);
+                for (int x = 2; x < width - 2; x++) {
+                    waddch(introWin, ' ');
+                }
+            }
+            
+            // 计算起始行，使文本垂直居中
+            int startLine = (height - wrappedLines.size()) / 2;
+            if (startLine < 3) startLine = 3;
+            
+            // 逐行显示包装后的文本
+            for (size_t lineIdx = 0; lineIdx < wrappedLines.size(); lineIdx++) {
+                const std::string& line = wrappedLines[lineIdx];
+                
+                // 计算当前行的水平居中位置
+                int startPos = (width - line.length()) / 2;
+                if (startPos < 2) startPos = 2;
+                
+                // 逐个字符显示当前行
+                for (size_t j = 0; j < line.length(); j++) {
+                    mvwaddch(introWin, startLine + static_cast<int>(lineIdx), startPos + static_cast<int>(j), line[j]);
+                    wrefresh(introWin);
+                    
+                    // 每个字符显示后短暂暂停，同时检查是否按下ESC键
+                    ch = getch();
+                    if (ch == 27) {
+                        skip = true;
+                        break;
+                    }
+                    std::this_thread::sleep_for(std::chrono::milliseconds(30));
+                }
+                
+                if (skip) break;
+            }
+            
+            if (skip) break;
+            
+            // 显示完整行后等待一段时间，同时检查是否按下ESC键
+            auto start = std::chrono::steady_clock::now();
+            while (std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::steady_clock::now() - start).count() < 2000) {
+                ch = getch();
+                if (ch == 27) {
+                    skip = true;
+                    break;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            }
+            
+            if (skip) break;
+        }
+        
+        // 如果跳过，立即显示所有文本的最后一行
+        if (skip && !introText.empty()) {
+            // 清除显示区域
+            for (int y = 3; y < height - 3; y++) {
+                wmove(introWin, y, 2);
+                for (int x = 2; x < width - 2; x++) {
+                    waddch(introWin, ' ');
+                }
+            }
+            
+            // 找到最后一个非空行
+            std::string lastLine;
+            for (auto it = introText.rbegin(); it != introText.rend(); ++it) {
+                if (!it->empty()) {
+                    lastLine = *it;
+                    break;
+                }
+            }
+            
+            if (!lastLine.empty()) {
+                // 将最后一行按需换行
+                std::vector<std::string> wrappedLines = wrapText(lastLine);
+                
+                // 计算起始行，使文本垂直居中
+                int startLine = (height - wrappedLines.size()) / 2;
+                if (startLine < 3) startLine = 3;
+                
+                // 显示最后一行
+                for (size_t lineIdx = 0; lineIdx < wrappedLines.size(); lineIdx++) {
+                    const std::string& line = wrappedLines[lineIdx];
+                    
+                    // 计算当前行的水平居中位置
+                    int startPos = (width - line.length()) / 2;
+                    if (startPos < 2) startPos = 2;
+                    
+                    mvwprintw(introWin, startLine + static_cast<int>(lineIdx), startPos, "%s", line.c_str());
+                }
+                wrefresh(introWin);
+            }
+        }
+        
+        // 恢复getch为阻塞模式
+        nodelay(stdscr, FALSE);
+        
+        // 显示按键提示（替换ESC跳过提示）
+        mvwprintw(introWin, height - 2, 2, "Press SPACE to continue...                ");
+        wrefresh(introWin);
+        
+        // 等待用户按空格键继续
+        int key;
+        while (true) {
+            key = getch();
+            if (key == ' ' || key == 10) // 空格键或回车键
+                break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        
+        // 删除窗口
+        delwin(introWin);
+        
+        // 重新绘制游戏界面
+        werase(this->mWindows[1]);
+        box(this->mWindows[1], 0, 0);
+        wrefresh(this->mWindows[1]);
+    }
+    
+    // 创建地图
+    mPtrMap = std::make_unique<Map>(mGameBoardWidth, mGameBoardHeight);
+    mPtrMap->loadDefaultMap();
+    
+    // 创建两条蛇
+    this->mPtrSnake.reset(new Snake(mGameBoardWidth, mGameBoardHeight, mInitialSnakeLength));
+    this->mPtrSnake2.reset(new Snake(mGameBoardWidth, mGameBoardHeight, mInitialSnakeLength));
+    
+    // 设置蛇的起始位置（对角位置）
+    this->mPtrSnake->setMap(mPtrMap.get());
+    this->mPtrSnake->initializeSnake(5, 5, InitialDirection::Right);
+    
+    this->mPtrSnake2->setMap(mPtrMap.get());
+    this->mPtrSnake2->initializeSnake(mGameBoardWidth - 10, mGameBoardHeight - 10, InitialDirection::Left);
+    
+    // 创建食物
+    this->createRamdonFood();
+    this->mPtrSnake->senseFood(this->mFood);
+    this->mPtrSnake2->senseFood(this->mFood);
+    
+    // 重置分数
+    this->mPoints = 0;  // 玩家1得分
+    this->mPoints2 = 0; // 玩家2得分
+    
+    // 设置难度
+    this->mDifficulty = 0;
+    this->mDelay = this->mBaseDelay * 1.25; // 稍微慢一点，方便协作
+    
+    // 设置非阻塞模式，确保游戏不会在等待输入时卡住
+    nodelay(stdscr, TRUE);
+    
+    // 添加一个准备阶段，让玩家有时间反应
+    {
+        // 渲染当前状态，让玩家看到蛇的初始位置
+        werase(this->mWindows[1]);
+        box(this->mWindows[1], 0, 0);
+        this->renderMap();
+        
+        // 渲染两条蛇
+        wattron(this->mWindows[1], COLOR_PAIR(1));
+        for (const auto& part : this->mPtrSnake->getSnake()) {
+            mvwaddch(this->mWindows[1], part.getY(), part.getX(), mSnakeSymbol);
+        }
+        wattroff(this->mWindows[1], COLOR_PAIR(1));
+        
+        wattron(this->mWindows[1], COLOR_PAIR(2));
+        for (const auto& part : this->mPtrSnake2->getSnake()) {
+            mvwaddch(this->mWindows[1], part.getY(), part.getX(), mSnakeSymbol2);
+        }
+        wattroff(this->mWindows[1], COLOR_PAIR(2));
+        
+        this->renderFood();
+        
+        // 创建一个倒计时窗口
+        WINDOW* countdownWin;
+        int width = 30;
+        int height = 7;
+        int startX = (this->mGameBoardWidth - width) / 2;
+        int startY = (this->mGameBoardHeight - height) / 2 + this->mInformationHeight;
+        
+        countdownWin = newwin(height, width, startY, startX);
+        box(countdownWin, 0, 0);
+        mvwprintw(countdownWin, 0, 9, "TEAM CHALLENGE");
+        
+        // 显示控制提示
+        mvwprintw(countdownWin, 2, 2, "Player 1: WASD");
+        mvwprintw(countdownWin, 3, 2, "Player 2: Arrow Keys");
+        mvwprintw(countdownWin, 4, 2, "Goal: Collect 10 food together");
+        
+        wrefresh(countdownWin);
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+        
+        // 倒计时3秒
+        for (int i = 3; i > 0; i--) {
+            mvwprintw(countdownWin, 5, 13, "READY: %d", i);
+            wrefresh(countdownWin);
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+        
+        mvwprintw(countdownWin, 5, 14, "GO!   ");
+        wrefresh(countdownWin);
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        
+        // 删除倒计时窗口
+        delwin(countdownWin);
+    }
+    
+    // 游戏主循环
+    while (true)
+    {
+        // 获取用户输入
+        int key = getch();
+        
+        // 控制两条蛇
+        if (key != ERR) {
+            switch(key) {
+                // 玩家1控制 (WASD)
+                case 'W': case 'w': mPtrSnake->changeDirection(Direction::Up); break;
+                case 'S': case 's': mPtrSnake->changeDirection(Direction::Down); break;
+                case 'A': case 'a': mPtrSnake->changeDirection(Direction::Left); break;
+                case 'D': case 'd': mPtrSnake->changeDirection(Direction::Right); break;
+                
+                // 玩家2控制 (方向键)
+                case KEY_UP:    mPtrSnake2->changeDirection(Direction::Up); break;
+                case KEY_DOWN:  mPtrSnake2->changeDirection(Direction::Down); break;
+                case KEY_LEFT:  mPtrSnake2->changeDirection(Direction::Left); break;
+                case KEY_RIGHT: mPtrSnake2->changeDirection(Direction::Right); break;
+            }
+        }
+        
+        // 清除游戏区域
+        werase(this->mWindows[1]);
+        box(this->mWindows[1], 0, 0);
+        
+        // 渲染地图
+        this->renderMap();
+        
+        // 移动两条蛇
+        bool p1_ate = mPtrSnake->moveFoward();
+        bool p2_ate = mPtrSnake2->moveFoward();
+        
+        // 检查碰撞
+        bool p1_collision = mPtrSnake->checkCollision();
+        bool p2_collision = mPtrSnake2->checkCollision();
+        
+        // 检查蛇头之间的碰撞
+        const SnakeBody& head1 = mPtrSnake->getSnake().front();
+        const SnakeBody& head2 = mPtrSnake2->getSnake().front();
+        bool head_collision = (head1.getX() == head2.getX() && head1.getY() == head2.getY());
+        
+        // 检查蛇是否互相碰撞
+        if (!p1_collision) {
+            p1_collision = mPtrSnake2->isPartOfSnake(head1.getX(), head1.getY());
+        }
+        
+        if (!p2_collision) {
+            p2_collision = mPtrSnake->isPartOfSnake(head2.getX(), head2.getY());
+        }
+        
+        // 如果任一蛇碰撞或蛇头碰撞，结束游戏
+        if (p1_collision || p2_collision || head_collision)
+        {
+            break;
+        }
+        
+        // 处理吃食物
+        if (p1_ate || p2_ate)
+        {
+            if (p1_ate) mPoints++;
+            if (p2_ate) mPoints2++;
+            
+            // 创建新食物
+            createRamdonFood();
+            mPtrSnake->senseFood(mFood);
+            mPtrSnake2->senseFood(mFood);
+            
+            // 检查总分是否达到目标
+            if (mPoints + mPoints2 >= 10)
+            {
+                // 达到目标分数，关卡通过
+                // 在mPoints中存储总分用于显示和判定
+                mPoints = mPoints + mPoints2;
+                mLevelTargetPoints = 10; // 确保isLevelCompleted正确判定
+                
+                // 更新显示
+                this->renderFood();
+                refresh();
+                break;
+            }
+        }
+        
+        // 渲染两条蛇
+        wattron(this->mWindows[1], COLOR_PAIR(1));
+        for (const auto& part : this->mPtrSnake->getSnake()) {
+            mvwaddch(this->mWindows[1], part.getY(), part.getX(), mSnakeSymbol);
+        }
+        wattroff(this->mWindows[1], COLOR_PAIR(1));
+        
+        wattron(this->mWindows[1], COLOR_PAIR(2));
+        for (const auto& part : this->mPtrSnake2->getSnake()) {
+            mvwaddch(this->mWindows[1], part.getY(), part.getX(), mSnakeSymbol2);
+        }
+        wattroff(this->mWindows[1], COLOR_PAIR(2));
+        
+        // 渲染食物
+        this->renderFood();
+        
+        // 显示两个玩家的分数和合计分数
+        mvwprintw(this->mWindows[1], 1, 1, "P1: %d | P2: %d | Total: %d/10", 
+                 mPoints, mPoints2, mPoints + mPoints2);
         
         // 游戏延迟
         std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));

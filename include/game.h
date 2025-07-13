@@ -126,6 +126,7 @@ private:
     void displayLevelIntroduction(int level); // 显示关卡开场介绍文字
     void displayLevelCompletion(int level);   // 显示关卡通关后的文字叙述
     void runLevel3Mode1();                    // 第三关模式一：镜像之舞
+    void runLevel3Mode2();                    // 第三关模式二：协作模式
 
     // === 第四关特殊逻辑 ===
     void initializeLevel4();
@@ -136,6 +137,12 @@ private:
     const char mEndpointSymbol = 'X';
     const char mSingleKeyTurnSymbol = 'T';
     bool mHasEndpoint = false;
+
+    // === 第三关模式一特殊逻辑 ===
+    std::vector<SnakeBody> mLevel3Mode1Foods; // 第三关模式一的10个固定食物位置
+    int mLevel3FoodIndex = 0; // 当前食物索引
+    void initializeLevel3Mode1Foods(); // 初始化固定食物位置
+    void setNextLevel3Mode1Food(); // 设置下一个固定食物
 
     // === 第五关 Boss 战 ===
     void initializeLevel5();
