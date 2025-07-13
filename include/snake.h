@@ -107,6 +107,12 @@ public:
     // 无敌模式相关
     void setInvincible(bool invincible); // 设置无敌模式
     bool isInvincible() const; // 检查是否无敌
+    
+    // 生命值相关
+    void setLives(int lives); // 设置生命值
+    int getLives() const; // 获取当前生命值
+    bool loseLife(); // 失去一条生命，返回是否还有剩余生命
+    bool isAlive() const; // 检查是否还活着
 
 private:
     std::vector<SnakeBody> mSnakeBody;
@@ -133,6 +139,11 @@ private:
     
     // 护盾相关：记录上一帧蛇头位置
     SnakeBody mPreviousHead;
+    
+    // 生命值系统
+    int mLives = 3; // 默认3条生命
+    bool mIsAlive = true; // 是否还活着
 };
 
 #endif // SNAKE_H
+

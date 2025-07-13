@@ -17,7 +17,9 @@
 // 自定义模块
 #include "snake.h"
 #include "map.h"
-#include "ai.h"
+// #include "ai.h" // 移除
+#include "food_type.h"
+class AI;
 
 // ========== 枚举定义 ==========
 enum class GameMode { Classic, Level, Timed, Battle ,Shop};
@@ -33,15 +35,6 @@ enum class SnakeSkin {
     Blue = 2,
     Green = 3,
     Yellow = 4
-};
-
-// 食物类型枚举
-enum class FoodType {
-    Normal = 0,    // 普通食物 +1
-    Special1 = 1,  // 特殊食物1 +2
-    Special2 = 2,  // 特殊食物2 +3
-    Special3 = 3,  // 特殊食物3 +5
-    Poison = 4     // 毒药 -1
 };
 
 // 道具枚举
@@ -122,18 +115,30 @@ private:
     SnakeBody mSpecialFood;
     bool mHasSpecialFood = false;
     const char mSpecialFoodSymbol = '*';
+    std::chrono::time_point<std::chrono::steady_clock> mSpecialFoodSpawnTime;
+    const float mSpecialFoodDuration = 5.0f;
     
     // 随机道具系统
     SnakeBody mRandomItem;
     bool mHasRandomItem = false;
     ItemType mCurrentRandomItemType = ItemType::Portal;
     const char mRandomItemSymbol = '$';
+    std::chrono::time_point<std::chrono::steady_clock> mRandomItemSpawnTime;
+    const float mRandomItemDuration = 5.0f;
+    
+    // 毒药
+    std::chrono::time_point<std::chrono::steady_clock> mPoisonSpawnTime;
+    const float mPoisonDuration = 5.0f;
 
     // ===== 游戏设置与状态 =====
     int mPoints = 0;
     int mDifficulty = 0;
     int mDelay;
     const int mBaseDelay = 100;
+    
+    // 生命值系统
+    int mPlayerLives = 3; // 玩家生命值
+    int mPlayer2Lives = 3; // 玩家2/AI生命值
 
     // 排行榜
     const std::string mRecordBoardFilePath = "record.dat";
@@ -311,3 +316,4 @@ private:
 };
 
 #endif // GAME_H
+

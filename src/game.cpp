@@ -12,6 +12,7 @@
 
 #include "game.h"
 #include "map.h"
+#include "ai.h"
 
 Game::Game()
 {
@@ -182,6 +183,12 @@ void Game::renderInformationBoard() const
     mvwprintw(this->mWindows[0], 2, 1, "Author: Lei Mao");
     mvwprintw(this->mWindows[0], 3, 1, "Website: https://github.com/leimao/");
     mvwprintw(this->mWindows[0], 4, 1, "Implemented using C++ and libncurses library.");
+    
+    // 在经典模式中显示生命数
+    if (mCurrentMode == GameMode::Classic && mPtrSnake != nullptr) {
+        mvwprintw(this->mWindows[0], 5, 1, "Lives: %d", mPtrSnake->getLives());
+    }
+    
     // 显示护盾激活状态
     if (isShieldActive()) {
         wattron(this->mWindows[0], COLOR_PAIR(4)); // 红色
@@ -222,11 +229,18 @@ void Game::renderInstructionBoard() const
     mvwprintw(this->mWindows[2], 8, 1, "Difficulty");
     mvwprintw(this->mWindows[2], 11, 1, "Points");
     
-    // 显示道具使用说明（更新为数字键）
-    mvwprintw(this->mWindows[2], 13, 1, "Items:");
-    mvwprintw(this->mWindows[2], 14, 1, "1-Cheat 2-Portal");
-    mvwprintw(this->mWindows[2], 15, 1, "3-Attack");
-    mvwprintw(this->mWindows[2], 16, 1, "4-Shield");
+    // 只在非对战模式下显示道具说明，对战模式下清空对应行
+    if (mCurrentMode != GameMode::Battle) {
+        mvwprintw(this->mWindows[2], 13, 1, "Items:");
+        mvwprintw(this->mWindows[2], 14, 1, "1-Cheat 2-Portal");
+        mvwprintw(this->mWindows[2], 15, 1, "3-Attack");
+        mvwprintw(this->mWindows[2], 16, 1, "4-Shield");
+    } else {
+        mvwprintw(this->mWindows[2], 13, 1, "                ");
+        mvwprintw(this->mWindows[2], 14, 1, "                ");
+        mvwprintw(this->mWindows[2], 15, 1, "                ");
+        mvwprintw(this->mWindows[2], 16, 1, "                ");
+    }
 
     wrefresh(this->mWindows[2]);
 }
@@ -577,17 +591,16 @@ void Game::initializeGame()
     this->createRamdonFood();
     this->mPtrSnake->senseFood(this->mFood);
     
-    // 创建特殊食物或毒药（有40%概率生成特殊食物，20%概率生成毒药）
+    // 创建特殊食物或毒药（100%概率生成）
     int specialRand = std::rand() % 100;
-    if (specialRand < 40) {
+    if (specialRand < 70) {
+        // 70%概率生成特殊食物
         this->createSpecialFood();
         this->mPtrSnake->senseSpecialFood(this->mSpecialFood);
-    } else if (specialRand < 60) {
+    } else {
+        // 30%概率生成毒药
         this->createPoison();
         this->mPtrSnake->sensePoison(this->mPoison);
-    } else {
-        mHasSpecialFood = false;
-        mHasPoison = false;
     }
     
     // 创建随机道具（有10%概率生成）
@@ -601,6 +614,11 @@ void Game::initializeGame()
     this->mDifficulty = 0;
     this->mPoints = 0;
     this->mDelay = this->mBaseDelay;
+    
+    // 在经典模式中设置蛇的生命数
+    if (mCurrentMode == GameMode::Classic) {
+        this->mPtrSnake->setLives(3);
+    }
 }
 
 void Game::createRamdonFood()
@@ -696,6 +714,7 @@ void Game::createPoison()
     int random_idx = std::rand() % availableGrids.size();
     this->mPoison = availableGrids[random_idx];
     mHasPoison = true;
+    mPoisonSpawnTime = std::chrono::steady_clock::now();
 }
 
 void Game::createSpecialFood()
@@ -766,6 +785,7 @@ void Game::createSpecialFood()
     int random_idx = std::rand() % availableGrids.size();
     this->mSpecialFood = availableGrids[random_idx];
     mHasSpecialFood = true;
+    mSpecialFoodSpawnTime = std::chrono::steady_clock::now();
     
     // 随机选择特殊食物类型
     int foodTypeRand = std::rand() % 100;
@@ -861,6 +881,7 @@ void Game::createRandomItem()
     int random_idx = std::rand() % availableGrids.size();
     this->mRandomItem = availableGrids[random_idx];
     mHasRandomItem = true;
+    mRandomItemSpawnTime = std::chrono::steady_clock::now();
     
     // 随机选择道具类型
     int itemTypeRand = std::rand() % 100;
@@ -1079,7 +1100,15 @@ void Game::runGame()
                 deactivateShield();
                 continue;
             } else {
-                break;
+                // 使用生命系统而不是直接结束游戏
+                if (!this->mPtrSnake->loseLife()) {
+                    // 没有剩余生命了，游戏结束
+                    break;
+                } else {
+                    // 还有剩余生命，重置蛇的位置
+                    this->mPtrSnake->initializeSnake();
+                    continue;
+                }
             }
         }
         this->renderSnake();
@@ -1091,17 +1120,16 @@ void Game::runGame()
             this->mPtrSnake->senseFood(this->mFood);
             this->adjustDelay();
             
-            // 重新生成特殊食物或毒药（有40%概率生成特殊食物，20%概率生成毒药）
+            // 重新生成特殊食物或毒药（100%概率生成）
             int specialRand = std::rand() % 100;
-            if (specialRand < 40) {
+            if (specialRand < 70) {
+                // 70%概率生成特殊食物
                 this->createSpecialFood();
                 this->mPtrSnake->senseSpecialFood(this->mSpecialFood);
-            } else if (specialRand < 60) {
+            } else {
+                // 30%概率生成毒药
                 this->createPoison();
                 this->mPtrSnake->sensePoison(this->mPoison);
-            } else {
-                mHasSpecialFood = false;
-                mHasPoison = false;
             }
             
             // 重新生成随机道具（有10%概率）
@@ -1157,6 +1185,18 @@ void Game::runGame()
         std::this_thread::sleep_for(std::chrono::milliseconds(currentDelay));
 
         refresh();
+
+        // 检查特殊食物/毒药/道具是否超时消失
+        auto now = std::chrono::steady_clock::now();
+        if (mHasSpecialFood && std::chrono::duration_cast<std::chrono::seconds>(now - mSpecialFoodSpawnTime).count() > mSpecialFoodDuration) {
+            mHasSpecialFood = false;
+        }
+        if (mHasPoison && std::chrono::duration_cast<std::chrono::seconds>(now - mPoisonSpawnTime).count() > mPoisonDuration) {
+            mHasPoison = false;
+        }
+        if (mHasRandomItem && std::chrono::duration_cast<std::chrono::seconds>(now - mRandomItemSpawnTime).count() > mRandomItemDuration) {
+            mHasRandomItem = false;
+        }
     }
 }
 
@@ -1634,17 +1674,16 @@ void Game::initializeLevel(int level)
     this->createRamdonFood();
     this->mPtrSnake->senseFood(this->mFood);
     
-    // 创建特殊食物或毒药（有40%概率生成特殊食物，20%概率生成毒药）
+    // 创建特殊食物或毒药（100%概率生成）
     int specialRand = std::rand() % 100;
-    if (specialRand < 40) {
+    if (specialRand < 70) {
+        // 70%概率生成特殊食物
         this->createSpecialFood();
         this->mPtrSnake->senseSpecialFood(this->mSpecialFood);
-    } else if (specialRand < 60) {
+    } else {
+        // 30%概率生成毒药
         this->createPoison();
         this->mPtrSnake->sensePoison(this->mPoison);
-    } else {
-        mHasSpecialFood = false;
-        mHasPoison = false;
     }
     
     // 创建随机道具（有10%概率生成）
@@ -1866,17 +1905,16 @@ void Game::runLevel()
             this->mPtrSnake->senseFood(this->mFood);
             this->adjustDelay();
             
-            // 重新生成特殊食物或毒药（有40%概率生成特殊食物，20%概率生成毒药）
+            // 重新生成特殊食物或毒药（100%概率生成）
             int specialRand = std::rand() % 100;
-            if (specialRand < 40) {
+            if (specialRand < 70) {
+                // 70%概率生成特殊食物
                 this->createSpecialFood();
                 this->mPtrSnake->senseSpecialFood(this->mSpecialFood);
-            } else if (specialRand < 60) {
+            } else {
+                // 30%概率生成毒药
                 this->createPoison();
                 this->mPtrSnake->sensePoison(this->mPoison);
-            } else {
-                mHasSpecialFood = false;
-                mHasPoison = false;
             }
             
             // 重新生成随机道具（有10%概率）
@@ -1930,6 +1968,18 @@ void Game::runLevel()
         std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
         
         refresh();
+
+        // 检查特殊食物/毒药/道具是否超时消失
+        auto now = std::chrono::steady_clock::now();
+        if (mHasSpecialFood && std::chrono::duration_cast<std::chrono::seconds>(now - mSpecialFoodSpawnTime).count() > mSpecialFoodDuration) {
+            mHasSpecialFood = false;
+        }
+        if (mHasPoison && std::chrono::duration_cast<std::chrono::seconds>(now - mPoisonSpawnTime).count() > mPoisonDuration) {
+            mHasPoison = false;
+        }
+        if (mHasRandomItem && std::chrono::duration_cast<std::chrono::seconds>(now - mRandomItemSpawnTime).count() > mRandomItemDuration) {
+            mHasRandomItem = false;
+        }
     }
 }
 
@@ -2831,9 +2881,13 @@ void Game::initializeBattle(BattleType type) {
     mPtrSnake.reset(new Snake(mGameBoardWidth, mGameBoardHeight, mInitialSnakeLength));
     mPtrSnake2.reset(new Snake(mGameBoardWidth, mGameBoardHeight, mInitialSnakeLength));
 
-    // 将蛇放置在相对的角落
+    // 设置生命值
+    mPtrSnake->setLives(mPlayerLives);
+    mPtrSnake2->setLives(mPlayer2Lives);
+
+    // 将蛇放置在相对的角落，都向右移动
     mPtrSnake->initializeSnake(5, 5, InitialDirection::Right);
-    mPtrSnake2->initializeSnake(10, 10, InitialDirection::Left);
+    mPtrSnake2->initializeSnake(mGameBoardWidth - 10, mGameBoardHeight - 10, InitialDirection::Right);
 
     mPtrSnake->setMap(mPtrMap.get());
     mPtrSnake2->setMap(mPtrMap.get());
@@ -2846,6 +2900,23 @@ void Game::initializeBattle(BattleType type) {
         // 在中心位置创建一个食物
         mFood = SnakeBody(mGameBoardWidth / 2, mGameBoardHeight / 2);
     }
+    
+    // 创建特殊食物或毒药（100%概率生成，battle mode专用）
+    int specialRand = std::rand() % 100;
+    if (specialRand < 70) {
+        // 70%概率生成特殊食物
+        this->createSpecialFood();
+        this->mPtrSnake->senseSpecialFood(this->mSpecialFood);
+        this->mPtrSnake2->senseSpecialFood(this->mSpecialFood);
+    } else {
+        // 30%概率生成毒药
+        this->createPoison();
+        this->mPtrSnake->sensePoison(this->mPoison);
+        this->mPtrSnake2->sensePoison(this->mPoison);
+    }
+    
+    // Battle mode不生成随机道具
+    mHasRandomItem = false;
     
     mPoints = 0;
     mPoints2 = 0;
@@ -2866,7 +2937,9 @@ void Game::runBattle() {
 
         // 如果是 AI 对战模式，获取 AI 的下一步移动方向
         if (mCurrentBattleType == BattleType::PlayerVsAI) {
-            Direction ai_dir = mPtrAI->findNextMove(*mPtrMap, *mPtrSnake, *mPtrSnake2, mFood);
+            Direction ai_dir = mPtrAI->findNextMove(*mPtrMap, *mPtrSnake, *mPtrSnake2, 
+                                                   mFood, mSpecialFood, mPoison, 
+                                                   mCurrentFoodType, mHasSpecialFood, mHasPoison);
             mPtrSnake2->changeDirection(ai_dir);
         }
 
@@ -2880,6 +2953,8 @@ void Game::runBattle() {
         // 渲染蛇和食物（在移动之前）
         renderSnakes();
         renderFood();
+        renderPoison();
+        renderSpecialFood();
         renderBattleStatus();
 
         // 同步食物信息并移动两条蛇
@@ -2887,6 +2962,12 @@ void Game::runBattle() {
         mPtrSnake2->senseFood(mFood);
         bool p1_ate = mPtrSnake->moveFoward();
         bool p2_ate = mPtrSnake2->moveFoward();
+        
+        // 检测特殊食物和毒药碰撞
+        bool p1_ate_special = mPtrSnake->touchSpecialFood();
+        bool p2_ate_special = mPtrSnake2->touchSpecialFood();
+        bool p1_ate_poison = mPtrSnake->touchPoison();
+        bool p2_ate_poison = mPtrSnake2->touchPoison();
 
         // 检查碰撞
         winner = checkBattleCollisions();
@@ -2894,14 +2975,106 @@ void Game::runBattle() {
             wrefresh(mWindows[1]);
             break; // 如果有胜负，跳出循环
         }
+        
+        // 处理碰撞后的重置（如果蛇还活着但发生了碰撞）
+        if (mPtrSnake->checkCollision() || mPtrSnake2->isPartOfSnake(mPtrSnake->getSnake().front().getX(), mPtrSnake->getSnake().front().getY())) {
+            if (mPtrSnake->isAlive()) {
+                // 重置玩家1蛇的位置
+                mPtrSnake->initializeSnake(5, 5, InitialDirection::Right);
+                mPtrSnake->setLives(mPtrSnake->getLives()); // 保持当前生命值
+            }
+        }
+        
+        if (mPtrSnake2->checkCollision() || mPtrSnake->isPartOfSnake(mPtrSnake2->getSnake().front().getX(), mPtrSnake2->getSnake().front().getY())) {
+            if (mPtrSnake2->isAlive()) {
+                // 重置玩家2/AI蛇的位置
+                mPtrSnake2->initializeSnake(mGameBoardWidth - 10, mGameBoardHeight - 10, InitialDirection::Right);
+                mPtrSnake2->setLives(mPtrSnake2->getLives()); // 保持当前生命值
+            }
+        }
 
         // 处理吃食物
         if (p1_ate || p2_ate) {
             if (p1_ate) { mPoints++; addCoins(1); }
             if (p2_ate) mPoints2++;
             createRamdonFood();
+            
+            // 重新生成特殊食物或毒药（100%概率生成）
+            int specialRand = std::rand() % 100;
+            if (specialRand < 70) {
+                this->createSpecialFood();
+                this->mPtrSnake->senseSpecialFood(this->mSpecialFood);
+                this->mPtrSnake2->senseSpecialFood(this->mSpecialFood);
+            } else {
+                this->createPoison();
+                this->mPtrSnake->sensePoison(this->mPoison);
+                this->mPtrSnake2->sensePoison(this->mPoison);
+            }
         }
         
+        // 处理特殊食物效果
+        if (p1_ate_special && mHasSpecialFood) {
+            int effect = getFoodEffect(mCurrentFoodType);
+            if (effect > 0) {
+                // 正效果：增加长度和点数
+                for (int i = 0; i < effect; i++) {
+                    auto& snake = this->mPtrSnake->getSnake();
+                    if (!snake.empty()) {
+                        snake.push_back(snake.back()); // 复制尾部增加长度
+                    }
+                }
+                this->mPoints += effect;
+                addCoins(effect); // 增加金币
+            }
+            mHasSpecialFood = false;
+        }
+        if (p2_ate_special && mHasSpecialFood) {
+            int effect = getFoodEffect(mCurrentFoodType);
+            if (effect > 0) {
+                // 正效果：增加长度和点数
+                for (int i = 0; i < effect; i++) {
+                    auto& snake = this->mPtrSnake2->getSnake();
+                    if (!snake.empty()) {
+                        snake.push_back(snake.back()); // 复制尾部增加长度
+                    }
+                }
+                this->mPoints2 += effect;
+            }
+            mHasSpecialFood = false;
+        }
+        
+        // 处理毒药效果
+        if (p1_ate_poison && mHasPoison) {
+            int effect = getFoodEffect(FoodType::Poison);
+            if (effect < 0) {
+                // 负效果：减少长度
+                auto& snake = this->mPtrSnake->getSnake();
+                for (int i = 0; i < -effect && snake.size() > 1; i++) {
+                    snake.pop_back(); // 减少长度
+                }
+            }
+            mHasPoison = false;
+        }
+        if (p2_ate_poison && mHasPoison) {
+            int effect = getFoodEffect(FoodType::Poison);
+            if (effect < 0) {
+                // 负效果：减少长度
+                auto& snake = this->mPtrSnake2->getSnake();
+                for (int i = 0; i < -effect && snake.size() > 1; i++) {
+                    snake.pop_back(); // 减少长度
+                }
+            }
+            mHasPoison = false;
+        }
+        
+        // 检查特殊食物/毒药是否超时消失
+        auto now = std::chrono::steady_clock::now();
+        if (mHasSpecialFood && std::chrono::duration_cast<std::chrono::seconds>(now - mSpecialFoodSpawnTime).count() > mSpecialFoodDuration) {
+            mHasSpecialFood = false;
+        }
+        if (mHasPoison && std::chrono::duration_cast<std::chrono::seconds>(now - mPoisonSpawnTime).count() > mPoisonDuration) {
+            mHasPoison = false;
+        }
 
         // 实现加速逻辑
         long currentDelay = mBaseDelay;
@@ -2919,8 +3092,8 @@ void Game::controlSnakes(int key) {
     mAccelerateP1 = false;
     mAccelerateP2 = false;
 
-    // 处理道具使用
-    handleItemUsage(key);
+    // Battle mode中禁用道具使用
+    // handleItemUsage(key); // 注释掉道具使用
 
     if (mCurrentBattleType == BattleType::PlayerVsAI) {
         // 玩家1用方向键
@@ -2951,25 +3124,39 @@ std::string Game::checkBattleCollisions() {
     const auto& head1 = mPtrSnake->getSnake().front();
     const auto& head2 = mPtrSnake2->getSnake().front();
 
-    // 检查蛇1是否死亡（撞墙、撞自己、撞蛇2身体）
-    bool p1_dead = mPtrSnake->checkCollision() || mPtrSnake2->isPartOfSnake(head1.getX(), head1.getY());
+    // 检查蛇1是否碰撞（撞墙、撞自己、撞蛇2身体）
+    bool p1_collision = mPtrSnake->checkCollision() || mPtrSnake2->isPartOfSnake(head1.getX(), head1.getY());
 
-    // 检查蛇2是否死亡（撞墙、撞自己、撞蛇1身体）
-    bool p2_dead = mPtrSnake2->checkCollision() || mPtrSnake->isPartOfSnake(head2.getX(), head2.getY());
+    // 检查蛇2是否碰撞（撞墙、撞自己、撞蛇1身体）
+    bool p2_collision = mPtrSnake2->checkCollision() || mPtrSnake->isPartOfSnake(head2.getX(), head2.getY());
 
     // 特殊情况：头对头碰撞
     if (head1 == head2) {
-        p1_dead = true;
-        p2_dead = true;
+        p1_collision = true;
+        p2_collision = true;
     }
 
-    if (p1_dead && p2_dead) return "Draw!";       // 平局
-    if (p1_dead) {
+    // 处理碰撞，减少生命值
+    if (p1_collision && mPtrSnake->isAlive()) {
+        if (!mPtrSnake->loseLife()) {
+            // 生命值归零，真正死亡
+            if (p2_collision && mPtrSnake2->isAlive()) {
+                if (!mPtrSnake2->loseLife()) {
+                    return "Draw!"; // 双方同时死亡
+                }
+            }
             return (mCurrentBattleType == BattleType::PlayerVsAI) ? "AI Wins!" : "Player 2 Wins!";
         }
-    if (p2_dead) return "Player 1 Wins!"; // 玩家1胜利
+    }
 
-    return ""; // 没有碰撞发生
+    if (p2_collision && mPtrSnake2->isAlive()) {
+        if (!mPtrSnake2->loseLife()) {
+            // 生命值归零，真正死亡
+            return "Player 1 Wins!";
+        }
+    }
+
+    return ""; // 没有真正死亡
 }
 
 void Game::renderSnakes() const {
@@ -3003,24 +3190,26 @@ void Game::renderBattleStatus() const {
     mvwprintw(mWindows[2], 1, 1, "Battle Mode");
 
     wattron(mWindows[2], COLOR_PAIR(1));
-    mvwprintw(mWindows[2], 3, 1, "Player 1 (WASD)");
+    mvwprintw(mWindows[2], 3, 1, "Player 1 (Arrows)");
     wattroff(mWindows[2], COLOR_PAIR(1));
     mvwprintw(mWindows[2], 4, 1, "Points: %d", mPoints);
+    mvwprintw(mWindows[2], 5, 1, "Lives: %d", mPtrSnake ? mPtrSnake->getLives() : mPlayerLives);
 
     wattron(mWindows[2], COLOR_PAIR(2));
     if (mCurrentBattleType == BattleType::PlayerVsPlayer) {
-        mvwprintw(mWindows[2], 6, 1, "Player 2 (Arrows)");
+        mvwprintw(mWindows[2], 7, 1, "Player 2 (WASD)");
     } else {
-        mvwprintw(mWindows[2], 6, 1, "AI Player");
+        mvwprintw(mWindows[2], 7, 1, "AI Player");
     }
     wattroff(mWindows[2], COLOR_PAIR(2));
-    mvwprintw(mWindows[2], 7, 1, "Points: %d", mPoints2);
+    mvwprintw(mWindows[2], 8, 1, "Points: %d", mPoints2);
+    mvwprintw(mWindows[2], 9, 1, "Lives: %d", mPtrSnake2 ? mPtrSnake2->getLives() : mPlayer2Lives);
     
-    // 显示道具使用说明
-    mvwprintw(mWindows[2], 9, 1, "Items: C-Cheat P-Portal");
-    if (mCurrentMode == GameMode::Battle) {
-        mvwprintw(mWindows[2], 10, 1, "X-Attack (Battle Only)");
-    }
+    // Battle mode中禁用道具，不显示道具说明
+    // mvwprintw(mWindows[2], 9, 1, "Items: C-Cheat P-Portal");
+    // if (mCurrentMode == GameMode::Battle) {
+    //     mvwprintw(mWindows[2], 10, 1, "X-Attack (Battle Only)");
+    // }
 
     wrefresh(mWindows[2]);
 }
@@ -3653,4 +3842,5 @@ void Game::handleFoodEffect(FoodType foodType) {
         }
     }
 }
+
 

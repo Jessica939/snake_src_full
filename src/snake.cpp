@@ -432,14 +432,37 @@ bool Snake::touchRandomItem() const
 }
 
 // 无敌模式相关函数实现
-void Snake::setInvincible(bool invincible)
-{
+void Snake::setInvincible(bool invincible) {
     mInvincible = invincible;
 }
 
-bool Snake::isInvincible() const
-{
+bool Snake::isInvincible() const {
     return mInvincible;
+}
+
+// 生命值相关函数实现
+void Snake::setLives(int lives) {
+    mLives = lives;
+    mIsAlive = (lives > 0);
+}
+
+int Snake::getLives() const {
+    return mLives;
+}
+
+bool Snake::loseLife() {
+    if (mLives > 0) {
+        mLives--;
+        if (mLives <= 0) {
+            mIsAlive = false;
+        }
+        return mIsAlive; // 返回是否还有剩余生命
+    }
+    return false;
+}
+
+bool Snake::isAlive() const {
+    return mIsAlive;
 }
 
 void Snake::undoMove()
@@ -449,3 +472,4 @@ void Snake::undoMove()
         mSnakeBody[0] = mPreviousHead;
     }
 }
+
