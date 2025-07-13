@@ -3554,31 +3554,22 @@ void Game::displayLevelCompletion(int level)
             break;
         case 4:
             completionText = {
-                "THE PATH DISCOVERED",
-                "",
-                "Beyond the confines of simple survival, you've found direction.",
-                "The exit wasn't just a way out - it was a way forward.",
-                "",
-                "With each step toward your destination, fragments of memory returned.",
-                "A civilization. A catastrophe. A desperate plan.",
-                "",
-                "You are not the first to walk these halls, but you may be the last to matter."
+                "You are no longer just following the beat; you have become a part of it.",
+                "You have learned that the power of life lies not in conquest, but in harmonious resonance. This fluid, ever-changing, beautiful rhythm is the ultimate counter to the cold, rigid, and repetitive order of The Mechanos.",
+                "Your very existence is now a hymn to life.",
+                "[Animation]: The fourth and final shard is born from the resonance of the world's melody. It is iridescent, seeming to contain all the beauty and vitality of the universe.",
+                "[Item Acquired]: *Memory Shard - The Heart of Harmony*",
+                "The four shards are finally complete!",
+                "They unite before you, sending a pillar of light into the sky. It tears through the veil of spacetime, forging a road that leads directly to the eye of the storm.",
+                "At the end of that road lies the core of The Mechanos: the Zero Throne.",
             };
             break;
         case 5:
             completionText = {
-                "THE GUARDIAN FALLS",
-                "",
-                "The mighty sentinel, last defense of the ancients, lies defeated.",
-                "Its purpose fulfilled not in victory but in worthy challenge.",
-                "",
-                "As its systems power down, a final message plays:",
-                "\"Protocol complete. Subject viable. Stasis containment terminated.\"",
-                "",
-                "The walls of your prison begin to dissolve, revealing a world beyond -",
-                "not the one you remember, but one waiting to be reborn.",
-                "",
-                "You step forward, no longer just survivor, but inheritor."
+                "It is over.",
+                "The spinning lasers die down, the cold laws collapse.",
+                "You have answered the silence of machines with the resonance of life. You have shattered eternal stillness with a harmonious melody.",
+                "Now, it is time for this imprisoned world to be reborn.",
             };
             break;
         default:
