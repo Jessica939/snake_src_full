@@ -120,6 +120,8 @@ std::vector<Point> AI::findPath(const Map& map, const Snake& playerSnake, const 
 
         for (int i = 0; i < 4; ++i) {
             Point next = {current.x + dx[i], current.y + dy[i]};
+            // 修改前：if (next.x > 0 && next.x < mGameBoardWidth - 1 && next.y > 0 && next.y < mGameBoardHeight - 1 && !visited[next.y][next.x]) {
+            // 修改后：允许走到边界
             if (next.x >= 0 && next.x < mGameBoardWidth && next.y >= 0 && next.y < mGameBoardHeight && !visited[next.y][next.x]) {
                 visited[next.y][next.x] = true;
                 q.push(next);

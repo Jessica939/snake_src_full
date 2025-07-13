@@ -47,6 +47,9 @@ Game::Game()
     createDefaultLevelMaps();
 
     mPtrAI = std::make_unique<AI>(mGameBoardWidth, mGameBoardHeight);
+
+    loadPlayerProfile();
+    loadItemInventory();
 }
 
 // 创建默认的关卡地图文件（如果不存在）
@@ -161,6 +164,9 @@ Game::~Game()
     {
         delwin(this->mWindows[i]);
     }
+
+    savePlayerProfile();
+    saveItemInventory();
 }
 
 void Game::createInformationBoard()
@@ -176,6 +182,12 @@ void Game::renderInformationBoard() const
     mvwprintw(this->mWindows[0], 2, 1, "Author: Lei Mao");
     mvwprintw(this->mWindows[0], 3, 1, "Website: https://github.com/leimao/");
     mvwprintw(this->mWindows[0], 4, 1, "Implemented using C++ and libncurses library.");
+    // 显示护盾激活状态
+    if (isShieldActive()) {
+        wattron(this->mWindows[0], COLOR_PAIR(4)); // 红色
+        mvwprintw(this->mWindows[0], 2, 30, "[护盾保护中]");
+        wattroff(this->mWindows[0], COLOR_PAIR(4));
+    }
     wrefresh(this->mWindows[0]);
 }
 
@@ -209,6 +221,12 @@ void Game::renderInstructionBoard() const
 
     mvwprintw(this->mWindows[2], 8, 1, "Difficulty");
     mvwprintw(this->mWindows[2], 11, 1, "Points");
+    
+    // 显示道具使用说明（更新为数字键）
+    mvwprintw(this->mWindows[2], 13, 1, "Items:");
+    mvwprintw(this->mWindows[2], 14, 1, "1-Cheat 2-Portal");
+    mvwprintw(this->mWindows[2], 15, 1, "3-Attack");
+    mvwprintw(this->mWindows[2], 16, 1, "4-Shield");
 
     wrefresh(this->mWindows[2]);
 }
@@ -217,19 +235,19 @@ void Game::renderInstructionBoard() const
 void Game::renderLeaderBoard() const
 {
     // If there is not too much space, skip rendering the leader board
-    if (this->mScreenHeight - this->mInformationHeight - 14 - 2 < 3 * 2)
+    if (this->mScreenHeight - this->mInformationHeight - 18 - 2 < 3 * 2)
     {
         return;
     }
-    mvwprintw(this->mWindows[2], 14, 1, "Leader Board");
+    mvwprintw(this->mWindows[2], 18, 1, "Leader Board");
     std::string pointString;
     std::string rank;
-    for (int i = 0; i < std::min(this->mNumLeaders, this->mScreenHeight - this->mInformationHeight - 14 - 2); i ++)
+    for (int i = 0; i < std::min(this->mNumLeaders, this->mScreenHeight - this->mInformationHeight - 18 - 2); i ++)
     {
         pointString = std::to_string(this->mLeaderBoard[i]);
         rank = "#" + std::to_string(i + 1) + ":";
-        mvwprintw(this->mWindows[2], 14 + (i + 1), 1, "%s", rank.c_str());
-        mvwprintw(this->mWindows[2], 14 + (i + 1), 5, "%s", pointString.c_str());
+        mvwprintw(this->mWindows[2], 18 + (i + 1), 1, "%s", rank.c_str());
+        mvwprintw(this->mWindows[2], 18 + (i + 1), 5, "%s", pointString.c_str());
     }
     wrefresh(this->mWindows[2]);
 }
@@ -555,9 +573,30 @@ void Game::initializeGame()
         }
     }
     
-    // 创建食物
+    // 创建普通食物
     this->createRamdonFood();
     this->mPtrSnake->senseFood(this->mFood);
+    
+    // 创建特殊食物或毒药（有40%概率生成特殊食物，20%概率生成毒药）
+    int specialRand = std::rand() % 100;
+    if (specialRand < 40) {
+        this->createSpecialFood();
+        this->mPtrSnake->senseSpecialFood(this->mSpecialFood);
+    } else if (specialRand < 60) {
+        this->createPoison();
+        this->mPtrSnake->sensePoison(this->mPoison);
+    } else {
+        mHasSpecialFood = false;
+        mHasPoison = false;
+    }
+    
+    // 创建随机道具（有10%概率生成）
+    if (std::rand() % 100 < 10) {
+        this->createRandomItem();
+        this->mPtrSnake->senseRandomItem(this->mRandomItem);
+    } else {
+        mHasRandomItem = false;
+    }
     
     this->mDifficulty = 0;
     this->mPoints = 0;
@@ -604,10 +643,279 @@ void Game::createRamdonFood()
     this->mFood = availableGrids[random_idx];
 }
 
+void Game::createPoison()
+{
+    // 使用地图提供的空白位置生成毒药
+    std::vector<SnakeBody> availableGrids;
+    if (this->mPtrMap) {
+        std::vector<SnakeBody> allParts;
+        // 将两条蛇的身体合并到一个列表中
+        if(mPtrSnake) allParts.insert(allParts.end(), mPtrSnake->getSnake().begin(), mPtrSnake->getSnake().end());
+        if(mPtrSnake2) allParts.insert(allParts.end(), mPtrSnake2->getSnake().begin(), mPtrSnake2->getSnake().end());
+
+        // 查找时排除所有蛇的身体部分和食物位置
+        availableGrids = this->mPtrMap->getEmptyPositions(allParts);
+        
+        // 排除食物位置
+        availableGrids.erase(
+            std::remove_if(availableGrids.begin(), availableGrids.end(),
+                [this](const SnakeBody& pos) {
+                    return pos.getX() == mFood.getX() && pos.getY() == mFood.getY();
+                }),
+            availableGrids.end()
+        );
+    } else {
+        // 回退到原来的生成方法
+        for (int i = 1; i < this->mGameBoardHeight - 1; i ++)
+        {
+            for (int j = 1; j < this->mGameBoardWidth - 1; j ++)
+            {
+                if(this->mPtrSnake->isPartOfSnake(j, i))
+                {
+                    continue;
+                }
+                else if(j == mFood.getX() && i == mFood.getY())
+                {
+                    continue; // 排除食物位置
+                }
+                else
+                {
+                    availableGrids.push_back(SnakeBody(j, i));
+                }
+            }
+        }
+    }
+
+    // 如果没有可用的格子，不生成毒药
+    if (availableGrids.empty()) {
+        mHasPoison = false;
+        return;
+    }
+
+    // 随机选择位置生成毒药
+    int random_idx = std::rand() % availableGrids.size();
+    this->mPoison = availableGrids[random_idx];
+    mHasPoison = true;
+}
+
+void Game::createSpecialFood()
+{
+    // 使用地图提供的空白位置生成特殊食物
+    std::vector<SnakeBody> availableGrids;
+    if (this->mPtrMap) {
+        std::vector<SnakeBody> allParts;
+        // 将两条蛇的身体合并到一个列表中
+        if(mPtrSnake) allParts.insert(allParts.end(), mPtrSnake->getSnake().begin(), mPtrSnake->getSnake().end());
+        if(mPtrSnake2) allParts.insert(allParts.end(), mPtrSnake2->getSnake().begin(), mPtrSnake2->getSnake().end());
+
+        // 查找时排除所有蛇的身体部分、普通食物位置和毒药位置
+        availableGrids = this->mPtrMap->getEmptyPositions(allParts);
+        
+        // 排除普通食物位置
+        availableGrids.erase(
+            std::remove_if(availableGrids.begin(), availableGrids.end(),
+                [this](const SnakeBody& pos) {
+                    return pos.getX() == mFood.getX() && pos.getY() == mFood.getY();
+                }),
+            availableGrids.end()
+        );
+        
+        // 排除毒药位置
+        if (mHasPoison) {
+            availableGrids.erase(
+                std::remove_if(availableGrids.begin(), availableGrids.end(),
+                    [this](const SnakeBody& pos) {
+                        return pos.getX() == mPoison.getX() && pos.getY() == mPoison.getY();
+                    }),
+                availableGrids.end()
+            );
+        }
+    } else {
+        // 回退到原来的生成方法
+        for (int i = 1; i < this->mGameBoardHeight - 1; i ++)
+        {
+            for (int j = 1; j < this->mGameBoardWidth - 1; j ++)
+            {
+                if(this->mPtrSnake->isPartOfSnake(j, i))
+                {
+                    continue;
+                }
+                else if(j == mFood.getX() && i == mFood.getY())
+                {
+                    continue; // 排除普通食物位置
+                }
+                else if(mHasPoison && j == mPoison.getX() && i == mPoison.getY())
+                {
+                    continue; // 排除毒药位置
+                }
+                else
+                {
+                    availableGrids.push_back(SnakeBody(j, i));
+                }
+            }
+        }
+    }
+
+    // 如果没有可用的格子，不生成特殊食物
+    if (availableGrids.empty()) {
+        mHasSpecialFood = false;
+        return;
+    }
+
+    // 随机选择位置生成特殊食物
+    int random_idx = std::rand() % availableGrids.size();
+    this->mSpecialFood = availableGrids[random_idx];
+    mHasSpecialFood = true;
+    
+    // 随机选择特殊食物类型
+    int foodTypeRand = std::rand() % 100;
+    if (foodTypeRand < 50) {
+        mCurrentFoodType = FoodType::Special1; // 50%概率 +2
+    } else if (foodTypeRand < 80) {
+        mCurrentFoodType = FoodType::Special2; // 30%概率 +3
+    } else {
+        mCurrentFoodType = FoodType::Special3; // 20%概率 +5
+    }
+}
+
+void Game::createRandomItem()
+{
+    // 使用地图提供的空白位置生成随机道具
+    std::vector<SnakeBody> availableGrids;
+    if (this->mPtrMap) {
+        std::vector<SnakeBody> allParts;
+        // 将两条蛇的身体合并到一个列表中
+        if(mPtrSnake) allParts.insert(allParts.end(), mPtrSnake->getSnake().begin(), mPtrSnake->getSnake().end());
+        if(mPtrSnake2) allParts.insert(allParts.end(), mPtrSnake2->getSnake().begin(), mPtrSnake2->getSnake().end());
+
+        // 查找时排除所有蛇的身体部分、食物位置和毒药位置
+        availableGrids = this->mPtrMap->getEmptyPositions(allParts);
+        
+        // 排除普通食物位置
+        availableGrids.erase(
+            std::remove_if(availableGrids.begin(), availableGrids.end(),
+                [this](const SnakeBody& pos) {
+                    return pos.getX() == mFood.getX() && pos.getY() == mFood.getY();
+                }),
+            availableGrids.end()
+        );
+        
+        // 排除毒药位置
+        if (mHasPoison) {
+            availableGrids.erase(
+                std::remove_if(availableGrids.begin(), availableGrids.end(),
+                    [this](const SnakeBody& pos) {
+                        return pos.getX() == mPoison.getX() && pos.getY() == mPoison.getY();
+                    }),
+                availableGrids.end()
+            );
+        }
+        
+        // 排除特殊食物位置
+        if (mHasSpecialFood) {
+            availableGrids.erase(
+                std::remove_if(availableGrids.begin(), availableGrids.end(),
+                    [this](const SnakeBody& pos) {
+                        return pos.getX() == mSpecialFood.getX() && pos.getY() == mSpecialFood.getY();
+                    }),
+                availableGrids.end()
+            );
+        }
+    } else {
+        // 回退到原来的生成方法
+        for (int i = 1; i < this->mGameBoardHeight - 1; i ++)
+        {
+            for (int j = 1; j < this->mGameBoardWidth - 1; j ++)
+            {
+                if(this->mPtrSnake->isPartOfSnake(j, i))
+                {
+                    continue;
+                }
+                else if(j == mFood.getX() && i == mFood.getY())
+                {
+                    continue; // 排除普通食物位置
+                }
+                else if(mHasPoison && j == mPoison.getX() && i == mPoison.getY())
+                {
+                    continue; // 排除毒药位置
+                }
+                else if(mHasSpecialFood && j == mSpecialFood.getX() && i == mSpecialFood.getY())
+                {
+                    continue; // 排除特殊食物位置
+                }
+                else
+                {
+                    availableGrids.push_back(SnakeBody(j, i));
+                }
+            }
+        }
+    }
+
+    // 如果没有可用的格子，不生成随机道具
+    if (availableGrids.empty()) {
+        mHasRandomItem = false;
+        return;
+    }
+
+    // 随机选择位置生成随机道具
+    int random_idx = std::rand() % availableGrids.size();
+    this->mRandomItem = availableGrids[random_idx];
+    mHasRandomItem = true;
+    
+    // 随机选择道具类型
+    int itemTypeRand = std::rand() % 100;
+    if (itemTypeRand < 30) {
+        mCurrentRandomItemType = ItemType::Portal; // 30%概率
+    } else if (itemTypeRand < 50) {
+        mCurrentRandomItemType = ItemType::Cheat;  // 20%概率
+    } else if (itemTypeRand < 70) {
+        mCurrentRandomItemType = ItemType::Shield; // 20%概率
+    } else if (itemTypeRand < 85) {
+        mCurrentRandomItemType = ItemType::Attack; // 15%概率
+    } else if (itemTypeRand < 95) {
+        mCurrentRandomItemType = ItemType::RandomBox; // 10%概率
+    } else {
+        mCurrentRandomItemType = ItemType::Revive; // 5%概率
+    }
+}
+
 void Game::renderFood() const
 {
     mvwaddch(this->mWindows[1], this->mFood.getY(), this->mFood.getX(), this->mFoodSymbol);
     wrefresh(this->mWindows[1]);
+}
+
+void Game::renderPoison() const
+{
+    if (mHasPoison) {
+        // 使用红色显示毒药
+        wattron(this->mWindows[1], COLOR_PAIR(4)); // 红色
+        mvwaddch(this->mWindows[1], this->mPoison.getY(), this->mPoison.getX(), this->mPoisonSymbol);
+        wattroff(this->mWindows[1], COLOR_PAIR(4));
+        wrefresh(this->mWindows[1]);
+    }
+}
+
+void Game::renderSpecialFood() const
+{
+    if (mHasSpecialFood) {
+        // 使用黄色显示特殊食物
+        wattron(this->mWindows[1], COLOR_PAIR(2)); // 黄色
+        mvwaddch(this->mWindows[1], this->mSpecialFood.getY(), this->mSpecialFood.getX(), this->mSpecialFoodSymbol);
+        wattroff(this->mWindows[1], COLOR_PAIR(2));
+        wrefresh(this->mWindows[1]);
+    }
+}
+
+void Game::renderRandomItem() const
+{
+    if (mHasRandomItem) {
+        // 使用青色显示随机道具
+        wattron(this->mWindows[1], COLOR_PAIR(1)); // 青色
+        mvwaddch(this->mWindows[1], this->mRandomItem.getY(), this->mRandomItem.getX(), this->mRandomItemSymbol);
+        wattroff(this->mWindows[1], COLOR_PAIR(1));
+        wrefresh(this->mWindows[1]);
+    }
 }
 
 void Game::renderMap() const
@@ -630,23 +938,21 @@ void Game::renderMap() const
 void Game::renderSnake() const
 {
     int snakeLength = this->mPtrSnake->getLength();
-    std::vector<SnakeBody>& snake = this->mPtrSnake->getSnake();
-    
-    // 第五关中，如果蛇处于无敌状态，使用不同的符号显示
-    char snakeSymbol = this->mSnakeSymbol;
-    if (mCurrentLevel == 5 && mSnakeInvincible)
-    {
-        // 无敌状态下使用不同的符号（闪烁效果）
-        if ((int)(mBossStateDuration * 10) % 2 == 0)
-        {
-            snakeSymbol = 'O'; // 用O表示无敌状态
-        }
+    const std::vector<SnakeBody>& snake = this->mPtrSnake->getSnake();
+    short color_pair = 1; // 默认青色
+    switch (mCurrentSkin) {
+        case SnakeSkin::Default: color_pair = 1; break;
+        case SnakeSkin::Red:     color_pair = 4; break;
+        case SnakeSkin::Blue:    color_pair = 5; break;
+        case SnakeSkin::Green:   color_pair = 6; break;
+        case SnakeSkin::Yellow:  color_pair = 2; break;
     }
-    
+    wattron(this->mWindows[1], COLOR_PAIR(color_pair));
     for (int i = 0; i < snakeLength; i++)
     {
-        mvwaddch(this->mWindows[1], snake[i].getY(), snake[i].getX(), snakeSymbol);
+        mvwaddch(this->mWindows[1], snake[i].getY(), snake[i].getX(), this->mSnakeSymbol);
     }
+    wattroff(this->mWindows[1], COLOR_PAIR(color_pair));
     wrefresh(this->mWindows[1]);
 }
 
@@ -654,6 +960,12 @@ void Game::controlSnake() const
 {
     int key;
     key = getch();
+    
+    // 处理道具使用
+    const_cast<Game*>(this)->handleItemUsage(key);
+    
+    // 处理加速功能
+    const_cast<Game*>(this)->handleAcceleration(key);
     
     // 如果是第四关，使用单键转弯控制
     if (mCurrentLevel == 4) {
@@ -738,30 +1050,111 @@ void Game::runGame()
         werase(this->mWindows[1]);
         box(this->mWindows[1], 0, 0);
         
+        // 更新作弊模式状态
+        this->updateCheatMode();
+        
         // 渲染地图
         this->renderMap();
         
         bool eatFood = this->mPtrSnake->moveFoward();
+        bool eatPoison = this->mPtrSnake->touchPoison();  // 新增检测是否吃到毒药
+        bool eatSpecialFood = this->mPtrSnake->touchSpecialFood();  // 新增检测是否吃到特殊食物
+        bool eatRandomItem = this->mPtrSnake->touchRandomItem();    // 新增检测是否吃到随机道具
         bool collision = this->mPtrSnake->checkCollision();
         if (collision == true)
         {
-            break;
+            if (isShieldActive()) {
+                // 护盾激活时，撤销移动（将蛇头移回安全位置）
+                this->mPtrSnake->undoMove();
+                // 自动反向
+                Direction curDir = this->mPtrSnake->getDirection();
+                Direction newDir;
+                switch(curDir) {
+                    case Direction::Up: newDir = Direction::Down; break;
+                    case Direction::Down: newDir = Direction::Up; break;
+                    case Direction::Left: newDir = Direction::Right; break;
+                    case Direction::Right: newDir = Direction::Left; break;
+                }
+                this->mPtrSnake->changeDirection(newDir);
+                deactivateShield();
+                continue;
+            } else {
+                break;
+            }
         }
         this->renderSnake();
         if (eatFood == true)
         {
-            this->mPoints += 1;
+            // 处理普通食物效果
+            handleFoodEffect(FoodType::Normal);
             this->createRamdonFood();
             this->mPtrSnake->senseFood(this->mFood);
             this->adjustDelay();
+            
+            // 重新生成特殊食物或毒药（有40%概率生成特殊食物，20%概率生成毒药）
+            int specialRand = std::rand() % 100;
+            if (specialRand < 40) {
+                this->createSpecialFood();
+                this->mPtrSnake->senseSpecialFood(this->mSpecialFood);
+            } else if (specialRand < 60) {
+                this->createPoison();
+                this->mPtrSnake->sensePoison(this->mPoison);
+            } else {
+                mHasSpecialFood = false;
+                mHasPoison = false;
+            }
+            
+            // 重新生成随机道具（有10%概率）
+            if (std::rand() % 100 < 10) {
+                this->createRandomItem();
+                this->mPtrSnake->senseRandomItem(this->mRandomItem);
+            } else {
+                mHasRandomItem = false;
+            }
+            if (this->isLevelCompleted())
+            {
+                // 如果达到目标分数，关卡通过
+                this->renderFood();
+                this->renderPoison();
+                this->renderSpecialFood();
+                this->renderRandomItem();
+                this->renderDifficulty();
+                this->renderPoints();
+                this->renderLevel();
+                refresh();
+                break;
+            }
+        }
+        if (eatSpecialFood == true && mHasSpecialFood)
+        {
+            // 处理特殊食物效果
+            handleFoodEffect(mCurrentFoodType);
+            mHasSpecialFood = false; // 特殊食物消失
+        }
+        if (eatPoison == true && mHasPoison)
+        {
+            // 处理毒药效果
+            handleFoodEffect(FoodType::Poison);
+            mHasPoison = false; // 毒药消失
+        }
+        if (eatRandomItem == true && mHasRandomItem)
+        {
+            // 处理随机道具效果
+            addItem(mCurrentRandomItemType, 1); // 添加到库存
+            mHasRandomItem = false; // 随机道具消失
         }
         this->renderFood();
+        this->renderPoison();
+        this->renderSpecialFood();
+        this->renderRandomItem();
         this->renderDifficulty();
         this->renderPoints();
         // 即使在普通模式下，也显示当前为第1关
         this->renderLevel();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
+        // 根据加速状态调整延迟
+        int currentDelay = mAccelerating ? mAccelerateDelay : this->mDelay;
+        std::this_thread::sleep_for(std::chrono::milliseconds(currentDelay));
 
         refresh();
     }
@@ -990,6 +1383,11 @@ void Game::startGame()
                     playAgain = renderRestartMenu(true);
                     break;
                 }
+                case GameMode::Shop: {
+                    showShopMenu();
+                    playAgain = false; // 从商店返回后不重新开始游戏
+                    break;
+                }
 
             }
             
@@ -1055,93 +1453,94 @@ bool Game::writeLeaderBoard()
 
 bool Game::selectLevel()
 {
-    // 清除屏幕并刷新，以确保界面正确显示
-    clear();
-    refresh();
-    
-    WINDOW * menu;
-    int width = this->mGameBoardWidth * 0.6;
-    int height = this->mGameBoardHeight * 0.6;
-    int startX = this->mGameBoardWidth * 0.2;
-    int startY = this->mGameBoardHeight * 0.2 + this->mInformationHeight;
+    while (true) { // 用循环包裹，方便从Shop返回后重新显示菜单
+        clear();
+        refresh();
 
-    menu = newwin(height, width, startY, startX);
-    box(menu, 0, 0);
-    
-    std::vector<std::string> menuItems = {
-        "Classic Mode",
-        "Level Mode",
-        "Timed Mode",
-        "Battle Mode",
-        "Exit Game"
-    };
+        WINDOW * menu;
+        int width = this->mGameBoardWidth * 0.6;
+        int height = this->mGameBoardHeight * 0.6;
+        int startX = this->mGameBoardWidth * 0.2;
+        int startY = this->mGameBoardHeight * 0.2 + this->mInformationHeight;
 
-    int index = 0;
-    int offset = 3;
-    mvwprintw(menu, 1, 1, "Select Game Mode:");
-    
-    wattron(menu, A_STANDOUT);
-    mvwprintw(menu, 0 + offset, 1, "%s", menuItems[0].c_str());
-    wattroff(menu, A_STANDOUT);
-    
-    for (size_t i = 1; i < menuItems.size(); i++) {
-        mvwprintw(menu, static_cast<int>(i) + offset, 1, "%s", menuItems[i].c_str());
-    }
+        menu = newwin(height, width, startY, startX);
+        box(menu, 0, 0);
 
-    wrefresh(menu);
+        std::vector<std::string> menuItems = {
+            "Classic Mode",
+            "Level Mode",
+            "Timed Mode",
+            "Battle Mode",
+            "Shop",
+            "Exit Game"
+        };
 
-    int key;
-    while (true)
-    {
-        key = getch();
-        switch(key)
-        {
-            case 'W':
-            case 'w':
-            case KEY_UP:
-            {
-                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
-                index--;
-                index = (index < 0) ? static_cast<int>(menuItems.size()) - 1 : index;
-                wattron(menu, A_STANDOUT);
-                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
-                wattroff(menu, A_STANDOUT);
-                break;
-            }
-            case 'S':
-            case 's':
-            case KEY_DOWN:
-            {
-                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
-                index++;
-                index = (index > static_cast<int>(menuItems.size()) - 1) ? 0 : index;
-                wattron(menu, A_STANDOUT);
-                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
-                wattroff(menu, A_STANDOUT);
-                break;
-            }
+        int index = 0;
+        int offset = 3;
+        mvwprintw(menu, 1, 1, "Select Game Mode:");
+
+        wattron(menu, A_STANDOUT);
+        mvwprintw(menu, 0 + offset, 1, "%s", menuItems[0].c_str());
+        wattroff(menu, A_STANDOUT);
+
+        for (size_t i = 1; i < menuItems.size(); i++) {
+            mvwprintw(menu, static_cast<int>(i) + offset, 1, "%s", menuItems[i].c_str());
         }
+
         wrefresh(menu);
-        if (key == ' ' || key == 10)
-        {
-            break;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-    delwin(menu);
-    
-    // 如果选择退出
-    if (index == 4) {
-        return false;
-    }
-    
-    // 设置游戏模式
-    mCurrentMode = static_cast<GameMode>(index);
-    mReturnToModeSelect = false; // 重置返回标志
-    
-    return true;
-}
 
+        int key;
+        while (true)
+        {
+            key = getch();
+            switch(key)
+            {
+                case 'W':
+                case 'w':
+                case KEY_UP:
+                {
+                    mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                    index--;
+                    index = (index < 0) ? static_cast<int>(menuItems.size()) - 1 : index;
+                    wattron(menu, A_STANDOUT);
+                    mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                    wattroff(menu, A_STANDOUT);
+                    break;
+                }
+                case 'S':
+                case 's':
+                case KEY_DOWN:
+                {
+                    mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                    index++;
+                    index = (index > static_cast<int>(menuItems.size()) - 1) ? 0 : index;
+                    wattron(menu, A_STANDOUT);
+                    mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                    wattroff(menu, A_STANDOUT);
+                    break;
+                }
+            }
+            wrefresh(menu);
+            if (key == ' ' || key == 10)
+            {
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        delwin(menu);
+
+        if (index == 5) { // Exit Game
+            return false;
+        } else if (index == 4) { // Shop
+            showShopMenu(); // 这里调用你的商店界面函数
+            continue; // 回到主菜单
+        } else {
+            mCurrentMode = static_cast<GameMode>(index);
+            mReturnToModeSelect = false;
+            return true;
+        }
+    }
+}
 void Game::initializeLevel(int level)
 {
     mCurrentLevel = level;
@@ -1231,9 +1630,30 @@ void Game::initializeLevel(int level)
         this->mPtrSnake->initializeSnake();
     }
     
-    // 创建食物
+    // 创建普通食物
     this->createRamdonFood();
     this->mPtrSnake->senseFood(this->mFood);
+    
+    // 创建特殊食物或毒药（有40%概率生成特殊食物，20%概率生成毒药）
+    int specialRand = std::rand() % 100;
+    if (specialRand < 40) {
+        this->createSpecialFood();
+        this->mPtrSnake->senseSpecialFood(this->mSpecialFood);
+    } else if (specialRand < 60) {
+        this->createPoison();
+        this->mPtrSnake->sensePoison(this->mPoison);
+    } else {
+        mHasSpecialFood = false;
+        mHasPoison = false;
+    }
+    
+    // 创建随机道具（有10%概率生成）
+    if (std::rand() % 100 < 10) {
+        this->createRandomItem();
+        this->mPtrSnake->senseRandomItem(this->mRandomItem);
+    } else {
+        mHasRandomItem = false;
+    }
     
     // 设置难度参数（不同关卡可以有不同的初始难度）
     switch (mCurrentLevelType) {
@@ -1410,27 +1830,69 @@ void Game::runLevel()
         this->renderMap();
         
         bool eatFood = this->mPtrSnake->moveFoward();
+        bool eatPoison = this->mPtrSnake->touchPoison();  // 新增检测是否吃到毒药
+        bool eatSpecialFood = this->mPtrSnake->touchSpecialFood();  // 新增检测是否吃到特殊食物
+        bool eatRandomItem = this->mPtrSnake->touchRandomItem();    // 新增检测是否吃到随机道具
         bool collision = this->mPtrSnake->checkCollision();
         
         if (collision == true)
         {
-            // 如果碰撞，关卡失败
-            break;
+            if (isShieldActive()) {
+                // 护盾激活时，撤销移动（将蛇头移回安全位置）
+                this->mPtrSnake->undoMove();
+                // 自动反向
+                Direction curDir = this->mPtrSnake->getDirection();
+                Direction newDir;
+                switch(curDir) {
+                    case Direction::Up: newDir = Direction::Down; break;
+                    case Direction::Down: newDir = Direction::Up; break;
+                    case Direction::Left: newDir = Direction::Right; break;
+                    case Direction::Right: newDir = Direction::Left; break;
+                }
+                this->mPtrSnake->changeDirection(newDir);
+                deactivateShield();
+                continue;
+            } else {
+                break;
+            }
         }
         
         this->renderSnake();
         if (eatFood == true)
         {
-            this->mPoints += 1;
+            // 处理普通食物效果
+            handleFoodEffect(FoodType::Normal);
             this->createRamdonFood();
             this->mPtrSnake->senseFood(this->mFood);
             this->adjustDelay();
             
-            // 检查是否完成关卡目标
+            // 重新生成特殊食物或毒药（有40%概率生成特殊食物，20%概率生成毒药）
+            int specialRand = std::rand() % 100;
+            if (specialRand < 40) {
+                this->createSpecialFood();
+                this->mPtrSnake->senseSpecialFood(this->mSpecialFood);
+            } else if (specialRand < 60) {
+                this->createPoison();
+                this->mPtrSnake->sensePoison(this->mPoison);
+            } else {
+                mHasSpecialFood = false;
+                mHasPoison = false;
+            }
+            
+            // 重新生成随机道具（有10%概率）
+            if (std::rand() % 100 < 10) {
+                this->createRandomItem();
+                this->mPtrSnake->senseRandomItem(this->mRandomItem);
+            } else {
+                mHasRandomItem = false;
+            }
             if (this->isLevelCompleted())
             {
                 // 如果达到目标分数，关卡通过
                 this->renderFood();
+                this->renderPoison();
+                this->renderSpecialFood();
+                this->renderRandomItem();
                 this->renderDifficulty();
                 this->renderPoints();
                 this->renderLevel();
@@ -1438,8 +1900,28 @@ void Game::runLevel()
                 break;
             }
         }
-        
+        if (eatSpecialFood == true && mHasSpecialFood)
+        {
+            // 处理特殊食物效果
+            handleFoodEffect(mCurrentFoodType);
+            mHasSpecialFood = false; // 特殊食物消失
+        }
+        if (eatPoison == true && mHasPoison)
+        {
+            // 处理毒药效果
+            handleFoodEffect(FoodType::Poison);
+            mHasPoison = false; // 毒药消失
+        }
+        if (eatRandomItem == true && mHasRandomItem)
+        {
+            // 处理随机道具效果
+            addItem(mCurrentRandomItemType, 1); // 添加到库存
+            mHasRandomItem = false; // 随机道具消失
+        }
         this->renderFood();
+        this->renderPoison();
+        this->renderSpecialFood();
+        this->renderRandomItem();
         this->renderDifficulty();
         this->renderPoints();
         this->renderLevel();
@@ -1739,9 +2221,13 @@ void Game::runTimeAttack()
             this->createRamdonFood();
             this->mPtrSnake->senseFood(this->mFood);
             this->adjustDelay();
+            addCoins(1);
         }
 
         this->renderFood();
+        this->renderPoison();
+        this->renderSpecialFood();
+        this->renderRandomItem();
         this->renderDifficulty();
         this->renderPoints();
         this->renderTimer(); // 在每一帧都渲染计时器
@@ -2384,6 +2870,9 @@ void Game::runBattle() {
             mPtrSnake2->changeDirection(ai_dir);
         }
 
+        // 更新作弊模式状态
+        updateCheatMode();
+        
         werase(mWindows[1]);
         box(mWindows[1], 0, 0);
         renderMap();
@@ -2408,7 +2897,7 @@ void Game::runBattle() {
 
         // 处理吃食物
         if (p1_ate || p2_ate) {
-            if (p1_ate) mPoints++;
+            if (p1_ate) { mPoints++; addCoins(1); }
             if (p2_ate) mPoints2++;
             createRamdonFood();
         }
@@ -2429,6 +2918,9 @@ void Game::runBattle() {
 void Game::controlSnakes(int key) {
     mAccelerateP1 = false;
     mAccelerateP2 = false;
+
+    // 处理道具使用
+    handleItemUsage(key);
 
     if (mCurrentBattleType == BattleType::PlayerVsAI) {
         // 玩家1用方向键
@@ -2482,14 +2974,22 @@ std::string Game::checkBattleCollisions() {
 
 void Game::renderSnakes() const {
     if (mPtrSnake) {
-        wattron(mWindows[1], COLOR_PAIR(1));
+        short color_pair = 1;
+        switch (mCurrentSkin) {
+            case SnakeSkin::Default: color_pair = 1; break;
+            case SnakeSkin::Red:     color_pair = 4; break;
+            case SnakeSkin::Blue:    color_pair = 5; break;
+            case SnakeSkin::Green:   color_pair = 6; break;
+            case SnakeSkin::Yellow:  color_pair = 2; break;
+        }
+        wattron(mWindows[1], COLOR_PAIR(color_pair));
         for (const auto& part : mPtrSnake->getSnake()) {
             mvwaddch(mWindows[1], part.getY(), part.getX(), mSnakeSymbol);
         }
-        wattroff(mWindows[1], COLOR_PAIR(1));
+        wattroff(mWindows[1], COLOR_PAIR(color_pair));
     }
     if (mPtrSnake2) {
-        wattron(mWindows[1], COLOR_PAIR(2));
+        wattron(mWindows[1], COLOR_PAIR(2)); // 蛇2依然用黄色
         for (const auto& part : mPtrSnake2->getSnake()) {
             mvwaddch(mWindows[1], part.getY(), part.getX(), mSnakeSymbol2);
         }
@@ -2511,10 +3011,16 @@ void Game::renderBattleStatus() const {
     if (mCurrentBattleType == BattleType::PlayerVsPlayer) {
         mvwprintw(mWindows[2], 6, 1, "Player 2 (Arrows)");
     } else {
-        mvwprintw(mWindows[2], 6, 1, "AI Player (X)");
+        mvwprintw(mWindows[2], 6, 1, "AI Player");
     }
     wattroff(mWindows[2], COLOR_PAIR(2));
     mvwprintw(mWindows[2], 7, 1, "Points: %d", mPoints2);
+    
+    // 显示道具使用说明
+    mvwprintw(mWindows[2], 9, 1, "Items: C-Cheat P-Portal");
+    if (mCurrentMode == GameMode::Battle) {
+        mvwprintw(mWindows[2], 10, 1, "X-Attack (Battle Only)");
+    }
 
     wrefresh(mWindows[2]);
 }
@@ -2539,3 +3045,612 @@ void Game::renderWinnerText(const std::string& winner) const {
     nodelay(stdscr, TRUE); // 恢复非阻塞模式
     delwin(menu);
 }
+
+// ====== 商店和皮肤持久化 ======
+const std::string PLAYER_PROFILE_FILE = "player_profile.dat";
+
+void Game::savePlayerProfile() const {
+    std::ofstream ofs(PLAYER_PROFILE_FILE, std::ios::binary);
+    if (!ofs) return;
+    ofs.write(reinterpret_cast<const char*>(&mCoins), sizeof(mCoins));
+    int skin = static_cast<int>(mCurrentSkin);
+    ofs.write(reinterpret_cast<const char*>(&skin), sizeof(skin));
+    int ownedCount = mOwnedSkins.size();
+    ofs.write(reinterpret_cast<const char*>(&ownedCount), sizeof(ownedCount));
+    for (auto s : mOwnedSkins) {
+        int sval = static_cast<int>(s);
+        ofs.write(reinterpret_cast<const char*>(&sval), sizeof(sval));
+    }
+    ofs.close();
+}
+
+void Game::loadPlayerProfile() {
+    std::ifstream ifs(PLAYER_PROFILE_FILE, std::ios::binary);
+    if (!ifs) return;
+    mOwnedSkins.clear();
+    ifs.read(reinterpret_cast<char*>(&mCoins), sizeof(mCoins));
+    int skin = 0;
+    ifs.read(reinterpret_cast<char*>(&skin), sizeof(skin));
+    mCurrentSkin = static_cast<SnakeSkin>(skin);
+    int ownedCount = 0;
+    ifs.read(reinterpret_cast<char*>(&ownedCount), sizeof(ownedCount));
+    for (int i = 0; i < ownedCount; ++i) {
+        int sval = 0;
+        ifs.read(reinterpret_cast<char*>(&sval), sizeof(sval));
+        mOwnedSkins.insert(static_cast<SnakeSkin>(sval));
+    }
+    ifs.close();
+    // 确保基础皮肤一定拥有
+    mOwnedSkins.insert(SnakeSkin::Default);
+}
+
+void Game::setSnakeSkin(SnakeSkin skin) { mCurrentSkin = skin; }
+SnakeSkin Game::getSnakeSkin() const { return mCurrentSkin; }
+int Game::getCoins() const { return mCoins; }
+void Game::addCoins(int amount) { mCoins += amount; }
+bool Game::buySkin(SnakeSkin skin, int price) {
+    if (mOwnedSkins.count(skin)) return false;
+    if (mCoins < price) return false;
+    mCoins -= price;
+    mOwnedSkins.insert(skin);
+    return true;
+}
+bool Game::hasSkin(SnakeSkin skin) const { return mOwnedSkins.count(skin) > 0; }
+
+void Game::showShopMenu() {
+    // 保存当前屏幕状态
+    clear();
+    refresh();
+    
+    while (true) {
+        clear();
+        refresh();
+        
+        // 商店主菜单
+        std::vector<std::string> shopMenu = {"Skin Shop", "Item Shop", "Return"};
+        int index = 0;
+        
+        // 居中显示
+        int startY = (LINES - 8) / 2;
+        int startX = (COLS - 20) / 2;
+        
+        // 标题
+        mvprintw(startY, startX, "==== SNAKE SHOP ====");
+        
+        // 金币信息
+        mvprintw(startY + 2, startX, "Coins: %d", mCoins);
+        
+        // 操作说明
+        mvprintw(startY + 3, startX, "Up/Down: Select   Enter: Confirm");
+        
+        // 菜单选项
+        for (size_t i = 0; i < shopMenu.size(); ++i) {
+            if ((int)i == index) attron(A_REVERSE);
+            mvprintw(startY + 5 + i, startX, "%s", shopMenu[i].c_str());
+            if ((int)i == index) attroff(A_REVERSE);
+        }
+        
+        refresh();
+        
+        int key;
+        while (true) {
+            key = getch();
+            if (key == 'w' || key == 'W' || key == KEY_UP) {
+                mvprintw(startY + 5 + index, startX, "%s", shopMenu[index].c_str());
+                index = (index - 1 + shopMenu.size()) % shopMenu.size();
+                attron(A_REVERSE);
+                mvprintw(startY + 5 + index, startX, "%s", shopMenu[index].c_str());
+                attroff(A_REVERSE);
+                refresh();
+            } else if (key == 's' || key == 'S' || key == KEY_DOWN) {
+                mvprintw(startY + 5 + index, startX, "%s", shopMenu[index].c_str());
+                index = (index + 1) % shopMenu.size();
+                attron(A_REVERSE);
+                mvprintw(startY + 5 + index, startX, "%s", shopMenu[index].c_str());
+                attroff(A_REVERSE);
+                refresh();
+            }
+            if (key == ' ' || key == 10) break;
+        }
+        
+        if (index == 0) {
+            // 皮肤商店
+            showShopMenu_Skin();
+        } else if (index == 1) {
+            // 道具商店
+            showShopMenu_Item();
+        } else {
+            // 返回
+            break;
+        }
+    }
+    
+    // 清理屏幕并刷新
+    clear();
+    refresh();
+}
+
+// 拆分皮肤商店和道具商店子菜单
+void Game::showShopMenu_Skin() {
+    struct SkinInfo {
+        SnakeSkin skin;
+        std::string name;
+        int price;
+        short color_pair;
+    };
+    std::vector<SkinInfo> skins = {
+        {SnakeSkin::Default, "Cyan (Default)", 0, 1},
+        {SnakeSkin::Red,     "Red", 10, 4},
+        {SnakeSkin::Blue,    "Blue", 10, 5},
+        {SnakeSkin::Green,   "Green", 10, 6},
+        {SnakeSkin::Yellow,  "Yellow", 10, 2}
+    };
+    
+    int selected = 0;
+    bool inShop = true;
+    bool needRedraw = true;
+    
+    while (inShop) {
+        if (needRedraw) {
+            clear();
+            refresh();
+            
+            // 居中显示
+            int startY = (LINES - 12) / 2;
+            int startX = (COLS - 50) / 2;
+            
+            // 标题
+            mvprintw(startY, startX, "==== SKIN SHOP ====");
+            
+            // 金币信息
+            mvprintw(startY + 2, startX, "Coins: %d", mCoins);
+            
+            // 操作说明
+            mvprintw(startY + 3, startX, "Up/Down: Select   Enter: Buy/Use   Q: Exit");
+            
+            // 皮肤列表
+            int row = startY + 5;
+            for (size_t i = 0; i < skins.size(); ++i) {
+                bool owned = hasSkin(skins[i].skin);
+                bool current = (mCurrentSkin == skins[i].skin);
+                
+                if ((int)i == selected) attron(A_REVERSE);
+                
+                // 选择指示器和皮肤名称
+                mvprintw(row, startX, "%s ", (current ? ">" : " "));
+                attron(COLOR_PAIR(skins[i].color_pair));
+                mvprintw(row, startX + 2, "%-15s", skins[i].name.c_str());
+                attroff(COLOR_PAIR(skins[i].color_pair));
+                
+                // 价格
+                mvprintw(row, startX + 18, "Price: %-3d", skins[i].price);
+                
+                // 状态信息
+                if (owned) {
+                    mvprintw(row, startX + 28, "[Owned]");
+                } else if (skins[i].price == 0) {
+                    mvprintw(row, startX + 28, "[Free] ");
+                } else if (mCoins >= skins[i].price) {
+                    mvprintw(row, startX + 28, "[Buy]  ");
+                } else {
+                    mvprintw(row, startX + 28, "[No$] ");
+                }
+                
+                // 当前使用状态
+                if (current) {
+                    mvprintw(row, startX + 36, "[Using]");
+                } else if (owned) {
+                    mvprintw(row, startX + 36, "[Switch]");
+                }
+                
+                if ((int)i == selected) attroff(A_REVERSE);
+                row++;
+            }
+            
+            refresh();
+            needRedraw = false;
+        }
+        
+        int ch = getch();
+        if (ch == 'q' || ch == 'Q') { 
+            inShop = false; 
+            break; 
+        }
+        if (ch == KEY_UP) {
+            selected = (selected - 1 + skins.size()) % skins.size();
+            needRedraw = true;
+        }
+        if (ch == KEY_DOWN) {
+            selected = (selected + 1) % skins.size();
+            needRedraw = true;
+        }
+        if (ch == 10 || ch == ' ') {
+            if (hasSkin(skins[selected].skin)) {
+                setSnakeSkin(skins[selected].skin);
+            } else if (mCoins >= skins[selected].price) {
+                if (buySkin(skins[selected].skin, skins[selected].price)) {
+                    setSnakeSkin(skins[selected].skin);
+                }
+            }
+            needRedraw = true;
+        }
+    }
+    
+    clear();
+    refresh();
+}
+void Game::showShopMenu_Item() {
+    struct ItemInfo {
+        ItemType type;
+        std::string name;
+        int price;
+        std::string desc;
+    };
+    std::vector<ItemInfo> items = {
+        {ItemType::Portal,     "Portal", 15, "Teleport to random location"},
+        {ItemType::RandomBox,  "Random Box", 12, "Random effect"},
+        {ItemType::Cheat,      "Cheat", 30, "Cheat for a round"},
+        {ItemType::Attack,     "Attack", 20, "Attack opponent"},
+        {ItemType::Shield,     "Shield/Helmet", 18, "Block one hit"},
+        {ItemType::Revive,     "Revive", 25, "Revive once after death"}
+    };
+    
+    int selected = 0;
+    bool inShop = true;
+    bool needRedraw = true;
+    
+    while (inShop) {
+        if (needRedraw) {
+            clear();
+            refresh();
+            
+            // 居中显示
+            int startY = (LINES - 10) / 2;
+            int startX = (COLS - 60) / 2;
+            
+            // 标题
+            mvprintw(startY, startX, "==== ITEM SHOP ====");
+            
+            // 金币信息
+            mvprintw(startY + 2, startX, "Coins: %d", mCoins);
+            
+            // 操作说明
+            mvprintw(startY + 3, startX, "Up/Down: Select   Enter: Buy   Q: Exit");
+            
+            // 表头
+            mvprintw(startY + 5, startX, "%-15s %-8s %-8s %s", "Item Name", "Price", "Owned", "Description");
+            
+            // 道具列表
+            int row = startY + 6;
+            for (size_t i = 0; i < items.size(); ++i) {
+                int count = getItemCount(items[i].type);
+                
+                if ((int)i == selected) attron(A_REVERSE);
+                
+                // 选择指示器
+                mvprintw(row, startX, "%s ", (count > 0 ? ">" : " "));
+                
+                // 道具名称
+                mvprintw(row, startX + 2, "%-15s", items[i].name.c_str());
+                
+                // 价格
+                mvprintw(row, startX + 18, "$%-7d", items[i].price);
+                
+                // 拥有数量
+                mvprintw(row, startX + 26, "%-8d", count);
+                
+                // 描述
+                mvprintw(row, startX + 35, "%s", items[i].desc.c_str());
+                
+                if ((int)i == selected) attroff(A_REVERSE);
+                row++;
+            }
+            
+            refresh();
+            needRedraw = false;
+        }
+        
+        int ch = getch();
+        if (ch == 'q' || ch == 'Q') { 
+            inShop = false; 
+            break; 
+        }
+        if (ch == KEY_UP) {
+            selected = (selected - 1 + items.size()) % items.size();
+            needRedraw = true;
+        }
+        if (ch == KEY_DOWN) {
+            selected = (selected + 1) % items.size();
+            needRedraw = true;
+        }
+        if (ch == 10 || ch == ' ') {
+            if (mCoins >= items[selected].price) {
+                buyItem(items[selected].type, items[selected].price);
+            }
+            needRedraw = true;
+        }
+    }
+    
+    clear();
+    refresh();
+}
+
+// ====== 道具持久化 ======
+const std::string ITEM_INVENTORY_FILE = "item_inventory.dat";
+
+void Game::saveItemInventory() const {
+    std::ofstream ofs(ITEM_INVENTORY_FILE, std::ios::binary);
+    if (!ofs) return;
+    int itemCount = mItemInventory.size();
+    ofs.write(reinterpret_cast<const char*>(&itemCount), sizeof(itemCount));
+    for (const auto& kv : mItemInventory) {
+        int item = static_cast<int>(kv.first);
+        int count = kv.second;
+        ofs.write(reinterpret_cast<const char*>(&item), sizeof(item));
+        ofs.write(reinterpret_cast<const char*>(&count), sizeof(count));
+    }
+    ofs.close();
+}
+
+void Game::loadItemInventory() {
+    std::ifstream ifs(ITEM_INVENTORY_FILE, std::ios::binary);
+    if (!ifs) return;
+    mItemInventory.clear();
+    int itemCount = 0;
+    ifs.read(reinterpret_cast<char*>(&itemCount), sizeof(itemCount));
+    for (int i = 0; i < itemCount; ++i) {
+        int item = 0, count = 0;
+        ifs.read(reinterpret_cast<char*>(&item), sizeof(item));
+        ifs.read(reinterpret_cast<char*>(&count), sizeof(count));
+        mItemInventory[static_cast<ItemType>(item)] = count;
+    }
+    ifs.close();
+}
+
+bool Game::buyItem(ItemType item, int price) {
+    if (mCoins < price) return false;
+    mCoins -= price;
+    mItemInventory[item]++;
+    return true;
+}
+int Game::getItemCount(ItemType item) const {
+    auto it = mItemInventory.find(item);
+    return (it != mItemInventory.end()) ? it->second : 0;
+}
+void Game::addItem(ItemType item, int count) {
+    mItemInventory[item] += count;
+}
+bool Game::useItem(ItemType item) {
+    if (getItemCount(item) > 0) {
+        mItemInventory[item]--;
+        return true;
+    }
+    return false;
+}
+
+// ====== 道具使用功能实现 ======
+
+void Game::activateCheatMode() {
+    if (useItem(ItemType::Cheat)) {
+        mCheatMode = true;
+        mCheatStartTime = std::chrono::steady_clock::now();
+        if (mPtrSnake) {
+            mPtrSnake->setInvincible(true);
+        }
+        if (mPtrSnake2) {
+            mPtrSnake2->setInvincible(true);
+        }
+    }
+}
+
+void Game::deactivateCheatMode() {
+    mCheatMode = false;
+    if (mPtrSnake) {
+        mPtrSnake->setInvincible(false);
+    }
+    if (mPtrSnake2) {
+        mPtrSnake2->setInvincible(false);
+    }
+}
+
+bool Game::isCheatModeActive() const {
+    if (!mCheatMode) return false;
+    
+    auto now = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - mCheatStartTime);
+    float seconds = duration.count() / 1000.0f;
+    
+    if (seconds >= mCheatDuration) {
+        const_cast<Game*>(this)->deactivateCheatMode();
+        return false;
+    }
+    return true;
+}
+
+void Game::usePortal() {
+    if (!useItem(ItemType::Portal) || !mPtrSnake) return;
+    
+    // 获取当前蛇头位置
+    const auto& snake = mPtrSnake->getSnake();
+    if (snake.empty()) return;
+    
+    // 寻找安全的新位置
+    std::vector<SnakeBody> safePositions;
+    for (int y = 1; y < mGameBoardHeight - 1; y++) {
+        for (int x = 1; x < mGameBoardWidth - 1; x++) {
+            // 检查是否是墙
+            if (mPtrMap && mPtrMap->isWall(x, y)) continue;
+            
+            // 检查是否与蛇身重叠
+            if (mPtrSnake->isPartOfSnake(x, y)) continue;
+            
+            // 检查是否与食物重叠
+            if (x == mFood.getX() && y == mFood.getY()) continue;
+            
+            safePositions.push_back(SnakeBody(x, y));
+        }
+    }
+    
+    if (!safePositions.empty()) {
+        // 随机选择一个安全位置
+        int randomIndex = std::rand() % safePositions.size();
+        SnakeBody newPos = safePositions[randomIndex];
+        
+        // 移动蛇头到新位置
+        mPtrSnake->getSnake()[0] = newPos;
+    }
+}
+
+void Game::useAttack() {
+    if (!useItem(ItemType::Attack) || !mPtrSnake2) return;
+    
+    // 在对战模式中减少对手长度
+    auto& snake2 = mPtrSnake2->getSnake();
+    int reduceLength = 3; // 减少3格长度
+    
+    for (int i = 0; i < reduceLength && snake2.size() > 1; i++) {
+        snake2.pop_back();
+    }
+}
+
+void Game::handleItemUsage(int key) {
+    // 简化道具按键：使用数字键1、2、3
+    // 1键：作弊模式
+    if (key == '1') {
+        if (getItemCount(ItemType::Cheat) > 0) {
+            activateCheatMode();
+        }
+    }
+    // 2键：传送门
+    else if (key == '2') {
+        if (getItemCount(ItemType::Portal) > 0) {
+            usePortal();
+        }
+    }
+    // 3键：攻击道具
+    else if (key == '3') {
+        if (mCurrentMode == GameMode::Battle && getItemCount(ItemType::Attack) > 0) {
+            useAttack();
+        }
+    }
+    // 4键：护盾道具
+    else if (key == '4') {
+        if (getItemCount(ItemType::Shield) > 0 && !isShieldActive()) {
+            activateShield();
+        }
+    }
+}
+
+void Game::updateCheatMode() {
+    if (mCheatMode) {
+        isCheatModeActive(); // 这会自动检查时间并停用作弊模式
+    }
+}
+
+void Game::handleAcceleration(int key) {
+    auto now = std::chrono::steady_clock::now();
+    
+    // 检查是否是方向键
+    Direction currentDirection = Direction::Right;
+    bool isDirectionKey = false;
+    
+    switch (key) {
+        case 'w':
+        case 'W':
+        case KEY_UP:
+            currentDirection = Direction::Up;
+            isDirectionKey = true;
+            break;
+        case 's':
+        case 'S':
+        case KEY_DOWN:
+            currentDirection = Direction::Down;
+            isDirectionKey = true;
+            break;
+        case 'a':
+        case 'A':
+        case KEY_LEFT:
+            currentDirection = Direction::Left;
+            isDirectionKey = true;
+            break;
+        case 'd':
+        case 'D':
+        case KEY_RIGHT:
+            currentDirection = Direction::Right;
+            isDirectionKey = true;
+            break;
+    }
+    
+    if (isDirectionKey) {
+        if (currentDirection == mLastKeyDirection) {
+            // 相同方向键，检查是否长按
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - mLastKeyPressTime);
+            if (duration.count() > 200) { // 200ms后开始加速
+                mAccelerating = true;
+            }
+        } else {
+            // 不同方向键，重置加速状态
+            mAccelerating = false;
+            mLastKeyDirection = currentDirection;
+        }
+        mLastKeyPressTime = now;
+    } else {
+        // 非方向键，停止加速
+        mAccelerating = false;
+    }
+}
+
+bool Game::isKeyPressed(int key) {
+    // 使用nodelay模式检查按键
+    nodelay(stdscr, TRUE);
+    int ch = getch();
+    nodelay(stdscr, FALSE);
+    return ch == key;
+}
+
+void Game::activateShield() {
+    if (useItem(ItemType::Shield)) {
+        mShieldActive = true;
+    }
+}
+
+void Game::deactivateShield() {
+    mShieldActive = false;
+}
+
+bool Game::isShieldActive() const {
+    return mShieldActive;
+}
+
+int Game::getFoodEffect(FoodType foodType) const {
+    switch (foodType) {
+        case FoodType::Normal: return 1;    // 普通食物 +1
+        case FoodType::Special1: return 2;  // 特殊食物1 +2
+        case FoodType::Special2: return 3;  // 特殊食物2 +3
+        case FoodType::Special3: return 5;  // 特殊食物3 +5
+        case FoodType::Poison: return -1;   // 毒药 -1
+        default: return 1;
+    }
+}
+
+void Game::handleFoodEffect(FoodType foodType) {
+    int effect = getFoodEffect(foodType);
+    if (effect > 0) {
+        // 正效果：增加长度
+        for (int i = 0; i < effect; i++) {
+            auto& snake = this->mPtrSnake->getSnake();
+            if (!snake.empty()) {
+                snake.push_back(snake.back()); // 复制尾部增加长度
+            }
+        }
+        this->mPoints += effect;
+        addCoins(effect); // 增加金币
+    } else if (effect < 0) {
+        // 负效果：减少长度
+        auto& snake = this->mPtrSnake->getSnake();
+        for (int i = 0; i < -effect && snake.size() > 1; i++) {
+            snake.pop_back(); // 减少长度
+        }
+    }
+}
+

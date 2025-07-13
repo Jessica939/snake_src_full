@@ -16,7 +16,7 @@ SnakeBody::SnakeBody()
 
 Snake::Snake(int gameBoardWidth, int gameBoardHeight, int initLength)
     : mGameBoardWidth(gameBoardWidth), mGameBoardHeight(gameBoardHeight), mInitLength(initLength),
-      mPtrMap(nullptr), mFixedLength(false)
+      mPtrMap(nullptr), mFixedLength(false), mInvincible(false)
 {
     this->initializeSnake();
     this->setRandomSeed();
@@ -139,6 +139,11 @@ void Snake::setMap(Map* map)
 
 bool Snake::checkCollision() const
 {
+    // 如果处于无敌模式，不检测碰撞
+    if (mInvincible) {
+        return false;
+    }
+    
     // 获取蛇头
     const SnakeBody& head = this->mSnakeBody[0];
     int headX = head.getX();
@@ -176,6 +181,21 @@ bool Snake::checkCollision() const
 void Snake::senseFood(SnakeBody food)
 {
     this->mFood = food;
+}
+
+void Snake::sensePoison(SnakeBody poison)
+{
+    this->mPoison = poison;
+}
+
+void Snake::senseSpecialFood(SnakeBody specialFood)
+{
+    this->mSpecialFood = specialFood;
+}
+
+void Snake::senseRandomItem(SnakeBody randomItem)
+{
+    this->mRandomItem = randomItem;
 }
 
 std::vector<SnakeBody>& Snake::getSnake()
@@ -223,6 +243,11 @@ void Snake::singleKeyTurn()
 
 bool Snake::moveFoward()
 {
+    // 记录当前蛇头位置（用于护盾撤销移动）
+    if (!mSnakeBody.empty()) {
+        mPreviousHead = mSnakeBody[0];
+    }
+    
     if (this->touchFood())
     {
         SnakeBody newHead = this->mFood;
@@ -313,9 +338,9 @@ bool Snake::hitSelf()
     return false;
 }
 
-SnakeBody Snake::createNewHead()
+SnakeBody Snake::createNewHead() const
 {
-    SnakeBody& head = this->mSnakeBody[0];
+    const SnakeBody& head = this->mSnakeBody[0];
     int headX = head.getX();
     int headY = head.getY();
     int headXNext;
@@ -364,5 +389,63 @@ bool Snake::touchFood()
     else
     {
         return false;
+    }
+}
+
+bool Snake::touchPoison() const
+{
+    SnakeBody newHead = this->createNewHead();
+    if (this->mPoison == newHead)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+bool Snake::touchSpecialFood() const
+{
+    SnakeBody newHead = this->createNewHead();
+    if (this->mSpecialFood == newHead)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+bool Snake::touchRandomItem() const
+{
+    SnakeBody newHead = this->createNewHead();
+    if (this->mRandomItem == newHead)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+// 无敌模式相关函数实现
+void Snake::setInvincible(bool invincible)
+{
+    mInvincible = invincible;
+}
+
+bool Snake::isInvincible() const
+{
+    return mInvincible;
+}
+
+void Snake::undoMove()
+{
+    // 将蛇头移回上一帧的安全位置
+    if (!mSnakeBody.empty()) {
+        mSnakeBody[0] = mPreviousHead;
     }
 }

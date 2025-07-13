@@ -11,6 +11,8 @@
 #include <vector>
 #include <memory>
 #include <chrono>
+#include <set>
+#include <map>
 
 // 自定义模块
 #include "snake.h"
@@ -18,11 +20,40 @@
 #include "ai.h"
 
 // ========== 枚举定义 ==========
-enum class GameMode { Classic, Level, Timed, Battle };
+enum class GameMode { Classic, Level, Timed, Battle ,Shop};
 enum class LevelType { Normal, Speed, Maze, Custom1, Custom2 };
 enum class LevelStatus { Locked, Unlocked, Completed };
 enum class BossState { Red, Green };
 enum class BattleType { PlayerVsPlayer, PlayerVsAI };
+
+// 蛇皮肤枚举
+enum class SnakeSkin {
+    Default = 0,
+    Red = 1,
+    Blue = 2,
+    Green = 3,
+    Yellow = 4
+};
+
+// 食物类型枚举
+enum class FoodType {
+    Normal = 0,    // 普通食物 +1
+    Special1 = 1,  // 特殊食物1 +2
+    Special2 = 2,  // 特殊食物2 +3
+    Special3 = 3,  // 特殊食物3 +5
+    Poison = 4     // 毒药 -1
+};
+
+// 道具枚举
+enum class ItemType {
+    Portal = 0,
+    RandomBox = 1,
+    Cheat = 2,
+    Attack = 3,
+    Shield = 4,
+    Revive = 5,
+    Poison = 6  // 新增毒药类型
+};
 
 // ========== 游戏主类 ==========
 class Game {
@@ -35,6 +66,28 @@ public:
     // 公共函数
     bool selectLevel(); // 改为公有
     bool shouldReturnToModeSelect() const { return mReturnToModeSelect; }
+
+    // 商店和皮肤相关
+    void showShopMenu(); // 商店界面
+    void showShopMenu_Skin(); // 皮肤商店界面
+    void showShopMenu_Item(); // 道具商店界面
+    void savePlayerProfile() const; // 持久化保存
+    void loadPlayerProfile();       // 持久化读取
+    void setSnakeSkin(SnakeSkin skin); // 切换皮肤
+    SnakeSkin getSnakeSkin() const;    // 获取当前皮肤
+    int getCoins() const;              // 获取金币
+    void addCoins(int amount);         // 增加金币
+    bool buySkin(SnakeSkin skin, int price); // 购买皮肤
+    bool hasSkin(SnakeSkin skin) const;     // 是否已拥有皮肤
+
+    // 道具相关
+    void showItemShopMenu(); // 道具商店界面
+    void saveItemInventory() const;
+    void loadItemInventory();
+    bool buyItem(ItemType item, int price);
+    int getItemCount(ItemType item) const;
+    void addItem(ItemType item, int count = 1);
+    bool useItem(ItemType item); // 使用道具（后续实现）
 
 private:
     // ===== 界面控制相关 =====
@@ -56,10 +109,25 @@ private:
     std::unique_ptr<Snake> mPtrSnake;
     std::unique_ptr<Map> mPtrMap;
     SnakeBody mFood;
+    SnakeBody mPoison;  // 新增毒药位置
     const char mSnakeSymbol = '@';
     const char mFoodSymbol = '#';
+    const char mPoisonSymbol = 'P';  // 新增毒药符号
     const char mWallSymbol = '+';
     int mInitialSnakeLength = 3;
+    bool mHasPoison = false;  // 新增是否有毒药的标志
+    
+    // 新增：食物和道具系统
+    FoodType mCurrentFoodType = FoodType::Normal;
+    SnakeBody mSpecialFood;
+    bool mHasSpecialFood = false;
+    const char mSpecialFoodSymbol = '*';
+    
+    // 随机道具系统
+    SnakeBody mRandomItem;
+    bool mHasRandomItem = false;
+    ItemType mCurrentRandomItemType = ItemType::Portal;
+    const char mRandomItemSymbol = '$';
 
     // ===== 游戏设置与状态 =====
     int mPoints = 0;
@@ -80,7 +148,13 @@ private:
 
     // 食物与控制
     void createRamdonFood();
+    void createPoison();  // 新增生成毒药函数
+    void createSpecialFood();  // 新增生成特殊食物
+    void createRandomItem();   // 新增生成随机道具
     void renderFood() const;
+    void renderPoison() const;  // 新增渲染毒药函数
+    void renderSpecialFood() const;  // 新增渲染特殊食物
+    void renderRandomItem() const;   // 新增渲染随机道具
     void renderSnake() const;
     void renderMap() const;
     void controlSnake() const;
@@ -194,6 +268,46 @@ private:
     const int mAccelDelay = 40;
     bool mAccelerateP1 = false;
     bool mAccelerateP2 = false;
+
+    // 皮肤和金币相关
+    int mCoins = 100; // 初始金币
+    SnakeSkin mCurrentSkin = SnakeSkin::Default;
+    std::set<SnakeSkin> mOwnedSkins = {SnakeSkin::Default};
+
+    // 道具库存
+    std::map<ItemType, int> mItemInventory; // item->count
+    
+    // 道具使用相关
+    bool mCheatMode = false; // 作弊模式状态
+    std::chrono::time_point<std::chrono::steady_clock> mCheatStartTime; // 作弊模式开始时间
+    const float mCheatDuration = 10.0f; // 作弊模式持续时间（秒）
+
+    // 护盾相关
+    bool mShieldActive = false; // 是否有护盾保护
+    void activateShield();      // 激活护盾
+    void deactivateShield();    // 关闭护盾
+    bool isShieldActive() const; // 检查护盾是否激活
+    
+    // 长按加速相关
+    std::chrono::time_point<std::chrono::steady_clock> mLastKeyPressTime; // 上次按键时间
+    Direction mLastKeyDirection = Direction::Right; // 上次按键方向
+    bool mAccelerating = false; // 是否正在加速
+    const int mAccelerateDelay = 50; // 加速时的延迟（毫秒）
+    
+    // 道具使用函数
+    void activateCheatMode(); // 激活作弊模式
+    void deactivateCheatMode(); // 停用作弊模式
+    bool isCheatModeActive() const; // 检查作弊模式是否激活
+    void usePortal(); // 使用传送门
+    void useAttack(); // 使用攻击道具
+    void handleItemUsage(int key); // 处理道具使用
+    void updateCheatMode(); // 更新作弊模式状态
+    void handleAcceleration(int key); // 处理长按加速
+    bool isKeyPressed(int key); // 检查按键是否被按下
+    
+    // 新增：食物效果处理
+    int getFoodEffect(FoodType foodType) const; // 获取食物效果
+    void handleFoodEffect(FoodType foodType);   // 处理食物效果
 };
 
 #endif // GAME_H

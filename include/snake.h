@@ -58,17 +58,23 @@ public:
     // Checking API for generating random food
     bool isPartOfSnake(int x, int y) const;
     void senseFood(SnakeBody food);
+    void sensePoison(SnakeBody poison);  // 新增感知毒药
+    void senseSpecialFood(SnakeBody specialFood);  // 新增感知特殊食物
+    void senseRandomItem(SnakeBody randomItem);    // 新增感知随机道具
     // Set map for collision detection
     void setMap(Map* map);
     // Check if hit wall
     bool hitWall();
     bool touchFood();
+    bool touchPoison() const;  // 新增检测是否碰到毒药
+    bool touchSpecialFood() const;  // 新增检测是否碰到特殊食物
+    bool touchRandomItem() const;   // 新增检测是否碰到随机道具
     bool hitSelf();
     bool changeDirection(Direction newDirection);
     std::vector<SnakeBody>& getSnake();
     const std::vector<SnakeBody>& getSnake() const;
     int getLength() const;
-    SnakeBody createNewHead();
+    SnakeBody createNewHead() const;  // 添加const
     bool moveFoward();
     bool checkCollision() const;
     
@@ -93,8 +99,14 @@ public:
     // 设置下一次单键转弯的方向
     void setNextTurnDirection(bool isLeftTurn);
 
-
     Direction getDirection() const;
+    
+    // 护盾相关：撤销移动（将蛇头移回安全位置）
+    void undoMove();
+    
+    // 无敌模式相关
+    void setInvincible(bool invincible); // 设置无敌模式
+    bool isInvincible() const; // 检查是否无敌
 
 private:
     std::vector<SnakeBody> mSnakeBody;
@@ -103,6 +115,9 @@ private:
     int mGameBoardHeight;
     int mInitLength;
     SnakeBody mFood;
+    SnakeBody mPoison;  // 新增毒药位置
+    SnakeBody mSpecialFood;  // 新增特殊食物位置
+    SnakeBody mRandomItem;   // 新增随机道具位置
     
     // 地图指针，用于碰撞检测
     const Map* mPtrMap;
@@ -112,6 +127,12 @@ private:
     
     // 固定长度模式（用于第五关）
     bool mFixedLength = false;
+    
+    // 无敌模式
+    bool mInvincible = false;
+    
+    // 护盾相关：记录上一帧蛇头位置
+    SnakeBody mPreviousHead;
 };
 
 #endif // SNAKE_H
