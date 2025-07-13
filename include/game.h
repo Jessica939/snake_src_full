@@ -44,8 +44,7 @@ enum class ItemType {
     Cheat = 2,
     Attack = 3,
     Shield = 4,
-    Revive = 5,
-    Poison = 6  // 新增毒药类型
+    Poison = 5  // 毒药类型
 };
 
 // ========== 游戏主类 ==========
@@ -120,7 +119,7 @@ private:
     FoodType mCurrentFoodType = FoodType::Normal;
     SnakeBody mSpecialFood;
     bool mHasSpecialFood = false;
-    const char mSpecialFoodSymbol = '*'; // 
+    const char mSpecialFoodSymbol = '&'; // 改为&符号，更容易识别
     std::chrono::time_point<std::chrono::steady_clock> mSpecialFoodSpawnTime;
     const float mSpecialFoodDuration = 5.0f;
     
@@ -327,7 +326,7 @@ private:
     void handleAcceleration(int key); // 处理长按加速
     bool isKeyPressed(int key); // 检查按键是否被按下
     
-    // 食物效果处理
+    // 新增：食物效果处理
     int getFoodEffect(FoodType foodType) const; // 获取食物效果
     void handleFoodEffect(FoodType foodType);   // 处理食物效果
     bool touchFood();
@@ -338,7 +337,3 @@ private:
 };
 
 #endif // GAME_H
-
-
-
-

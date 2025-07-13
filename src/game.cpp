@@ -219,51 +219,73 @@ void Game::createInstructionBoard()
 
 void Game::renderInstructionBoard() const
 {
-    mvwprintw(this->mWindows[2], 1, 1, "Manual");
-
-    mvwprintw(this->mWindows[2], 3, 1, "Up: W");
-    mvwprintw(this->mWindows[2], 4, 1, "Down: S");
-    mvwprintw(this->mWindows[2], 5, 1, "Left: A");
-    mvwprintw(this->mWindows[2], 6, 1, "Right: D");
-
-    mvwprintw(this->mWindows[2], 8, 1, "Difficulty");
-    mvwprintw(this->mWindows[2], 11, 1, "Points");
+    // 清空侧边栏内容，防止残留
+    werase(this->mWindows[2]);
     
-    // 只在非对战模式下显示道具说明，对战模式下清空对应行
-    if (mCurrentMode != GameMode::Battle) {
-        mvwprintw(this->mWindows[2], 13, 1, "Items:");
-        mvwprintw(this->mWindows[2], 14, 1, "1-Cheat 2-Portal");
-        mvwprintw(this->mWindows[2], 15, 1, "3-Attack");
-        mvwprintw(this->mWindows[2], 16, 1, "4-Shield");
-        mvwprintw(this->mWindows[2], 17, 1, "Save: F");
-    } else {
-        mvwprintw(this->mWindows[2], 13, 1, "                ");
-        mvwprintw(this->mWindows[2], 14, 1, "                ");
-        mvwprintw(this->mWindows[2], 15, 1, "                ");
-        mvwprintw(this->mWindows[2], 16, 1, "                ");
-        mvwprintw(this->mWindows[2], 17, 1, "Save: F");
+    int row = 1;
+    // Manual
+    mvwprintw(this->mWindows[2], row++, 1, "Manual");
+    mvwprintw(this->mWindows[2], row++, 2, "Up: W");
+    mvwprintw(this->mWindows[2], row++, 2, "Down: S");
+    mvwprintw(this->mWindows[2], row++, 2, "Left: A");
+    mvwprintw(this->mWindows[2], row++, 2, "Right: D");
+    mvwprintw(this->mWindows[2], row++, 2, "Save:  F");
+    row++; // 空一行
+    // Difficulty
+    mvwprintw(this->mWindows[2], row++, 1, "Difficulty");
+    mvwprintw(this->mWindows[2], row++, 2, "%d", mDifficulty);
+    row++; // 空一行
+    // Level
+    mvwprintw(this->mWindows[2], row++, 1, "Level");
+    mvwprintw(this->mWindows[2], row++, 2, "%d", mCurrentLevel);
+    row++; // 空一行
+    
+    // --- 剩余时间 (仅限时模式) ---
+    if (mCurrentMode == GameMode::Timed) {
+        mvwprintw(this->mWindows[2], 14, 1, "Time Left:");
+        mvwprintw(this->mWindows[2], 15, 2, "%d s", mTimeRemaining);
     }
-
+    // Points
+    mvwprintw(this->mWindows[2], row++, 1, "Points");
+    mvwprintw(this->mWindows[2], row++, 2, "%d", mPoints);
+    row++; // 空一行
+    // Items
+    mvwprintw(this->mWindows[2], row++, 1, "Items:");
+    for (int i = 0; i <= (int)ItemType::Poison; ++i) {
+        ItemType type = static_cast<ItemType>(i);
+        int count = 0;
+        auto it = mItemInventory.find(type);
+        if (it != mItemInventory.end()) count = it->second;
+        std::string itemName;
+        switch (type) {
+            case ItemType::Portal: itemName = "Portal"; break;
+            case ItemType::RandomBox: itemName = "RandomBox"; break;
+            case ItemType::Cheat: itemName = "Cheat"; break;
+            case ItemType::Attack: itemName = "Attack"; break;
+            case ItemType::Shield: itemName = "Shield"; break;
+            case ItemType::Poison: itemName = "Poison"; break;
+            default: itemName = "Unknown"; break;
+        }
+        mvwprintw(this->mWindows[2], row++, 2, "%s: %d", itemName.c_str(), count);
+    }
+    row++; // Items和排行榜之间再加空行
+    // 最后一行显示保存提示
     wrefresh(this->mWindows[2]);
 }
 
 
 void Game::renderLeaderBoard() const
 {
-    // If there is not too much space, skip rendering the leader board
-    if (this->mScreenHeight - this->mInformationHeight - 18 - 2 < 3 * 2)
-    {
-        return;
-    }
-    mvwprintw(this->mWindows[2], 18, 1, "Leader Board");
+    int startRow = 28;
+    mvwprintw(this->mWindows[2], startRow, 1, "Leader Board");
     std::string pointString;
     std::string rank;
-    for (int i = 0; i < std::min(this->mNumLeaders, this->mScreenHeight - this->mInformationHeight - 18 - 2); i ++)
+    for (int i = 0; i < std::min(this->mNumLeaders, this->mScreenHeight - this->mInformationHeight - startRow - 2); i ++)
     {
         pointString = std::to_string(this->mLeaderBoard[i]);
         rank = "#" + std::to_string(i + 1) + ":";
-        mvwprintw(this->mWindows[2], 18 + (i + 1), 1, "%s", rank.c_str());
-        mvwprintw(this->mWindows[2], 18 + (i + 1), 5, "%s", pointString.c_str());
+        mvwprintw(this->mWindows[2], startRow + (i + 1), 1, "%s", rank.c_str());
+        mvwprintw(this->mWindows[2], startRow + (i + 1), 5, "%s", pointString.c_str());
     }
     wrefresh(this->mWindows[2]);
 }
@@ -505,22 +527,21 @@ bool Game::selectMap()
 void Game::renderPoints() const
 {
     std::string pointString = std::to_string(this->mPoints);
-    mvwprintw(this->mWindows[2], 12, 1, "%s", pointString.c_str());
+    mvwprintw(this->mWindows[2], 15, 2, "%s", pointString.c_str());
     wrefresh(this->mWindows[2]);
 }
 
 void Game::renderDifficulty() const
 {
     std::string difficultyString = std::to_string(this->mDifficulty);
-    mvwprintw(this->mWindows[2], 9, 1, "%s", difficultyString.c_str());
+    mvwprintw(this->mWindows[2], 9, 2, "%s", difficultyString.c_str());
     wrefresh(this->mWindows[2]);
 }
 
 void Game::renderLevel() const
 {
-    mvwprintw(this->mWindows[2], 15, 1, "Level");
     std::string levelString = std::to_string(this->mCurrentLevel);
-    mvwprintw(this->mWindows[2], 16, 1, "%s", levelString.c_str());
+    mvwprintw(this->mWindows[2], 12, 2, "%s", levelString.c_str());
     wrefresh(this->mWindows[2]);
 }
 
@@ -923,18 +944,16 @@ void Game::createRandomItem()
     
     // 随机选择道具类型
     int itemTypeRand = std::rand() % 100;
-    if (itemTypeRand < 30) {
-        mCurrentRandomItemType = ItemType::Portal; // 30%概率传送门
-    } else if (itemTypeRand < 50) {
+    if (itemTypeRand < 35) {
+        mCurrentRandomItemType = ItemType::Portal; // 35%概率传送门
+    } else if (itemTypeRand < 55) {
         mCurrentRandomItemType = ItemType::Shield; // 20%概率护盾
-    } else if (itemTypeRand < 70) {
+    } else if (itemTypeRand < 75) {
         mCurrentRandomItemType = ItemType::Cheat; // 20%概率作弊
-    } else if (itemTypeRand < 85) {
+    } else if (itemTypeRand < 90) {
         mCurrentRandomItemType = ItemType::Attack; // 15%概率攻击
-    } else if (itemTypeRand < 95) {
-        mCurrentRandomItemType = ItemType::Revive; // 10%概率复活
     } else {
-        mCurrentRandomItemType = ItemType::Poison; // 5%概率毒药
+        mCurrentRandomItemType = ItemType::Poison; // 10%概率毒药
     }
 }
 
@@ -2437,11 +2456,10 @@ void Game::initializeTimeAttack()
 // 在侧边栏渲染计时器
 void Game::renderTimer() const
 {
-    mvwprintw(this->mWindows[2], 18, 1, "Time Left:");
+    mvwprintw(this->mWindows[2], 14, 1, "Time Left:");
     std::string timeString = std::to_string(mTimeRemaining) + " s";
-    // 清除旧的计时显示
-    mvwprintw(this->mWindows[2], 19, 1, "          ");
-    mvwprintw(this->mWindows[2], 19, 1, "%s", timeString.c_str());
+    mvwprintw(this->mWindows[2], 15, 2, "%10s", ""); // 清空旧内容
+    mvwprintw(this->mWindows[2], 15, 2, "%s", timeString.c_str());
     wrefresh(this->mWindows[2]);
 }
 
@@ -3838,8 +3856,7 @@ void Game::showShopMenu_Item() {
         {ItemType::RandomBox,  "Random Box", 12, "Random effect"},
         {ItemType::Cheat,      "Cheat", 30, "Cheat for a round"},
         {ItemType::Attack,     "Attack", 20, "Attack opponent"},
-        {ItemType::Shield,     "Shield/Helmet", 18, "Block one hit"},
-        {ItemType::Revive,     "Revive", 25, "Revive once after death"}
+        {ItemType::Shield,     "Shield/Helmet", 18, "Block one hit"}
     };
     
     int selected = 0;
@@ -4328,6 +4345,11 @@ bool Game::loadGame() {
         // 加载当前关卡
         ifs.read(reinterpret_cast<char*>(&mCurrentLevel), sizeof(mCurrentLevel));
         
+        // 验证关卡值的有效性
+        if (mCurrentLevel < 1 || mCurrentLevel > mMaxLevel) {
+            mCurrentLevel = 1; // 如果关卡值无效，重置为1
+        }
+        
         // 加载分数
         ifs.read(reinterpret_cast<char*>(&mPoints), sizeof(mPoints));
         ifs.read(reinterpret_cast<char*>(&mPoints2), sizeof(mPoints2));
@@ -4471,8 +4493,3 @@ bool Game::hasSaveFile() const {
 void Game::deleteSaveFile() const {
     std::remove(mSaveFilePath.c_str());
 }
-
-
-
-
-

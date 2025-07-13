@@ -508,5 +508,3 @@ void Snake::undoMove()
         mSnakeBody[0] = mPreviousHead;
     }
 }
-
-
