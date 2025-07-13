@@ -687,7 +687,26 @@ void Game::renderMap() const
     // 渲染地图上的墙体
     for (int y = 0; y < this->mGameBoardHeight; y++) {
         for (int x = 0; x < this->mGameBoardWidth; x++) {
-            if (this->mPtrMap->isWall(x, y)) {
+            // 计算实际地图坐标（考虑视窗偏移）
+            int mapX = x;
+            int mapY = y;
+            
+            // 如果启用了视窗跟随，则应用偏移
+            if (mUseViewport) {
+                mapX += mViewOffsetX;
+                mapY += mViewOffsetY;
+            }
+            
+            // 检查坐标是否在地图范围内
+            if (mapX >= 0 && mapX < this->mPtrMap->getWidth() &&
+                mapY >= 0 && mapY < this->mPtrMap->getHeight())
+            {
+                if (this->mPtrMap->isWall(mapX, mapY)) {
+                    mvwaddch(this->mWindows[1], y, x, this->mWallSymbol);
+                }
+            }
+            else {
+                // 如果超出地图范围，显示边界墙
                 mvwaddch(this->mWindows[1], y, x, this->mWallSymbol);
             }
         }
@@ -717,7 +736,21 @@ void Game::renderSnake() const
     
     for (int i = 0; i < snakeLength; i++)
     {
-        mvwaddch(this->mWindows[1], snake[i].getY(), snake[i].getX(), snakeSymbol);
+        int x = snake[i].getX();
+        int y = snake[i].getY();
+        
+        // 如果启用视窗跟随，将坐标转换为窗口相对坐标
+        if (mUseViewport)
+        {
+            x -= mViewOffsetX;
+            y -= mViewOffsetY;
+        }
+        
+        // 只渲染在窗口范围内的蛇身部分
+        if (x >= 0 && x < this->mGameBoardWidth && y >= 0 && y < this->mGameBoardHeight)
+        {
+            mvwaddch(this->mWindows[1], y, x, snakeSymbol);
+        }
     }
     wrefresh(this->mWindows[1]);
 }
@@ -2126,11 +2159,11 @@ void Game::initializeLevel4()
     this->mPtrSnake.reset(new Snake(this->mGameBoardWidth, this->mGameBoardHeight, this->mInitialSnakeLength));
     this->mPtrSnake->setMap(this->mPtrMap.get());
     
-    // 第四关使用单键转向模式
+    // 第四关使用单键转向模式（智能判断方向）
     this->mPtrSnake->setTurnMode(TurnMode::SingleKey);
     
     // 设置蛇的初始位置（从迷宫的入口开始）
-    this->mPtrSnake->initializeSnake(2, 1, InitialDirection::Down);
+    this->mPtrSnake->initializeSnake(1, 1, InitialDirection::Right);
     
     // 设置终点位置（迷宫出口）
     mEndpoint = SnakeBody(63, 11);
@@ -2142,27 +2175,46 @@ void Game::initializeLevel4()
     
     // 设置难度
     this->mDifficulty = 1;
-    this->mDelay = this->mBaseDelay * pow(1.25, this->mDifficulty);
+    this->mDelay = this->mBaseDelay * pow(2.0, this->mDifficulty); // 将系数从1.25增加到2.0使蛇移动更慢
     this->mPoints = 0;
+    
+    // 启用视窗跟随功能（第四关专用）
+    mUseViewport = true;
+    mViewOffsetX = 0;
+    mViewOffsetY = 0;
 }
 
 void Game::renderEndpoint() const
 {
     if (!mHasEndpoint) return;
     
-    // 在游戏面板上绘制终点标记
-    mvwaddch(this->mWindows[1], mEndpoint.getY(), mEndpoint.getX(), mEndpointSymbol);
+    // 计算终点在窗口中的坐标
+    int x = mEndpoint.getX();
+    int y = mEndpoint.getY();
+    
+    // 如果启用视窗跟随，将坐标转换为窗口相对坐标
+    if (mUseViewport)
+    {
+        x -= mViewOffsetX;
+        y -= mViewOffsetY;
+    }
+    
+    // 只有在窗口范围内才绘制终点标记
+    if (x >= 0 && x < this->mGameBoardWidth && y >= 0 && y < this->mGameBoardHeight)
+    {
+        mvwaddch(this->mWindows[1], y, x, mEndpointSymbol);
+    }
 }
 
-// 第四关蛇的单键控制
+// 第四关蛇的控制
 void Game::controlSnakeLevel4() const
 {
     int key;
     key = getch();
     
-    // 在第四关中，只需要一个按键 'T' 或空格键来转弯
     if (key == mSingleKeyTurnSymbol || key == 't' || key == ' ')
     {
+        // 手动触发智能转向
         this->mPtrSnake->singleKeyTurn();
     }
 }
@@ -2171,8 +2223,8 @@ void Game::controlSnakeLevel4() const
 void Game::runLevel4()
 {
     // 更新信息面板，显示关卡提示
-    mvwprintw(this->mWindows[0], 1, 1, "Level 4: Single Path Challenge");
-    mvwprintw(this->mWindows[0], 2, 1, "Press 'T' or SPACE to turn");
+    mvwprintw(this->mWindows[0], 1, 1, "Level 4: Smart Path Challenge");
+    mvwprintw(this->mWindows[0], 2, 1, "Press 'T' or SPACE to turn automatically");
     mvwprintw(this->mWindows[0], 3, 1, "Reach the 'X' mark to win!");
     wrefresh(this->mWindows[0]);
     
@@ -2186,6 +2238,9 @@ void Game::runLevel4()
     {
         // 使用单键控制
         this->controlSnakeLevel4();
+        
+        // 更新视窗位置（让蛇居中）
+        this->updateViewport();
         
         werase(this->mWindows[1]);
         box(this->mWindows[1], 0, 0);
@@ -3570,6 +3625,10 @@ void Game::displayLevelCompletion(int level)
                 "The spinning lasers die down, the cold laws collapse.",
                 "You have answered the silence of machines with the resonance of life. You have shattered eternal stillness with a harmonious melody.",
                 "Now, it is time for this imprisoned world to be reborn.",
+                "You watch the new world before you, where all things are reborn and thrive.",
+                "You can almost see the proud smiles of your parents. They are not gone; they have become every blade of grass, every gust of wind that brushes against your scales.",
+                "The hatred has long since faded, replaced by the weight of love and responsibility.",
+                "You are no longer an echo of the past, but the prelude to the future.",
             };
             break;
         default:
@@ -4498,4 +4557,27 @@ void Game::runLevel3Mode2()
         
         refresh();
     }
+}
+
+// 添加视窗更新函数实现
+void Game::updateViewport()
+{
+    if (!mUseViewport || mPtrSnake == nullptr || mPtrSnake->getSnake().empty()) return;
+    
+    // 获取蛇头位置
+    const SnakeBody& head = mPtrSnake->getSnake()[0];
+    int headX = head.getX();
+    int headY = head.getY();
+    
+    // 计算理想的视窗中心位置（让蛇头居中）
+    int idealOffsetX = headX - (mGameBoardWidth / 2);
+    int idealOffsetY = headY - (mGameBoardHeight / 2);
+    
+    // 确保视窗不会超出地图边界
+    int maxOffsetX = mPtrMap->getWidth() - mGameBoardWidth;
+    int maxOffsetY = mPtrMap->getHeight() - mGameBoardHeight;
+    
+    // 应用边界约束
+    mViewOffsetX = std::max(0, std::min(idealOffsetX, maxOffsetX));
+    mViewOffsetY = std::max(0, std::min(idealOffsetY, maxOffsetY));
 }

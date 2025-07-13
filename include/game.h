@@ -138,6 +138,12 @@ private:
     const char mSingleKeyTurnSymbol = 'T';
     bool mHasEndpoint = false;
 
+    // 视窗跟随相关变量
+    int mViewOffsetX = 0; // 视窗X方向偏移
+    int mViewOffsetY = 0; // 视窗Y方向偏移
+    bool mUseViewport = false; // 是否启用视窗跟随
+    void updateViewport(); // 更新视窗位置，让蛇居中
+
     // === 第三关模式一特殊逻辑 ===
     std::vector<SnakeBody> mLevel3Mode1Foods; // 第三关模式一的10个固定食物位置
     int mLevel3FoodIndex = 0; // 当前食物索引

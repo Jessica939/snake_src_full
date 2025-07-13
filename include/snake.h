@@ -23,7 +23,8 @@ enum class Direction
 enum class TurnMode
 {
     FourDirection, // 普通的四向控制
-    SingleKey      // 单键转弯模式（第四关）
+    SingleKey,     // 单键转弯模式（第四关）
+    AutoTurn       // 自动转向模式（新增）
 };
 
 // 蛇身体部分
@@ -80,6 +81,9 @@ public:
     void setTurnMode(TurnMode mode);
     void singleKeyTurn();
     
+    // 自动转向功能 - 根据当前位置和周围墙体情况自动选择转向方向
+    void autoTurn();
+
     // 设置蛇的固定长度模式（用于第五关）
     void setFixedLength(bool fixed);
     bool isFixedLength() const;

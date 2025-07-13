@@ -202,22 +202,99 @@ void Snake::setTurnMode(TurnMode mode)
 
 void Snake::singleKeyTurn()
 {
-    // 实现单键转向逻辑
-    // 右转90度逻辑
+    // 获取蛇头位置
+    if (mSnakeBody.empty() || mPtrMap == nullptr) return;
+    
+    const SnakeBody& head = mSnakeBody[0];
+    int headX = head.getX();
+    int headY = head.getY();
+    
+    // 检查左右两侧是否有墙
+    int leftX = headX, leftY = headY;
+    int rightX = headX, rightY = headY;
+    
+    // 计算左侧和右侧的坐标
     switch (mDirection)
     {
         case Direction::Up:
-            mDirection = Direction::Right;
-            break;
-        case Direction::Right:
-            mDirection = Direction::Down;
+            leftX -= 1;  // 左侧
+            rightX += 1; // 右侧
             break;
         case Direction::Down:
-            mDirection = Direction::Left;
+            leftX += 1;  // 左侧（相对于向下移动的蛇）
+            rightX -= 1; // 右侧
             break;
         case Direction::Left:
-            mDirection = Direction::Up;
+            leftY += 1;  // 左侧（相对于向左移动的蛇）
+            rightY -= 1; // 右侧
             break;
+        case Direction::Right:
+            leftY -= 1;  // 左侧（相对于向右移动的蛇）
+            rightY += 1; // 右侧
+            break;
+    }
+    
+    bool leftWall = mPtrMap->isWall(leftX, leftY);
+    bool rightWall = mPtrMap->isWall(rightX, rightY);
+    
+    // 根据左右墙壁情况决定转向方向
+    if (!leftWall && rightWall)
+    {
+        // 左侧无墙，向左转
+        switch (mDirection)
+        {
+            case Direction::Up:
+                mDirection = Direction::Left;
+                break;
+            case Direction::Left:
+                mDirection = Direction::Down;
+                break;
+            case Direction::Down:
+                mDirection = Direction::Right;
+                break;
+            case Direction::Right:
+                mDirection = Direction::Up;
+                break;
+        }
+    }
+    else if (leftWall && !rightWall)
+    {
+        // 右侧无墙，向右转
+        switch (mDirection)
+        {
+            case Direction::Up:
+                mDirection = Direction::Right;
+                break;
+            case Direction::Right:
+                mDirection = Direction::Down;
+                break;
+            case Direction::Down:
+                mDirection = Direction::Left;
+                break;
+            case Direction::Left:
+                mDirection = Direction::Up;
+                break;
+        }
+    }
+    else
+    {
+        // 两侧都有墙或都没有墙，默认左转
+        // 这种情况通常不应该发生在设计合理的迷宫中
+        switch (mDirection)
+        {
+            case Direction::Up:
+                mDirection = Direction::Left;
+                break;
+            case Direction::Left:
+                mDirection = Direction::Down;
+                break;
+            case Direction::Down:
+                mDirection = Direction::Right;
+                break;
+            case Direction::Right:
+                mDirection = Direction::Up;
+                break;
+        }
     }
 }
 
@@ -364,5 +441,128 @@ bool Snake::touchFood()
     else
     {
         return false;
+    }
+}
+
+void Snake::autoTurn()
+{
+    // 获取蛇头位置
+    if (mSnakeBody.empty() || mPtrMap == nullptr) return;
+    
+    const SnakeBody& head = mSnakeBody[0];
+    int headX = head.getX();
+    int headY = head.getY();
+    
+    // 检查前方是否有墙
+    int frontX = headX;
+    int frontY = headY;
+    // 计算前方坐标
+    switch (mDirection)
+    {
+        case Direction::Up:
+            frontY -= 1;
+            break;
+        case Direction::Down:
+            frontY += 1;
+            break;
+        case Direction::Left:
+            frontX -= 1;
+            break;
+        case Direction::Right:
+            frontX += 1;
+            break;
+    }
+    
+    // 如果前方有墙，则需要转向
+    bool frontWall = mPtrMap->isWall(frontX, frontY);
+    if (frontWall)
+    {
+        // 检查左右两侧是否有墙
+        int leftX = headX, leftY = headY;
+        int rightX = headX, rightY = headY;
+        
+        // 计算左侧和右侧的坐标
+        switch (mDirection)
+        {
+            case Direction::Up:
+                leftX -= 1;  // 左侧
+                rightX += 1; // 右侧
+                break;
+            case Direction::Down:
+                leftX += 1;  // 左侧（相对于向下移动的蛇）
+                rightX -= 1; // 右侧
+                break;
+            case Direction::Left:
+                leftY += 1;  // 左侧（相对于向左移动的蛇）
+                rightY -= 1; // 右侧
+                break;
+            case Direction::Right:
+                leftY -= 1;  // 左侧（相对于向右移动的蛇）
+                rightY += 1; // 右侧
+                break;
+        }
+        
+        bool leftWall = mPtrMap->isWall(leftX, leftY);
+        bool rightWall = mPtrMap->isWall(rightX, rightY);
+        
+        // 根据左右墙壁情况决定转向方向
+        if (!leftWall && rightWall)
+        {
+            // 左侧无墙，向左转
+            switch (mDirection)
+            {
+                case Direction::Up:
+                    mDirection = Direction::Left;
+                    break;
+                case Direction::Left:
+                    mDirection = Direction::Down;
+                    break;
+                case Direction::Down:
+                    mDirection = Direction::Right;
+                    break;
+                case Direction::Right:
+                    mDirection = Direction::Up;
+                    break;
+            }
+        }
+        else if (leftWall && !rightWall)
+        {
+            // 右侧无墙，向右转
+            switch (mDirection)
+            {
+                case Direction::Up:
+                    mDirection = Direction::Right;
+                    break;
+                case Direction::Right:
+                    mDirection = Direction::Down;
+                    break;
+                case Direction::Down:
+                    mDirection = Direction::Left;
+                    break;
+                case Direction::Left:
+                    mDirection = Direction::Up;
+                    break;
+            }
+        }
+        else
+        {
+            // 两侧都有墙或都没有墙，默认左转
+            // 这种情况通常不应该发生在设计合理的迷宫中
+            switch (mDirection)
+            {
+                case Direction::Up:
+                    mDirection = Direction::Left;
+                    break;
+                case Direction::Left:
+                    mDirection = Direction::Down;
+                    break;
+                case Direction::Down:
+                    mDirection = Direction::Right;
+                    break;
+                case Direction::Right:
+                    mDirection = Direction::Up;
+                    break;
+            }
+        }
     }
 }
