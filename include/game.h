@@ -297,7 +297,7 @@ private:
     std::chrono::time_point<std::chrono::steady_clock> mLastKeyPressTime; // 上次按键时间
     Direction mLastKeyDirection = Direction::Right; // 上次按键方向
     bool mAccelerating = false; // 是否正在加速
-    const int mAccelerateDelay = 50; // 加速时的延迟（毫秒）
+    const int mAccelerateDelay = 15; // 加速时的延迟（毫秒）- 改为更快的速度
     
     // 道具使用函数
     void activateCheatMode(); // 激活作弊模式
@@ -316,4 +316,5 @@ private:
 };
 
 #endif // GAME_H
+
 

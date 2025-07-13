@@ -195,6 +195,17 @@ void Game::renderInformationBoard() const
         mvwprintw(this->mWindows[0], 2, 30, "[护盾保护中]");
         wattroff(this->mWindows[0], COLOR_PAIR(4));
     }
+    
+    // 显示加速状态
+    if (mAccelerating) {
+        wattron(this->mWindows[0], COLOR_PAIR(3)); // 亮红色
+        mvwprintw(this->mWindows[0], 3, 30, "[超速加速中!]");
+        wattroff(this->mWindows[0], COLOR_PAIR(3));
+    }
+    
+    // 显示当前速度信息
+    int currentDelay = mAccelerating ? mAccelerateDelay : this->mDelay;
+    mvwprintw(this->mWindows[0], 4, 30, "速度: %dms", currentDelay);
     wrefresh(this->mWindows[0]);
 }
 
@@ -968,6 +979,12 @@ void Game::renderSnake() const
         case SnakeSkin::Green:   color_pair = 6; break;
         case SnakeSkin::Yellow:  color_pair = 2; break;
     }
+    
+    // 如果正在加速，使用特殊的加速颜色（亮红色）
+    if (mAccelerating) {
+        color_pair = 3; // 亮红色，表示加速状态
+    }
+    
     wattron(this->mWindows[1], COLOR_PAIR(color_pair));
     for (int i = 0; i < snakeLength; i++)
     {
@@ -1059,7 +1076,8 @@ void Game::adjustDelay()
     this->mDifficulty = this->mPoints / 5;
     if (mPoints % 5 == 0)
     {
-        this->mDelay = this->mBaseDelay * pow(0.75, this->mDifficulty);
+        // 降低自动加速的幅度，让速度变化更平缓
+        this->mDelay = this->mBaseDelay * pow(0.9, this->mDifficulty);
     }
 }
 
@@ -3774,7 +3792,7 @@ void Game::handleAcceleration(int key) {
         if (currentDirection == mLastKeyDirection) {
             // 相同方向键，检查是否长按
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - mLastKeyPressTime);
-            if (duration.count() > 200) { // 200ms后开始加速
+            if (duration.count() > 100) { // 减少到100ms后开始加速，让加速更容易触发
                 mAccelerating = true;
             }
         } else {
@@ -3842,5 +3860,6 @@ void Game::handleFoodEffect(FoodType foodType) {
         }
     }
 }
+
 
 
