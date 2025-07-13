@@ -1,6 +1,7 @@
 #include "gui/gui_manager.h"
 #include "gui/mode_select_window.h"
 #include "gui/story_level_window.h"
+#include "gui/story_display_window.h"
 #include <fstream>
 #include <QEventLoop>
 
@@ -8,6 +9,7 @@ GUIManager::GUIManager(QObject *parent)
     : QObject(parent)
     , mModeSelectWindow(nullptr)
     , mStoryLevelWindow(nullptr)
+    , mStoryDisplayWindow(nullptr)
     , mClassicModeSelected(false)
     , mExitRequested(false)
     , mSelectedLevel(0)
@@ -67,9 +69,12 @@ void GUIManager::showModeSelectWindow()
 
 void GUIManager::showStoryLevelWindow()
 {
-    // 隐藏模式选择窗口
+    // 隐藏其他窗口
     if (mModeSelectWindow) {
         mModeSelectWindow->hide();
+    }
+    if (mStoryDisplayWindow) {
+        mStoryDisplayWindow->hide();  // 确保隐藏剧情显示窗口，停止剧情音乐
     }
     
     // 创建或显示剧情关卡选择窗口
@@ -117,7 +122,7 @@ void GUIManager::loadLevelProgress()
 
 void GUIManager::onStoryModeSelected()
 {
-    showStoryLevelWindow();
+    showStoryDisplayWindow();
 }
 
 void GUIManager::onClassicModeSelected()
@@ -156,7 +161,80 @@ void GUIManager::onLevelSelected(int level)
 {
     mSelectedLevel = level;
     
-    // 隐藏所有窗口
+    // 隐藏关卡选择窗口
+    if (mStoryLevelWindow) {
+        mStoryLevelWindow->hide();
+    }
+    
+    // 创建并显示剧情窗口
+    if (!mStoryDisplayWindow) {
+        mStoryDisplayWindow = std::make_unique<StoryDisplayWindow>();
+        
+        // 连接信号
+        connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished,
+                this, &GUIManager::onLevelStoryFinished);
+        connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame,
+                this, &GUIManager::onSkipLevelStoryToGame);
+    } else {
+        // 重新连接信号，确保指向正确的处理函数
+        disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished,
+                   this, &GUIManager::onStoryFinished);
+        disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame,
+                   this, &GUIManager::onSkipToGame);
+        
+        connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished,
+                this, &GUIManager::onLevelStoryFinished);
+        connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame,
+                this, &GUIManager::onSkipLevelStoryToGame);
+    }
+    
+    // 显示关卡剧情
+    mStoryDisplayWindow->loadStoryForLevel(level);
+    mStoryDisplayWindow->show();
+}
+
+void GUIManager::onBackToModeSelect()
+{
+    showModeSelectWindow();
+}
+
+void GUIManager::onStoryFinished()
+{
+    // 剧情播放完成后，显示关卡选择窗口
+    showStoryLevelWindow();
+}
+
+void GUIManager::onSkipToGame()
+{
+    // 跳过剧情，直接显示关卡选择窗口
+    showStoryLevelWindow();
+}
+
+void GUIManager::onLevelStoryFinished()
+{
+    // 关卡剧情播放完成后，隐藏剧情窗口并退出Qt事件循环开始游戏
+    if (mStoryDisplayWindow) {
+        mStoryDisplayWindow->hide();
+    }
+    
+    // 退出Qt事件循环，让main函数继续执行指定关卡的游戏
+    QApplication::quit();
+}
+
+void GUIManager::onSkipLevelStoryToGame()
+{
+    // 跳过关卡剧情，直接开始游戏
+    if (mStoryDisplayWindow) {
+        mStoryDisplayWindow->hide();
+    }
+    
+    // 退出Qt事件循环，让main函数继续执行指定关卡的游戏
+    QApplication::quit();
+}
+
+void GUIManager::showStoryDisplayWindow()
+{
+    // 隐藏其他窗口
     if (mModeSelectWindow) {
         mModeSelectWindow->hide();
     }
@@ -164,11 +242,21 @@ void GUIManager::onLevelSelected(int level)
         mStoryLevelWindow->hide();
     }
     
-    // 退出Qt事件循环，让main函数继续执行指定关卡的游戏
-    QApplication::quit();
-}
-
-void GUIManager::onBackToModeSelect()
-{
-    showModeSelectWindow();
+    // 创建并显示剧情窗口
+    if (!mStoryDisplayWindow) {
+        mStoryDisplayWindow = std::make_unique<StoryDisplayWindow>();
+    }
+    
+    // 确保信号连接到序章剧情处理函数
+    disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished, nullptr, nullptr);
+    disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame, nullptr, nullptr);
+    
+    connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished,
+            this, &GUIManager::onStoryFinished);
+    connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame,
+            this, &GUIManager::onSkipToGame);
+    
+    // 显示序章剧情
+    mStoryDisplayWindow->showPrologue();
+    mStoryDisplayWindow->show();
 } 

@@ -195,6 +195,12 @@ void ModeSelectWindow::setupBackgroundMusic()
 void ModeSelectWindow::startBackgroundMusic()
 {
     if (backgroundMusic && backgroundMusic->error() == QMediaPlayer::NoError) {
+        // 重新连接循环播放的信号
+        connect(backgroundMusic, &QMediaPlayer::stateChanged, this, [this](QMediaPlayer::State state) {
+            if (state == QMediaPlayer::StoppedState) {
+                backgroundMusic->play();  // 播放结束时重新开始
+            }
+        });
         backgroundMusic->play();
         qDebug() << "开始播放模式选择背景音乐";
     }
@@ -203,6 +209,8 @@ void ModeSelectWindow::startBackgroundMusic()
 void ModeSelectWindow::stopBackgroundMusic()
 {
     if (backgroundMusic && backgroundMusic->state() == QMediaPlayer::PlayingState) {
+        // 先断开循环播放的连接，防止stop()后立即重新播放
+        backgroundMusic->disconnect();
         backgroundMusic->stop();
         qDebug() << "停止播放模式选择背景音乐";
     }

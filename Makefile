@@ -11,7 +11,7 @@ MOC = moc
 SRC_DIR = src
 GUI_DIR = gui
 INCLUDE_DIR = include
-OBJ_FILES = main.o game.o snake.o map.o ai.o mode_select_window.o story_level_window.o gui_manager.o gui_manager_moc.o mode_select_window_moc.o story_level_window_moc.o
+OBJ_FILES = main.o game.o snake.o map.o ai.o mode_select_window.o story_level_window.o story_display_window.o gui_manager.o gui_manager_moc.o mode_select_window_moc.o story_level_window_moc.o story_display_window_moc.o
 
 # 可执行文件的名称
 TARGET = snakegame
@@ -58,6 +58,9 @@ mode_select_window.o: $(GUI_DIR)/mode_select_window.cpp $(INCLUDE_DIR)/gui/mode_
 story_level_window.o: $(GUI_DIR)/story_level_window.cpp $(INCLUDE_DIR)/gui/story_level_window.h
 	$(CXX) $(CXXFLAGS) $(QT_INCLUDES) -c $<
 
+story_display_window.o: $(GUI_DIR)/story_display_window.cpp $(INCLUDE_DIR)/gui/story_display_window.h
+	$(CXX) $(CXXFLAGS) $(QT_INCLUDES) -c $<
+
 gui_manager.o: $(GUI_DIR)/gui_manager.cpp $(INCLUDE_DIR)/gui/gui_manager.h
 	$(CXX) $(CXXFLAGS) $(QT_INCLUDES) -c $<
 
@@ -71,6 +74,9 @@ mode_select_window_moc.cpp: $(INCLUDE_DIR)/gui/mode_select_window.h
 story_level_window_moc.cpp: $(INCLUDE_DIR)/gui/story_level_window.h
 	$(MOC) $(INCLUDE_DIR)/gui/story_level_window.h -o story_level_window_moc.cpp
 
+story_display_window_moc.cpp: $(INCLUDE_DIR)/gui/story_display_window.h
+	$(MOC) $(INCLUDE_DIR)/gui/story_display_window.h -o story_display_window_moc.cpp
+
 gui_manager_moc.o: gui_manager_moc.cpp
 	$(CXX) $(CXXFLAGS) $(QT_INCLUDES) -c $<
 
@@ -78,6 +84,9 @@ mode_select_window_moc.o: mode_select_window_moc.cpp
 	$(CXX) $(CXXFLAGS) $(QT_INCLUDES) -c $<
 
 story_level_window_moc.o: story_level_window_moc.cpp
+	$(CXX) $(CXXFLAGS) $(QT_INCLUDES) -c $<
+
+story_display_window_moc.o: story_display_window_moc.cpp
 	$(CXX) $(CXXFLAGS) $(QT_INCLUDES) -c $<
 
 # 清理编译产物

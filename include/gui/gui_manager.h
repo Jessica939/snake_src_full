@@ -7,6 +7,7 @@
 
 class ModeSelectWindow;
 class StoryLevelWindow;
+class StoryDisplayWindow;
 
 class GUIManager : public QObject
 {
@@ -27,14 +28,20 @@ private slots:
     void onExitRequested();             // 退出请求
     void onLevelSelected(int level);    // 关卡被选择
     void onBackToModeSelect();          // 返回模式选择
+    void onStoryFinished();             // 剧情播放完成
+    void onSkipToGame();                // 跳过剧情直接开始游戏
+    void onLevelStoryFinished();        // 关卡剧情播放完成
+    void onSkipLevelStoryToGame();      // 跳过关卡剧情直接开始游戏
 
 private:
     void showModeSelectWindow();        // 显示模式选择窗口
     void showStoryLevelWindow();        // 显示剧情关卡选择窗口
+    void showStoryDisplayWindow();      // 显示剧情播放窗口
     void loadLevelProgress();           // 加载关卡进度
     
     std::unique_ptr<ModeSelectWindow> mModeSelectWindow;
     std::unique_ptr<StoryLevelWindow> mStoryLevelWindow;
+    std::unique_ptr<StoryDisplayWindow> mStoryDisplayWindow;
     
     bool mClassicModeSelected;          // 是否选择经典模式
     bool mExitRequested;                // 是否请求退出

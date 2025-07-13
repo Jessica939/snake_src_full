@@ -191,7 +191,7 @@ void StoryLevelWindow::setupBackgroundMusic()
     // 初始化背景音乐
     backgroundMusic = new QMediaPlayer(this);
     backgroundMusic->setMedia(QUrl::fromLocalFile(musicPath));
-    backgroundMusic->setVolume(80);  // 设置音量为80%
+    backgroundMusic->setVolume(70);  // 设置音量为70%，比剧情窗口稍低
     
     // 设置循环播放
     connect(backgroundMusic, &QMediaPlayer::stateChanged, this, [this](QMediaPlayer::State state) {
@@ -202,25 +202,33 @@ void StoryLevelWindow::setupBackgroundMusic()
     
     // 检查音乐是否加载成功
     if (backgroundMusic->error() != QMediaPlayer::NoError) {
-        qDebug() << "剧情模式背景音乐加载失败:" << backgroundMusic->errorString() << "路径:" << musicPath;
+        qDebug() << "关卡选择背景音乐加载失败:" << backgroundMusic->errorString() << "路径:" << musicPath;
     } else {
-        qDebug() << "剧情模式背景音乐加载成功:" << musicPath;
+        qDebug() << "关卡选择背景音乐加载成功:" << musicPath;
     }
 }
 
 void StoryLevelWindow::startBackgroundMusic()
 {
     if (backgroundMusic && backgroundMusic->error() == QMediaPlayer::NoError) {
+        // 重新连接循环播放的信号
+        connect(backgroundMusic, &QMediaPlayer::stateChanged, this, [this](QMediaPlayer::State state) {
+            if (state == QMediaPlayer::StoppedState) {
+                backgroundMusic->play();  // 播放结束时重新开始
+            }
+        });
         backgroundMusic->play();
-        qDebug() << "开始播放剧情模式背景音乐";
+        qDebug() << "开始播放关卡选择背景音乐";
     }
 }
 
 void StoryLevelWindow::stopBackgroundMusic()
 {
     if (backgroundMusic && backgroundMusic->state() == QMediaPlayer::PlayingState) {
+        // 先断开循环播放的连接，防止stop()后立即重新播放
+        backgroundMusic->disconnect();
         backgroundMusic->stop();
-        qDebug() << "停止播放剧情模式背景音乐";
+        qDebug() << "停止播放关卡选择背景音乐";
     }
 }
 
