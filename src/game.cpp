@@ -196,17 +196,6 @@ void Game::renderInformationBoard() const
         wattroff(this->mWindows[0], COLOR_PAIR(4));
     }
     
-    // 显示加速状态
-    if (mAccelerating) {
-        wattron(this->mWindows[0], COLOR_PAIR(3)); // 亮红色
-        mvwprintw(this->mWindows[0], 3, 30, "[超速加速中!]");
-        wattroff(this->mWindows[0], COLOR_PAIR(3));
-    }
-    
-    // 显示当前速度信息
-    int currentDelay = mAccelerating ? mAccelerateDelay : this->mDelay;
-    mvwprintw(this->mWindows[0], 4, 30, "速度: %dms", currentDelay);
-    wrefresh(this->mWindows[0]);
 }
 
 void Game::createGameBoard()
@@ -931,10 +920,10 @@ void Game::renderPoison() const
 void Game::renderSpecialFood() const
 {
     if (mHasSpecialFood) {
-        // 使用黄色显示特殊食物
-        wattron(this->mWindows[1], COLOR_PAIR(2)); // 黄色
+        // 使用紫色显示特殊食物，避免与AI蛇的黄色冲突
+        wattron(this->mWindows[1], COLOR_PAIR(6)); // 紫色
         mvwaddch(this->mWindows[1], this->mSpecialFood.getY(), this->mSpecialFood.getX(), this->mSpecialFoodSymbol);
-        wattroff(this->mWindows[1], COLOR_PAIR(2));
+        wattroff(this->mWindows[1], COLOR_PAIR(6));
         wrefresh(this->mWindows[1]);
     }
 }
@@ -1076,9 +1065,39 @@ void Game::adjustDelay()
     this->mDifficulty = this->mPoints / 5;
     if (mPoints % 5 == 0)
     {
-        // 降低自动加速的幅度，让速度变化更平缓
-        this->mDelay = this->mBaseDelay * pow(0.9, this->mDifficulty);
+        // 限制最大难度，防止蛇跑得太快
+        int maxDifficulty = 10; // 最大难度限制
+        int actualDifficulty = std::min(this->mDifficulty, maxDifficulty);
+        
+        // 使用更平缓的减速公式，并设置最小延迟
+        int calculatedDelay = this->mBaseDelay * pow(0.95, actualDifficulty);
+        int minDelay = 30; // 最小延迟30毫秒
+        this->mDelay = std::max(calculatedDelay, minDelay);
     }
+}
+
+void Game::adjustBattleDelay()
+{
+    // 对战模式的延迟调整，基于蛇的长度而不是分数
+    int p1Length = mPtrSnake ? mPtrSnake->getSnake().size() : 3;
+    int p2Length = mPtrSnake2 ? mPtrSnake2->getSnake().size() : 3;
+    int maxLength = std::max(p1Length, p2Length);
+    
+    // 基础延迟150毫秒，根据长度调整
+    int baseDelay = 150;
+    
+    // 长度阈值和对应的延迟调整
+    if (maxLength >= 15) {
+        baseDelay = 80; // 长蛇：80毫秒
+    } else if (maxLength >= 10) {
+        baseDelay = 100; // 中等长度：100毫秒
+    } else if (maxLength >= 5) {
+        baseDelay = 120; // 短蛇：120毫秒
+    }
+    // 默认保持150毫秒
+    
+    // 更新对战模式的基础延迟
+    mBattleBaseDelay = baseDelay;
 }
 
 void Game::runGame()
@@ -2939,8 +2958,10 @@ void Game::initializeBattle(BattleType type) {
     mPoints = 0;
     mPoints2 = 0;
     mDelay = mBaseDelay;
-    mAccelerateP1 = false;
-    mAccelerateP2 = false;
+    mBattleBaseDelay = 150; // 初始化对战模式基础延迟
+    mAccelerating = false; // 重置加速状态
+    mLastKeyDirection = Direction::Right; // 重置按键方向
+    mLastKeyPressTime = std::chrono::steady_clock::now(); // 重置按键时间
 }
 
 void Game::runBattle() {
@@ -2956,8 +2977,8 @@ void Game::runBattle() {
         // 如果是 AI 对战模式，获取 AI 的下一步移动方向
         if (mCurrentBattleType == BattleType::PlayerVsAI) {
             Direction ai_dir = mPtrAI->findNextMove(*mPtrMap, *mPtrSnake, *mPtrSnake2, 
-                                                   mFood, mSpecialFood, mPoison, 
-                                                   mCurrentFoodType, mHasSpecialFood, mHasPoison);
+                                                   mFood, mSpecialFood, mPoison, mRandomItem,
+                                                   mCurrentFoodType, mHasSpecialFood, mHasPoison, mHasRandomItem);
             mPtrSnake2->changeDirection(ai_dir);
         }
 
@@ -2981,11 +3002,13 @@ void Game::runBattle() {
         bool p1_ate = mPtrSnake->moveFoward();
         bool p2_ate = mPtrSnake2->moveFoward();
         
-        // 检测特殊食物和毒药碰撞
+        // 检测特殊食物、毒药和随机道具碰撞
         bool p1_ate_special = mPtrSnake->touchSpecialFood();
         bool p2_ate_special = mPtrSnake2->touchSpecialFood();
         bool p1_ate_poison = mPtrSnake->touchPoison();
         bool p2_ate_poison = mPtrSnake2->touchPoison();
+        bool p1_ate_random = mPtrSnake->touchRandomItem();
+        bool p2_ate_random = mPtrSnake2->touchRandomItem();
 
         // 检查碰撞
         winner = checkBattleCollisions();
@@ -3028,9 +3051,18 @@ void Game::runBattle() {
                 this->mPtrSnake->sensePoison(this->mPoison);
                 this->mPtrSnake2->sensePoison(this->mPoison);
             }
+            
+            // 重新生成随机道具（有10%概率）
+            if (std::rand() % 100 < 10) {
+                this->createRandomItem();
+                this->mPtrSnake->senseRandomItem(this->mRandomItem);
+                this->mPtrSnake2->senseRandomItem(this->mRandomItem);
+            } else {
+                mHasRandomItem = false;
+            }
         }
         
-        // 处理特殊食物效果
+        // 处理特殊食物效果（蛇长度变化后调整延迟）
         if (p1_ate_special && mHasSpecialFood) {
             int effect = getFoodEffect(mCurrentFoodType);
             if (effect > 0) {
@@ -3045,6 +3077,8 @@ void Game::runBattle() {
                 addCoins(effect); // 增加金币
             }
             mHasSpecialFood = false;
+            // 蛇长度变化后调整延迟
+            adjustBattleDelay();
         }
         if (p2_ate_special && mHasSpecialFood) {
             int effect = getFoodEffect(mCurrentFoodType);
@@ -3059,9 +3093,11 @@ void Game::runBattle() {
                 this->mPoints2 += effect;
             }
             mHasSpecialFood = false;
+            // 蛇长度变化后调整延迟
+            adjustBattleDelay();
         }
         
-        // 处理毒药效果
+        // 处理毒药效果（蛇长度变化后调整延迟）
         if (p1_ate_poison && mHasPoison) {
             int effect = getFoodEffect(FoodType::Poison);
             if (effect < 0) {
@@ -3072,6 +3108,8 @@ void Game::runBattle() {
                 }
             }
             mHasPoison = false;
+            // 蛇长度变化后调整延迟
+            adjustBattleDelay();
         }
         if (p2_ate_poison && mHasPoison) {
             int effect = getFoodEffect(FoodType::Poison);
@@ -3083,9 +3121,23 @@ void Game::runBattle() {
                 }
             }
             mHasPoison = false;
+            // 蛇长度变化后调整延迟
+            adjustBattleDelay();
         }
         
-        // 检查特殊食物/毒药是否超时消失
+
+        
+        // 对战模式中不处理随机道具效果（禁用道具功能）
+        if (p1_ate_random && mHasRandomItem) {
+            // 对战模式中不添加到库存，直接消失
+            mHasRandomItem = false;
+        }
+        if (p2_ate_random && mHasRandomItem) {
+            // AI也不获得道具
+            mHasRandomItem = false;
+        }
+        
+        // 检查特殊食物/毒药/道具是否超时消失
         auto now = std::chrono::steady_clock::now();
         if (mHasSpecialFood && std::chrono::duration_cast<std::chrono::seconds>(now - mSpecialFoodSpawnTime).count() > mSpecialFoodDuration) {
             mHasSpecialFood = false;
@@ -3093,11 +3145,15 @@ void Game::runBattle() {
         if (mHasPoison && std::chrono::duration_cast<std::chrono::seconds>(now - mPoisonSpawnTime).count() > mPoisonDuration) {
             mHasPoison = false;
         }
+        if (mHasRandomItem && std::chrono::duration_cast<std::chrono::seconds>(now - mRandomItemSpawnTime).count() > mRandomItemDuration) {
+            mHasRandomItem = false;
+        }
 
         // 实现加速逻辑
-        long currentDelay = mBaseDelay;
-        if (mAccelerateP1 || mAccelerateP2) {
-            currentDelay = mAccelDelay;
+        long currentDelay = mBattleBaseDelay; // 使用对战模式专用延迟
+        if (mAccelerating) {
+            // 对战模式加速：基础延迟的40%
+            currentDelay = static_cast<long>(mBattleBaseDelay * 0.4);
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(currentDelay));
         wrefresh(mWindows[1]);
@@ -3107,33 +3163,33 @@ void Game::runBattle() {
 }
 
 void Game::controlSnakes(int key) {
-    mAccelerateP1 = false;
-    mAccelerateP2 = false;
-
     // Battle mode中禁用道具使用
     // handleItemUsage(key); // 注释掉道具使用
+
+    // 处理长按加速
+    handleAcceleration(key);
 
     if (mCurrentBattleType == BattleType::PlayerVsAI) {
         // 玩家1用方向键
         switch(key) {
-            case KEY_UP:    if(mPtrSnake->changeDirection(Direction::Up)) mAccelerateP1 = true; break;
-            case KEY_DOWN:  if(mPtrSnake->changeDirection(Direction::Down)) mAccelerateP1 = true; break;
-            case KEY_LEFT:  if(mPtrSnake->changeDirection(Direction::Left)) mAccelerateP1 = true; break;
-            case KEY_RIGHT: if(mPtrSnake->changeDirection(Direction::Right)) mAccelerateP1 = true; break;
+            case KEY_UP:    mPtrSnake->changeDirection(Direction::Up); break;
+            case KEY_DOWN:  mPtrSnake->changeDirection(Direction::Down); break;
+            case KEY_LEFT:  mPtrSnake->changeDirection(Direction::Left); break;
+            case KEY_RIGHT: mPtrSnake->changeDirection(Direction::Right); break;
         }
     } else if (mCurrentBattleType == BattleType::PlayerVsPlayer) {
         // 玩家1用WASD，玩家2用方向键
         switch(key) {
-            case 'W': case 'w': if(mPtrSnake->changeDirection(Direction::Up)) mAccelerateP1 = true; break;
-            case 'S': case 's': if(mPtrSnake->changeDirection(Direction::Down)) mAccelerateP1 = true; break;
-            case 'A': case 'a': if(mPtrSnake->changeDirection(Direction::Left)) mAccelerateP1 = true; break;
-            case 'D': case 'd': if(mPtrSnake->changeDirection(Direction::Right)) mAccelerateP1 = true; break;
+            case 'W': case 'w': mPtrSnake->changeDirection(Direction::Up); break;
+            case 'S': case 's': mPtrSnake->changeDirection(Direction::Down); break;
+            case 'A': case 'a': mPtrSnake->changeDirection(Direction::Left); break;
+            case 'D': case 'd': mPtrSnake->changeDirection(Direction::Right); break;
         }
         switch(key) {
-            case KEY_UP:    if(mPtrSnake2->changeDirection(Direction::Up)) mAccelerateP2 = true; break;
-            case KEY_DOWN:  if(mPtrSnake2->changeDirection(Direction::Down)) mAccelerateP2 = true; break;
-            case KEY_LEFT:  if(mPtrSnake2->changeDirection(Direction::Left)) mAccelerateP2 = true; break;
-            case KEY_RIGHT: if(mPtrSnake2->changeDirection(Direction::Right)) mAccelerateP2 = true; break;
+            case KEY_UP:    mPtrSnake2->changeDirection(Direction::Up); break;
+            case KEY_DOWN:  mPtrSnake2->changeDirection(Direction::Down); break;
+            case KEY_LEFT:  mPtrSnake2->changeDirection(Direction::Left); break;
+            case KEY_RIGHT: mPtrSnake2->changeDirection(Direction::Right); break;
         }
     }
 }
@@ -3792,17 +3848,17 @@ void Game::handleAcceleration(int key) {
         if (currentDirection == mLastKeyDirection) {
             // 相同方向键，检查是否长按
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - mLastKeyPressTime);
-            if (duration.count() > 100) { // 减少到100ms后开始加速，让加速更容易触发
+            if (duration.count() > 150) { // 150ms后开始加速，平衡响应性和易用性
                 mAccelerating = true;
             }
         } else {
             // 不同方向键，重置加速状态
             mAccelerating = false;
             mLastKeyDirection = currentDirection;
+            mLastKeyPressTime = now; // 重置时间
         }
-        mLastKeyPressTime = now;
     } else {
-        // 非方向键，停止加速
+        // 非方向键或没有按键，立即停止加速
         mAccelerating = false;
     }
 }
@@ -3860,6 +3916,7 @@ void Game::handleFoodEffect(FoodType foodType) {
         }
     }
 }
+
 
 
 

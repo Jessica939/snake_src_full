@@ -9,42 +9,83 @@ Direction AI::findNextMove(const Map& map, const Snake& playerSnake, const Snake
                           const SnakeBody& normalFood, 
                           const SnakeBody& specialFood,
                           const SnakeBody& poison,
+                          const SnakeBody& randomItem,
                           FoodType specialFoodType,
                           bool hasSpecialFood,
-                          bool hasPoison) {
+                          bool hasPoison,
+                          bool hasRandomItem) {
     int headX = aiSnake.getSnake().front().getX();
     int headY = aiSnake.getSnake().front().getY();
 
     struct Target {
         int x, y, value;
         bool isPoison;
+        bool isSpecial;
+        float priority;
     };
     std::vector<Target> targets;
-    // 特殊食物优先
+    
+    // 特殊食物优先（根据类型给予不同优先级）
     if (hasSpecialFood && specialFood.getX() >= 0 && specialFood.getY() >= 0) {
         int val = 1;
+        float priority = 1.0f;
         switch (specialFoodType) {
-            case FoodType::Special1: val = 2; break;
-            case FoodType::Special2: val = 3; break;
-            case FoodType::Special3: val = 5; break;
-            default: val = 1; break;
+            case FoodType::Special1: 
+                val = 2; 
+                priority = 2.5f; // 高优先级
+                break;
+            case FoodType::Special2: 
+                val = 3; 
+                priority = 3.0f; // 更高优先级
+                break;
+            case FoodType::Special3: 
+                val = 5; 
+                priority = 4.0f; // 最高优先级
+                break;
+            default: 
+                val = 1; 
+                priority = 1.5f;
+                break;
         }
-        targets.push_back({specialFood.getX(), specialFood.getY(), val, false});
+        targets.push_back({specialFood.getX(), specialFood.getY(), val, false, true, priority});
     }
+    
     // 普通食物
     if (normalFood.getX() >= 0 && normalFood.getY() >= 0) {
-        targets.push_back({normalFood.getX(), normalFood.getY(), 1, false});
+        targets.push_back({normalFood.getX(), normalFood.getY(), 1, false, false, 1.0f});
     }
-    // 毒药
+    
+    // 毒药（AI会主动避开，除非特殊情况）
     if (hasPoison && poison.getX() >= 0 && poison.getY() >= 0) {
-        targets.push_back({poison.getX(), poison.getY(), -1, true});
+        // 只有在AI蛇很长且需要减少长度时才考虑吃毒药
+        if (aiSnake.getSnake().size() > 10) {
+            targets.push_back({poison.getX(), poison.getY(), -1, true, false, -2.0f});
+        }
+    }
+    
+    // 随机道具（AI会尝试收集）
+    if (hasRandomItem && randomItem.getX() >= 0 && randomItem.getY() >= 0) {
+        targets.push_back({randomItem.getX(), randomItem.getY(), 2, false, false, 1.8f});
     }
 
     // 评估所有目标，选择分数最高且路径安全的
     float bestScore = -1e9;
-    Target bestTarget = { -1, -1, 0, false };
+    Target bestTarget = { -1, -1, 0, false, false, 0.0f };
     for (const auto& t : targets) {
         float score = evaluateTargetScore(map, playerSnake, aiSnake, headX, headY, t.x, t.y, t.value, t.isPoison);
+        // 应用优先级调整
+        score *= t.priority;
+        
+        // 特殊食物有额外奖励
+        if (t.isSpecial) {
+            score *= 1.5f;
+        }
+        
+        // 毒药有额外惩罚（除非AI蛇很长）
+        if (t.isPoison && aiSnake.getSnake().size() <= 10) {
+            score *= 0.1f; // 大幅降低毒药的吸引力
+        }
+        
         if (score > bestScore) {
             bestScore = score;
             bestTarget = t;
@@ -52,6 +93,14 @@ Direction AI::findNextMove(const Map& map, const Snake& playerSnake, const Snake
     }
     // 如果没有合适目标或分数都很低，优先保命
     if (bestScore < 0.1f) {
+        // 如果有毒药，优先避开毒药
+        if (hasPoison && poison.getX() >= 0 && poison.getY() >= 0) {
+            Direction avoidDir = avoidPoison(map, playerSnake, aiSnake, headX, headY, poison.getX(), poison.getY());
+            if (avoidDir != aiSnake.getDirection()) {
+                return avoidDir;
+            }
+        }
+        
         // 找一个安全方向活下去
         std::vector<Direction> dirs = {Direction::Up, Direction::Down, Direction::Left, Direction::Right};
         for (Direction dir : dirs) {
@@ -88,9 +137,17 @@ float AI::evaluateTargetScore(const Map& map, const Snake& playerSnake, const Sn
     // 路径死路惩罚
     if (isDeadEnd(map, playerSnake, aiSnake, targetX, targetY)) return -1000.0f;
     
-    // 靠近毒药惩罚
+    // 靠近毒药惩罚（根据AI蛇长度调整）
     float poisonPenalty = 0.0f;
-    if (isPoison) poisonPenalty = 100.0f;
+    if (isPoison) {
+        if (aiSnake.getSnake().size() <= 5) {
+            poisonPenalty = 200.0f; // 短蛇更怕毒药
+        } else if (aiSnake.getSnake().size() <= 10) {
+            poisonPenalty = 100.0f; // 中等长度蛇
+        } else {
+            poisonPenalty = 20.0f; // 长蛇不太怕毒药
+        }
+    }
     
     // 靠近墙/蛇身惩罚
     float wallPenalty = 0.0f;
@@ -99,8 +156,22 @@ float AI::evaluateTargetScore(const Map& map, const Snake& playerSnake, const Sn
     // 新增：玩家蛇躲避惩罚
     float playerSnakePenalty = calculatePlayerSnakePenalty(playerSnake, targetX, targetY);
     
+    // 新增：考虑AI蛇当前长度的策略调整
+    float lengthBonus = 0.0f;
+    int aiLength = aiSnake.getSnake().size();
+    if (aiLength < 5) {
+        // 短蛇优先吃食物增长
+        lengthBonus = 50.0f;
+    } else if (aiLength > 15) {
+        // 长蛇更注重安全，减少冒险
+        lengthBonus = -20.0f;
+    }
+    
+    // 新增：距离奖励（越近越好）
+    float distanceBonus = 50.0f / (dist + 1);
+    
     // 综合分数
-    float score = (float)foodValue / (dist + 1) - poisonPenalty - wallPenalty - playerSnakePenalty;
+    float score = (float)foodValue / (dist + 1) - poisonPenalty - wallPenalty - playerSnakePenalty + lengthBonus + distanceBonus;
     return score;
 }
 
@@ -150,41 +221,47 @@ Direction AI::avoidPoison(const Map& map, const Snake& playerSnake, const Snake&
     int poisonDist = calculateDistance(headX, headY, poisonX, poisonY);
     
     // 如果毒药很远，可以忽略
-    if (poisonDist > 3) {
+    if (poisonDist > 5) {
         return aiSnake.getDirection();
     }
     
-    // 尝试远离毒药的方向
-    std::vector<Direction> directions = {Direction::Up, Direction::Down, Direction::Left, Direction::Right};
+    // 根据AI蛇长度调整避开策略
+    int aiLength = aiSnake.getSnake().size();
+    int safeDistance = (aiLength <= 5) ? 4 : 3; // 短蛇需要更安全的距离
     
-    // 按远离毒药的程度排序
-    std::sort(directions.begin(), directions.end(), [&](Direction a, Direction b) {
-        int newX1 = headX, newY1 = headY, newX2 = headX, newY2 = headY;
+    if (poisonDist <= safeDistance) {
+        // 尝试远离毒药的方向
+        std::vector<Direction> directions = {Direction::Up, Direction::Down, Direction::Left, Direction::Right};
         
-        switch (a) {
-            case Direction::Up: newY1--; break;
-            case Direction::Down: newY1++; break;
-            case Direction::Left: newX1--; break;
-            case Direction::Right: newX1++; break;
-        }
+        // 按远离毒药的程度排序
+        std::sort(directions.begin(), directions.end(), [&](Direction a, Direction b) {
+            int newX1 = headX, newY1 = headY, newX2 = headX, newY2 = headY;
+            
+            switch (a) {
+                case Direction::Up: newY1--; break;
+                case Direction::Down: newY1++; break;
+                case Direction::Left: newX1--; break;
+                case Direction::Right: newX1++; break;
+            }
+            
+            switch (b) {
+                case Direction::Up: newY2--; break;
+                case Direction::Down: newY2++; break;
+                case Direction::Left: newX2--; break;
+                case Direction::Right: newX2++; break;
+            }
+            
+            int dist1 = calculateDistance(newX1, newY1, poisonX, poisonY);
+            int dist2 = calculateDistance(newX2, newY2, poisonX, poisonY);
+            
+            return dist1 > dist2; // 距离越远越好
+        });
         
-        switch (b) {
-            case Direction::Up: newY2--; break;
-            case Direction::Down: newY2++; break;
-            case Direction::Left: newX2--; break;
-            case Direction::Right: newX2++; break;
-        }
-        
-        int dist1 = calculateDistance(newX1, newY1, poisonX, poisonY);
-        int dist2 = calculateDistance(newX2, newY2, poisonX, poisonY);
-        
-        return dist1 > dist2; // 距离越远越好
-    });
-    
-    // 选择安全且远离毒药的方向
-    for (Direction dir : directions) {
-        if (isDirectionSafe(map, playerSnake, aiSnake, headX, headY, dir)) {
-            return dir;
+        // 选择安全且远离毒药的方向
+        for (Direction dir : directions) {
+            if (isDirectionSafe(map, playerSnake, aiSnake, headX, headY, dir)) {
+                return dir;
+            }
         }
     }
     
@@ -242,7 +319,7 @@ Direction AI::findSafePathToTarget(const Map& map, const Snake& playerSnake, con
     // 简单的A*寻路算法
     std::vector<std::vector<bool>> visited(mGameBoardHeight, std::vector<bool>(mGameBoardWidth, false));
     std::vector<std::vector<std::pair<int, int>>> parent(mGameBoardHeight, std::vector<std::pair<int, int>>(mGameBoardWidth, {-1, -1}));
-    
+
     // 标记障碍物（包括玩家蛇）
     for (int y = 0; y < mGameBoardHeight; ++y) {
         for (int x = 0; x < mGameBoardWidth; ++x) {
@@ -251,7 +328,7 @@ Direction AI::findSafePathToTarget(const Map& map, const Snake& playerSnake, con
             }
         }
     }
-    
+
     // 额外标记玩家蛇头附近的区域为危险区域
     const auto& playerBody = playerSnake.getSnake();
     if (!playerBody.empty()) {
@@ -276,10 +353,9 @@ Direction AI::findSafePathToTarget(const Map& map, const Snake& playerSnake, con
     // BFS寻路
     std::vector<std::pair<int, int>> queue = {{headX, headY}};
     visited[headY][headX] = true;
-    
+
     int dx[] = {0, 0, 1, -1};
     int dy[] = {1, -1, 0, 0};
-    Direction dirs[] = {Direction::Down, Direction::Up, Direction::Right, Direction::Left};
     
     for (size_t i = 0; i < queue.size(); ++i) {
         int x = queue[i].first;
@@ -309,7 +385,7 @@ Direction AI::findSafePathToTarget(const Map& map, const Snake& playerSnake, con
             }
             break;
         }
-        
+
         for (int j = 0; j < 4; ++j) {
             int nx = x + dx[j];
             int ny = y + dy[j];
@@ -386,6 +462,26 @@ bool AI::isSpinningNearFood(const Snake& aiSnake, int targetX, int targetY) cons
                 if (recentMoves[i] == recentMoves[j]) {
                     return true;
                 }
+            }
+        }
+    }
+    
+    // 额外检查：如果蛇头在食物正上方/下方/左方/右方，且距离为1，可能卡住
+    if (foodDist == 1) {
+        int headX = snakeBody[0].getX();
+        int headY = snakeBody[0].getY();
+        if ((headX == targetX && (headY == targetY + 1 || headY == targetY - 1)) ||
+            (headY == targetY && (headX == targetX + 1 || headX == targetX - 1))) {
+            // 检查是否在同一个位置停留太久
+            bool samePosition = true;
+            for (size_t i = 1; i < std::min(snakeBody.size(), size_t(3)); ++i) {
+                if (snakeBody[i].getX() != headX || snakeBody[i].getY() != headY) {
+                    samePosition = false;
+                    break;
+                }
+            }
+            if (samePosition) {
+                return true; // 在食物附近停留太久，可能卡住
             }
         }
     }

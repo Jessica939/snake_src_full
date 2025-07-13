@@ -114,7 +114,7 @@ private:
     FoodType mCurrentFoodType = FoodType::Normal;
     SnakeBody mSpecialFood;
     bool mHasSpecialFood = false;
-    const char mSpecialFoodSymbol = '*';
+    const char mSpecialFoodSymbol = '&'; // 改为&符号，更容易识别
     std::chrono::time_point<std::chrono::steady_clock> mSpecialFoodSpawnTime;
     const float mSpecialFoodDuration = 5.0f;
     
@@ -135,6 +135,7 @@ private:
     int mDifficulty = 0;
     int mDelay;
     const int mBaseDelay = 100;
+    int mBattleBaseDelay = 150; // 对战模式基础延迟
     
     // 生命值系统
     int mPlayerLives = 3; // 玩家生命值
@@ -164,6 +165,7 @@ private:
     void renderMap() const;
     void controlSnake() const;
     void adjustDelay();
+    void adjustBattleDelay(); // 对战模式专用延迟调整
     void initializeGame();
     void runGame();
     bool renderRestartMenu() const;
@@ -259,7 +261,7 @@ private:
     std::unique_ptr<Snake> mPtrSnake2;
     std::unique_ptr<AI> mPtrAI;
     int mPoints2 = 0;
-    const char mSnakeSymbol2 = '&';
+    const char mSnakeSymbol2 = '*';
     bool selectBattleType();
     void initializeBattle(BattleType type);
     void runBattle();
@@ -270,7 +272,7 @@ private:
     void renderWinnerText(const std::string& winner) const;
 
     // 加速功能（对战模式用）
-    const int mAccelDelay = 40;
+    const int mAccelDelay = 35; // 对战模式加速延迟，不要太快
     bool mAccelerateP1 = false;
     bool mAccelerateP2 = false;
 
@@ -297,7 +299,7 @@ private:
     std::chrono::time_point<std::chrono::steady_clock> mLastKeyPressTime; // 上次按键时间
     Direction mLastKeyDirection = Direction::Right; // 上次按键方向
     bool mAccelerating = false; // 是否正在加速
-    const int mAccelerateDelay = 15; // 加速时的延迟（毫秒）- 改为更快的速度
+    const int mAccelerateDelay = 25; // 其他模式加速时的延迟（毫秒）- 让加速更明显
     
     // 道具使用函数
     void activateCheatMode(); // 激活作弊模式
@@ -310,11 +312,12 @@ private:
     void handleAcceleration(int key); // 处理长按加速
     bool isKeyPressed(int key); // 检查按键是否被按下
     
-    // 新增：食物效果处理
+    // 食物效果处理
     int getFoodEffect(FoodType foodType) const; // 获取食物效果
     void handleFoodEffect(FoodType foodType);   // 处理食物效果
 };
 
 #endif // GAME_H
+
 
 
