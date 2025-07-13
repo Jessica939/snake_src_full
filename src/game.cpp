@@ -1371,6 +1371,7 @@ void Game::displayLevelIntroduction(int level)
             break;
         case 3:
             introText = {
+                "The Heart of Twin Shadows",
                 "Your longing has awakened a spiritual imprint sleeping here.",
                 "A gentle yet powerful voice, the combined voice of your parents, echoes from the water:",
                 "\"We never left you, child. Feel our presence. You are never fighting alone.\"",
@@ -1381,24 +1382,26 @@ void Game::displayLevelIntroduction(int level)
             break;
         case 4:
             introText = {
-                "FIND THE EXIT",
-                "",
-                "This area is special - besides finding food,",
-                "you need to locate the exit to the next area.",
-                "One-way paths will change your direction, be extra careful!",
-                "",
-                "OBJECTIVE: Collect enough food and find the exit!"
+                " The Melody of Life",
+                "You have arrived at the Echoing Canyon.",
+                "Everything here moves to an unseen rhythm. The power of the three shards allows you to \"hear\" this cosmic symphony.",
+                "The Mechanos, on the other hand, represents absolute silence—the static that would erase all melody.",
+                "Your parents' final lesson, the ultimate truth, now resonates within you:",
+                "\"The world has its own heartbeat, a rhythm the machines can never understand. Listen to it, resonate with it. That is the most fundamental power of life.\"",
+                "Forget mere movement. Let your body become a note in this symphony of life.",
+                
             };
             break;
         case 5:
             introText = {
-                "FINAL CHALLENGE: BOSS BATTLE",
-                "",
-                "You've finally reached the ultimate challenge - facing the mighty guardian.",
-                "It will attack you with lasers, but when it's weak (green state),",
-                "you can launch attacks against it.",
-                "",
-                "OBJECTIVE: Defeat the BOSS to complete all challenges!"
+                " The Core Cleansing",
+                "You have finally reached it.",
+                "Hatred may have been your starting point, but a far greater power drives you now.",
+                "Fortitude, Celerity, Bonds, Harmony.",
+                "Your parents' legacy is now fully part of your soul. You are no longer an orphan seeking revenge, but the new guardian, embodying all the best qualities of life.",
+                "The four shards form a halo of light above you. Their final words send you off as a blessing:",
+                "\"Go, child. Use everything you have learned to end the old destiny and forge a new future.\"",
+                "The final battle begins now.",
             };
             break;
         default:
@@ -3543,18 +3546,10 @@ void Game::displayLevelCompletion(int level)
             break;
         case 3:
             completionText = {
-                "THE MAZE CONQUERED",
-                "",
-                "Through twists and turns, dead ends and narrow passages, you persevered.",
-                "The maze was not just a test of navigation, but of patience and determination.",
-                "",
-                "[Item Acquired]: *Memory Shard - The Heart of Wisdom*",
-                "",
-                "This third shard resonates with the others, creating patterns of light that sketch",
-                "familiar yet foreign landscapes in the air around you.",
-                "",
-                "You sense that the barriers between worlds are thinning, that each trial",
-                "brings you closer to the truth of your origin and purpose."
+                "[Item Acquired]: *Memory Shard - The Heart of Bonds*",
+                "Fortitude, Celerity, Bonds.",
+                "The three hearts orbit you. Their combined power allows you to perceive something greater, a law more fundamental and profound—a concept The Mechanos could never comprehend: the very heartbeat of life itself.",
+                
             };
             break;
         case 4:
