@@ -439,6 +439,72 @@ bool Game::renderRestartMenu(bool isBattleMode) const
     }
 }
 
+// 新增：关卡失败菜单
+int Game::renderLevelFailureMenu() const
+{
+    WINDOW * menu;
+    int width = this->mGameBoardWidth * 0.6;
+    int height = 8;
+    int startX = this->mGameBoardWidth * 0.2;
+    int startY = this->mGameBoardHeight * 0.3 + this->mInformationHeight;
+
+    menu = newwin(height, width, startY, startX);
+    box(menu, 0, 0);
+
+    // 三个选项
+    std::vector<std::string> menuItems = {
+        "Retry Current Level",
+        "Return to Level Select (GUI)",
+        "Quit Game"
+    };
+
+    int index = 0;
+    int offset = 3;
+
+    mvwprintw(menu, 1, 1, "Level %d Failed!", mCurrentLevel);
+    mvwprintw(menu, 2, 1, "Your Score: %d", mPoints);
+
+    // 显示初始菜单
+    for (int i = 0; i < menuItems.size(); i++) {
+        if (i == index) {
+            wattron(menu, A_STANDOUT);
+            mvwprintw(menu, i + offset, 1, menuItems[i].c_str());
+            wattroff(menu, A_STANDOUT);
+        } else {
+            mvwprintw(menu, i + offset, 1, menuItems[i].c_str());
+        }
+    }
+
+    wrefresh(menu);
+
+    int key;
+    while (true) {
+        key = getch();
+        switch(key) {
+            case 'W': case 'w': case KEY_UP:
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                index = (index == 0) ? menuItems.size() - 1 : index - 1;
+                wattron(menu, A_STANDOUT);
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                wattroff(menu, A_STANDOUT);
+                break;
+            case 'S': case 's': case KEY_DOWN:
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                index = (index == menuItems.size() - 1) ? 0 : index + 1;
+                wattron(menu, A_STANDOUT);
+                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                wattroff(menu, A_STANDOUT);
+                break;
+        }
+        wrefresh(menu);
+        if (key == ' ' || key == 10) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    
+    delwin(menu);
+    return index;
+}
+
 bool Game::selectMap()
 {
     WINDOW * menu;
@@ -6516,4 +6582,125 @@ bool Game::hasSaveFile() const {
 
 void Game::deleteSaveFile() const {
     std::remove(mSaveFilePath.c_str());
+}
+
+// 新增：设置游戏模式
+void Game::setGameMode(GameMode mode) {
+    mCurrentMode = mode;
+}
+
+// 新增：直接启动特定关卡，跳过关卡选择界面
+void Game::startLevelDirectly(int level) {
+    // 设置关卡模式
+    mCurrentMode = GameMode::Level;
+    mCurrentLevel = level;
+    
+    // 初始化ncurses环境
+    nodelay(stdscr, TRUE);
+    refresh();
+    
+    // 读取排行榜
+    this->readLeaderBoard();
+    this->renderBoards();
+    
+    // 直接运行选定的关卡，跳过selectLevelInLevelMode()
+    while (true) {
+        // 初始化并运行当前关卡
+        this->initializeLevel(mCurrentLevel);
+        this->runLevel();
+        
+        // 检查是否通过当前关卡
+        if (this->isLevelCompleted()) {
+            // 标记当前关卡为已完成
+            this->mLevelStatus[mCurrentLevel - 1] = LevelStatus::Completed;
+            
+            // 显示通关后的文字叙述
+            this->displayLevelCompletion(mCurrentLevel);
+            
+            // 如果不是最后一关，解锁下一关
+            if (mCurrentLevel < mMaxLevel) {
+                this->unlockLevel(mCurrentLevel + 1);
+            }
+            
+            // 保存关卡进度
+            this->saveLevelProgress();
+            
+            // 显示通关信息和选择菜单
+            WINDOW* levelCompleteWin;
+            int width = this->mGameBoardWidth * 0.5;
+            int height = 8;
+            int startX = this->mGameBoardWidth * 0.25;
+            int startY = this->mGameBoardHeight * 0.3 + this->mInformationHeight;
+            
+            levelCompleteWin = newwin(height, width, startY, startX);
+            box(levelCompleteWin, 0, 0);
+            
+            mvwprintw(levelCompleteWin, 1, 1, "Level %d Completed!", mCurrentLevel);
+            if (mCurrentLevel < mMaxLevel) {
+                mvwprintw(levelCompleteWin, 3, 1, "1. Continue to Level %d", mCurrentLevel + 1);
+                mvwprintw(levelCompleteWin, 4, 1, "2. Return to Level Select (GUI)");
+                mvwprintw(levelCompleteWin, 5, 1, "3. Return to Main Menu");
+                mvwprintw(levelCompleteWin, 6, 1, "4. Quit Game");
+            } else {
+                mvwprintw(levelCompleteWin, 3, 1, "All levels completed!");
+                mvwprintw(levelCompleteWin, 4, 1, "Congratulations! You've finished all levels!");
+                mvwprintw(levelCompleteWin, 5, 1, "1. Return to Level Select (GUI)");
+                mvwprintw(levelCompleteWin, 6, 1, "2. Return to Main Menu");
+                mvwprintw(levelCompleteWin, 7, 1, "3. Quit Game");
+            }
+            
+            wrefresh(levelCompleteWin);
+            
+            // 等待用户选择
+            int choice = getch();
+            delwin(levelCompleteWin);
+            
+            switch (choice) {
+                case '1':
+                    if (mCurrentLevel < mMaxLevel) {
+                        mCurrentLevel++;
+                        continue; // 继续下一关
+                    } else {
+                        mReturnToModeSelect = true;
+                        return; // 返回关卡选择GUI
+                    }
+                case '2':
+                    mReturnToModeSelect = true;
+                    return; // 返回关卡选择GUI
+                case '3':
+                    if (mCurrentLevel < mMaxLevel) {
+                        mReturnToModeSelect = true;
+                        return; // 返回主菜单
+                    } else {
+                        mReturnToModeSelect = true;
+                        return; // 返回主菜单
+                    }
+                case '4':
+                    if (mCurrentLevel < mMaxLevel) {
+                        return; // 退出游戏
+                    } else {
+                        return; // 退出游戏
+                    }
+                default:
+                    mReturnToModeSelect = true;
+                    return; // 默认返回GUI
+            }
+        } else {
+            // 关卡失败，显示失败菜单
+            int failureChoice = this->renderLevelFailureMenu();
+            
+            switch (failureChoice) {
+                case 0: // 重试
+                    break; // 继续循环，重试当前关卡
+                case 1: // 返回关卡选择GUI
+                    mReturnToModeSelect = true;
+                    return;
+                case 2: // 退出游戏
+                    return;
+                default:
+                    mReturnToModeSelect = true;
+                    return;
+            }
+        }
+    }
 }

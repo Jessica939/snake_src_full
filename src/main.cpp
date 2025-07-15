@@ -28,6 +28,10 @@ int startQtGUI(int argc, char** argv)
         QApplication app(argc, argv);
         
         GUIManager guiManager;
+        
+        // 同步关卡进度（确保显示最新的解锁状态）
+        guiManager.syncLevelProgress();
+        
         guiManager.start();
         
         // 运行Qt事件循环，等待用户选择
@@ -141,8 +145,8 @@ int main(int argc, char** argv)
     bool exitGame = false;
     
     if (guiResult == 1) {
-        // 经典模式：进入游戏循环，使用户能够从classic模式退回到模式选择
-    while (!exitGame) {
+        // 经典模式：进入游戏循环，允许用户选择模式并退回模式选择
+        while (!exitGame) {
         // 选择游戏模式
         bool continueGame = game.selectLevel();
         
@@ -169,11 +173,145 @@ int main(int argc, char** argv)
         // 剧情模式：直接启动指定关卡
         int selectedLevel = guiResult - 1; // 转换回关卡号（1-5）
         
-        // 初始化指定关卡
-        game.initializeLevel(selectedLevel);
-        
-        // 启动游戏
-        game.startGame();
+        // 进入关卡模式循环，允许用户在通关后返回
+        while (!exitGame) {
+            // 直接启动指定关卡，跳过关卡选择界面
+            game.startLevelDirectly(selectedLevel);
+            
+            // 检查关卡是否胜利，如果是level1胜利则显示漫画
+            if (game.isLevelCompleted() && selectedLevel == 0) { // selectedLevel 0 = level1
+                // 结束ncurses环境，切换到Qt环境显示胜利漫画
+                endwin();
+                
+                // 创建Qt应用显示胜利漫画
+                QApplication app(argc, argv);
+                GUIManager guiManager;
+                guiManager.showCartoonAfterLevelVictory(1); // level1胜利漫画
+                app.exec();
+                
+                // 漫画播放完成后，结束ncurses并重新启动GUI进行关卡选择
+                // 重新启动GUI进行关卡选择
+                int newGuiResult = startQtGUI(argc, argv);
+                
+                if (newGuiResult == 0) {
+                    // 用户选择退出
+                    exitGame = true;
+                    continue;
+                } else if (newGuiResult == 1) {
+                    // 用户选择经典模式，重新初始化ncurses
+                    initscr();
+                    noecho();
+                    keypad(stdscr, TRUE);
+                    nodelay(stdscr, TRUE);
+                    curs_set(0);
+                    
+                    if (has_colors()) {
+                        start_color();
+                    }
+                    
+                    // 经典模式游戏循环
+                    while (!exitGame) {
+                        bool continueGame = game.selectLevel();
+                        if (!continueGame) {
+                            exitGame = true;
+                            break;
+                        }
+                        game.startGame();
+                        if (!game.shouldReturnToModeSelect()) {
+                            exitGame = true;
+                        }
+                        clear();
+                        refresh();
+                        flushinp();
+                    }
+                    continue;
+                } else {
+                    // 用户选择了新的关卡，更新selectedLevel并重新初始化ncurses
+                    selectedLevel = newGuiResult - 1;
+                    initscr();
+                    noecho();
+                    keypad(stdscr, TRUE);
+                    nodelay(stdscr, TRUE);
+                    curs_set(0);
+                    continue; // 继续关卡循环
+                }
+            }
+            
+            // 如果用户选择返回模式选择，重新显示GUI
+            if (game.shouldReturnToModeSelect()) {
+                // 结束ncurses环境
+                endwin();
+                
+                // 重新启动GUI进行关卡选择
+                int newGuiResult = startQtGUI(argc, argv);
+                
+                if (newGuiResult == 0) {
+                    // 用户选择退出
+                    exitGame = true;
+                } else if (newGuiResult == 1) {
+                    // 用户选择经典模式，重新初始化ncurses并进入经典模式循环
+                    initscr();
+                    noecho();
+                    keypad(stdscr, TRUE);
+                    nodelay(stdscr, TRUE);
+                    curs_set(0);
+                    
+                    if (has_colors()) {
+                        start_color();
+                        init_pair(1, COLOR_CYAN, COLOR_BLACK);
+                        init_pair(2, COLOR_YELLOW, COLOR_BLACK);
+                        init_pair(3, COLOR_RED, COLOR_BLACK);
+                    }
+                    
+                    clear();
+                    refresh();
+                    flushinp();
+                    
+                    // 进入经典模式循环
+                    while (!exitGame) {
+                        bool continueGame = game.selectLevel();
+                        if (!continueGame) {
+                            exitGame = true;
+                            continue;
+                        }
+                        game.startGame();
+                        if (!game.shouldReturnToModeSelect()) {
+                            exitGame = true;
+                        }
+                        clear();
+                        refresh();
+                        flushinp();
+                    }
+                } else {
+                    // 用户选择了新的关卡
+                    selectedLevel = newGuiResult - 1;
+                    
+                    // 重新初始化ncurses环境
+                    initscr();
+                    noecho();
+                    keypad(stdscr, TRUE);
+                    nodelay(stdscr, TRUE);
+                    curs_set(0);
+                    
+                    if (has_colors()) {
+                        start_color();
+                        init_pair(1, COLOR_CYAN, COLOR_BLACK);
+                        init_pair(2, COLOR_YELLOW, COLOR_BLACK);
+                        init_pair(3, COLOR_RED, COLOR_BLACK);
+                    }
+                    
+                    clear();
+                    refresh();
+                    flushinp();
+                    
+                    // 继续新选择的关卡
+                    continue;
+                }
+            } else {
+                // 用户选择退出游戏
+                exitGame = true;
+            }
+        }
     }
     
     // 结束ncurses环境

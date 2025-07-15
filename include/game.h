@@ -59,6 +59,11 @@ public:
     bool selectLevel(); // 改为公有
     bool shouldReturnToModeSelect() const { return mReturnToModeSelect; }
     void initializeLevel(int level); // 移到public以供main.cpp调用
+    
+    // 新增：直接启动特定关卡的方法
+    void startLevelDirectly(int level);
+    void setGameMode(GameMode mode);
+    bool isLevelCompleted();  // 检查关卡是否完成
 
     // 商店和皮肤相关
     void showShopMenu(); // 商店界面
@@ -185,6 +190,7 @@ private:
     void runGame();
     bool renderRestartMenu() const;
     bool renderRestartMenu(bool isBattleMode) const;
+    int renderLevelFailureMenu() const;     // 新增：关卡失败菜单
 
     // 地图文件管理
     const std::string mDefaultMapName = "default";
@@ -211,7 +217,6 @@ private:
 
     void createDefaultLevelMaps();
     void loadNextLevel();
-    bool isLevelCompleted();
     void runLevel();
     bool selectLevelInLevelMode();
     void unlockLevel(int level);

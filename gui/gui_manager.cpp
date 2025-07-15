@@ -42,6 +42,17 @@ int GUIManager::getSelectedLevel() const
     return mSelectedLevel;
 }
 
+void GUIManager::syncLevelProgress()
+{
+    // 重新加载关卡进度
+    loadLevelProgress();
+    
+    // 如果关卡窗口已经存在，更新其状态
+    if (mStoryLevelWindow) {
+        mStoryLevelWindow->updateLevelStatus(mUnlockedLevels);
+    }
+}
+
 void GUIManager::showModeSelectWindow()
 {
     // 隐藏剧情模式窗口
@@ -101,15 +112,20 @@ void GUIManager::loadLevelProgress()
     // 加载关卡进度，默认只解锁第一关
     mUnlockedLevels = {1};
     
-    // 尝试从文件读取关卡进度
-    std::ifstream file("level_progress.dat");
+    // 尝试从二进制文件读取关卡进度（与Game类格式兼容）
+    std::fstream file("level_progress.dat", std::ios::binary | std::ios::in);
     if (file.is_open()) {
-        int level;
         mUnlockedLevels.clear();
-        while (file >> level) {
-            if (level >= 1 && level <= 5) {
+        
+        // 读取关卡状态（二进制格式）
+        int status;
+        int level = 1;
+        while (file.read(reinterpret_cast<char*>(&status), sizeof(status)) && level <= 5) {
+            // 0=Locked, 1=Unlocked, 2=Completed
+            if (status >= 1) { // Unlocked 或 Completed
                 mUnlockedLevels.push_back(level);
             }
+            level++;
         }
         file.close();
         
@@ -200,8 +216,22 @@ void GUIManager::onBackToModeSelect()
 
 void GUIManager::onStoryFinished()
 {
-    // 剧情播放完成后，显示关卡选择窗口
-    showStoryLevelWindow();
+    // 序章剧情播放完成后，在同一窗口显示0_0.png漫画
+    if (mStoryDisplayWindow) {
+        // 重新连接信号，让漫画完成后跳转到关卡选择界面
+        disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished, nullptr, nullptr);
+        disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame, nullptr, nullptr);
+        
+        // 连接到序章漫画完成处理函数
+        connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished,
+                this, &GUIManager::onPrologueCartoonFinished);
+        connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame,
+                this, &GUIManager::onPrologueCartoonFinished);
+        
+        mStoryDisplayWindow->showCartoonForLevel(0, "prologue");
+    } else {
+        showStoryLevelWindow();
+    }
 }
 
 void GUIManager::onSkipToGame()
@@ -212,13 +242,27 @@ void GUIManager::onSkipToGame()
 
 void GUIManager::onLevelStoryFinished()
 {
-    // 关卡剧情播放完成后，隐藏剧情窗口并退出Qt事件循环开始游戏
-    if (mStoryDisplayWindow) {
-        mStoryDisplayWindow->hide();
+    // 根据关卡判断是否需要显示漫画
+    if (mSelectedLevel == 5 && mStoryDisplayWindow) {
+        // 重新连接信号，让level5漫画完成后能正确退出
+        disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished, nullptr, nullptr);
+        disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame, nullptr, nullptr);
+        
+        // 连接到level5漫画完成处理函数
+        connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished,
+                this, &GUIManager::onLevel5CartoonFinished);
+        connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame,
+                this, &GUIManager::onLevel5CartoonFinished);
+        
+        // level5关卡前的剧情放完后在同一窗口显示5_1'.png
+        mStoryDisplayWindow->showCartoonForLevel(5, "pre_story");
+    } else {
+        // 其他关卡直接开始游戏
+        if (mStoryDisplayWindow) {
+            mStoryDisplayWindow->hide();
+        }
+        QApplication::quit();
     }
-    
-    // 退出Qt事件循环，让main函数继续执行指定关卡的游戏
-    QApplication::quit();
 }
 
 void GUIManager::onSkipLevelStoryToGame()
@@ -227,8 +271,56 @@ void GUIManager::onSkipLevelStoryToGame()
     if (mStoryDisplayWindow) {
         mStoryDisplayWindow->hide();
     }
+    QApplication::quit();
+}
+
+// 新增：关卡胜利后显示漫画
+void GUIManager::showCartoonAfterLevelVictory(int level)
+{
+    // 创建并配置剧情窗口
+    if (!mStoryDisplayWindow) {
+        mStoryDisplayWindow = std::make_unique<StoryDisplayWindow>();
+    }
     
-    // 退出Qt事件循环，让main函数继续执行指定关卡的游戏
+    // 断开所有现有连接，重新连接到胜利漫画处理函数
+    disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished, nullptr, nullptr);
+    disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame, nullptr, nullptr);
+    
+    // 连接到专门的胜利漫画完成处理函数
+    connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished,
+            this, &GUIManager::onVictoryCartoonFinished);
+    connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame,
+            this, &GUIManager::onVictoryCartoonFinished);
+    
+    // 显示胜利漫画
+    mStoryDisplayWindow->showCartoonForLevel(level, "victory");
+    mStoryDisplayWindow->show();
+}
+
+void GUIManager::onVictoryCartoonFinished()
+{
+    // 胜利漫画播放完成，退出Qt应用返回游戏主循环
+    if (mStoryDisplayWindow) {
+        mStoryDisplayWindow->hide();
+    }
+    QApplication::quit();
+}
+
+void GUIManager::onPrologueCartoonFinished()
+{
+    // 序章漫画播放完成，显示关卡选择界面
+    if (mStoryDisplayWindow) {
+        mStoryDisplayWindow->hide();
+    }
+    showStoryLevelWindow();
+}
+
+void GUIManager::onLevel5CartoonFinished()
+{
+    // Level5漫画播放完成，退出Qt应用开始游戏
+    if (mStoryDisplayWindow) {
+        mStoryDisplayWindow->hide();
+    }
     QApplication::quit();
 }
 
@@ -259,4 +351,6 @@ void GUIManager::showStoryDisplayWindow()
     // 显示序章剧情
     mStoryDisplayWindow->showPrologue();
     mStoryDisplayWindow->show();
-} 
+}
+
+ 

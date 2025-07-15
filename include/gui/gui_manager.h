@@ -21,6 +21,13 @@ public:
     bool isClassicModeSelected() const; // 是否选择了经典模式
     bool isExitRequested() const;       // 是否请求退出
     int getSelectedLevel() const;       // 获取选择的关卡
+    
+    // 新增：同步关卡进度
+    void syncLevelProgress();           // 同步关卡进度到GUI
+    
+    // 新增：关卡胜利后显示漫画
+    void showCartoonAfterLevelVictory(int level); // 关卡胜利后显示漫画
+
 
 private slots:
     void onStoryModeSelected();         // 剧情模式被选择
@@ -32,6 +39,9 @@ private slots:
     void onSkipToGame();                // 跳过剧情直接开始游戏
     void onLevelStoryFinished();        // 关卡剧情播放完成
     void onSkipLevelStoryToGame();      // 跳过关卡剧情直接开始游戏
+    void onVictoryCartoonFinished();    // 胜利漫画播放完成
+    void onPrologueCartoonFinished();   // 序章漫画播放完成
+    void onLevel5CartoonFinished();     // Level5漫画播放完成
 
 private:
     void showModeSelectWindow();        // 显示模式选择窗口

@@ -18,6 +18,7 @@ StoryDisplayWindow::StoryDisplayWindow(QWidget *parent)
     , m_mainLayout(nullptr)
     , m_backgroundLabel(nullptr)
     , m_storyTextLabel(nullptr)
+    , m_cartoonLabel(nullptr)
     , m_skipHintLabel(nullptr)
     , m_scrollArea(nullptr)
     , m_clickSound(nullptr)
@@ -28,6 +29,8 @@ StoryDisplayWindow::StoryDisplayWindow(QWidget *parent)
     , m_typewriterTimer(new QTimer(this))
     , m_currentCharIndex(0)
     , m_isTyping(false)
+    , m_currentCartoonIndex(0)
+    , m_isInCartoonMode(false)
 {
     setupUI();
     setupBackgroundImage();
@@ -76,20 +79,27 @@ void StoryDisplayWindow::setupUI()
     m_backgroundLabel->setFixedSize(1536, 1024);
     m_backgroundLabel->setScaledContents(true);
     
-    // 创建滚动区域 - 调整为更适合storyboard的尺寸和位置
+    // ===== 📝 剧情文字显示区域 =====
     m_scrollArea = new QScrollArea(this);
-    m_scrollArea->setFixedSize(800, 430);  // 📍 文字框大小调整位置
+    m_scrollArea->setFixedSize(800, 430);  // 📍 文字框大小
     m_scrollArea->setStyleSheet("QScrollArea { background: rgba(255, 255, 255, 0); border: none; border-radius: 20px; }");
     m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     
-    // 剧情文本标签 - 使用Georgia字体和古朴黑色
+    // 剧情文本标签 - 仅用于文字显示
     m_storyTextLabel = new QLabel();
     m_storyTextLabel->setWordWrap(true);
     m_storyTextLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     m_storyTextLabel->setStyleSheet("QLabel { color: #2F2F2F; font-size: 20px; font-family: 'Georgia', serif; padding: 45px; line-height: 2.8; font-weight: bold; background: rgba(255, 255, 255, 0); }");
-    m_storyTextLabel->setMinimumSize(800, 430);  // 📍 文本区域大小调整位置    
+    m_storyTextLabel->setMinimumSize(800, 430);  // 📍 文字区域大小
     m_scrollArea->setWidget(m_storyTextLabel);
+    
+    // ===== 🎨 漫画显示区域 =====
+    m_cartoonLabel = new QLabel(this);
+    m_cartoonLabel->setFixedSize(600, 1000);  // 📍 漫画框大小（宽×高）
+    m_cartoonLabel->setAlignment(Qt::AlignCenter);
+    m_cartoonLabel->setStyleSheet("QLabel { background: rgba(255, 255, 255, 0); border: none; }");
+    m_cartoonLabel->setVisible(false);  // 初始隐藏
     
     // 跳过提示标签 - 调整样式
     m_skipHintLabel = new QLabel("点击任意位置继续 | 按ESC跳过", this);
@@ -100,9 +110,13 @@ void StoryDisplayWindow::setupUI()
     // 布局设置
     m_mainLayout->addWidget(m_backgroundLabel);
     
-    // 将滚动区域定位到窗口底部（像剧情板一样）
+    // ===== 📝 文字框位置设置 =====
     m_scrollArea->setParent(this);
-    m_scrollArea->move(370, 280);  // 调整到底部中央
+    m_scrollArea->move(370, 280);  // 📍 文字框位置 (X, Y)
+    
+    // ===== 🎨 漫画框位置设置 =====  
+    m_cartoonLabel->setParent(this);
+    m_cartoonLabel->move(468, 30);  // 📍 漫画框位置 (X, Y) - 居中偏上
     
     // 跳过提示定位到中间偏下
     m_skipHintLabel->setParent(this);
@@ -525,25 +539,44 @@ void StoryDisplayWindow::hideSkipHint()
 
 void StoryDisplayWindow::keyPressEvent(QKeyEvent *event)
 {
-    if (event->key() == Qt::Key_Escape) {
-        emit skipToGame();
-    } else if (event->key() == Qt::Key_Space || event->key() == Qt::Key_Return) {
-        if (m_clickSound) {
-            m_clickSound->play();
+    if (m_isInCartoonMode) {
+        // 漫画模式下的键盘处理
+        switch (event->key()) {
+            case Qt::Key_Escape:
+            case Qt::Key_Space:
+            case Qt::Key_Return:
+                onNextCartoon();
+                break;
+            default:
+                QMainWindow::keyPressEvent(event);
+                break;
         }
-        onNextSegment();
+    } else {
+        // 剧情模式下的键盘处理
+        if (event->key() == Qt::Key_Escape) {
+            emit skipToGame();
+        } else if (event->key() == Qt::Key_Space || event->key() == Qt::Key_Return) {
+            if (m_clickSound) {
+                m_clickSound->play();
+            }
+            onNextSegment();
+        }
+        
+        QMainWindow::keyPressEvent(event);
     }
-    
-    QMainWindow::keyPressEvent(event);
 }
 
 void StoryDisplayWindow::mousePressEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
-        if (m_clickSound) {
-            m_clickSound->play();
+        if (m_isInCartoonMode) {
+            onNextCartoon();
+        } else {
+            if (m_clickSound) {
+                m_clickSound->play();
+            }
+            onNextSegment();
         }
-        onNextSegment();
     }
     
     QMainWindow::mousePressEvent(event);
@@ -559,4 +592,237 @@ void StoryDisplayWindow::hideEvent(QHideEvent *event)
 {
     QMainWindow::hideEvent(event);
     stopBackgroundMusic();
+}
+
+// ========== 漫画相关函数实现 ==========
+
+void StoryDisplayWindow::showCartoonForLevel(int level, const QString& trigger)
+{
+    m_cartoonPaths.clear();
+    
+    // 🎯 按照关卡编号配置胜利后的漫画显示
+    if (level == 0 && trigger == "prologue") {
+        // 序章漫画
+        m_cartoonPaths << getCartoonPath("0_0.png");
+        m_cartoonPaths << getCartoonPath("0_1.png");
+    }
+    else if (level == 1 && trigger == "victory") {
+        // 第1关胜利后
+        m_cartoonPaths << getCartoonPath("1_0.png");
+    }
+    else if (level == 2 && trigger == "victory") {
+        // 第2关胜利后
+        m_cartoonPaths << getCartoonPath("2_0.png");
+    }
+    else if (level == 3 && trigger == "victory") {
+        // 第3关胜利后
+        m_cartoonPaths << getCartoonPath("3_0.png");
+    }
+    else if (level == 4 && trigger == "victory") {
+        // 第4关胜利后 - 多张漫画
+        m_cartoonPaths << getCartoonPath("4_0.png");
+        m_cartoonPaths << getCartoonPath("4_1.png");
+    }
+    else if (level == 5 && trigger == "victory") {
+        // 第5关胜利后 - 结局漫画
+        m_cartoonPaths << getCartoonPath("5_0.png");
+        m_cartoonPaths << getCartoonPath("5_1.png");
+        m_cartoonPaths << getCartoonPath("5_1'.png");
+        m_cartoonPaths << getCartoonPath("5_2.png");
+    }
+    
+    if (!m_cartoonPaths.isEmpty()) {
+        m_currentCartoonIndex = 0;
+        m_isInCartoonMode = true;
+        showCartoonImage(m_cartoonPaths[0]);
+        
+        // 不显示提示文本
+        m_skipHintLabel->setVisible(true);
+    } else {
+        // 没有漫画要显示，直接触发完成信号
+        emit storyFinished();
+    }
+}
+
+void StoryDisplayWindow::showCartoonImage(const QString& path)
+{
+    // 🎨 漫画纯净显示（专为1024×1536竖版漫画优化）：
+    // 
+    // 📏 如何调大/调小漫画显示尺寸：
+    //    1. 【智能自适应模式】当前默认自动放大20%，可修改放大倍数：
+    //       找到 "targetWidth * 1.2f" 这行，修改1.2f为其他值：
+    //       - 1.0f = 原尺寸  1.5f = 放大50%  2.0f = 放大100%
+    //    2. 【固定尺寸模式】替换智能尺寸部分为：
+    //       QSize displaySize = getOptimalCartoonSize("large"); // 使用预设尺寸
+    //    3. 【可选预设(2:3比例)】: 
+    //       "tiny"(320×480), "small"(400×600), "medium"(480×720), "large"(560×840), 
+    //       "xlarge"(640×960), "full"(768×1152), "original"(1024×1536), "compact"(360×540)
+    //    4. 【自定义尺寸】直接指定：QSize displaySize(宽度, 高度); // 如QSize(600, 900);
+    //
+    // 🎭 纯净显示模式：
+    //    - 无边框、无阴影、无装饰
+    //    - 透明背景
+    //    - 完全聚焦于漫画内容本身
+    
+    if (QFile::exists(path)) {
+        QPixmap pixmap(path);
+        if (!pixmap.isNull()) {
+            // 🎨 针对1024×1536漫画的智能尺寸调整（2:3纵向比例）
+            // 获取漫画显示区域的可用大小，为竖版漫画优化边距
+            QSize availableSize = m_cartoonLabel->size();
+            int maxWidth = qMax(600, availableSize.width() - 120);    // 充分利用漫画框宽度，预留边距
+            int maxHeight = qMax(1400, availableSize.height() - 120); // 充分利用漫画框高度，预留边距
+            
+            // 根据原始1024×1536比例(2:3)选择合适的显示尺寸
+            QSize displaySize;
+            float aspectRatio = 1024.0f / 1536.0f; // 原始宽高比 ≈ 0.667
+            
+            // 优先保证更大的显示尺寸，适当调大显示效果
+            int targetWidth = qMin(maxWidth, static_cast<int>(maxHeight * aspectRatio));
+            int targetHeight = static_cast<int>(targetWidth / aspectRatio);
+            
+            // 确保高度不超限，如果超限则按高度重新计算
+            if (targetHeight > maxHeight) {
+                targetHeight = maxHeight;
+                targetWidth = static_cast<int>(targetHeight * aspectRatio);
+            }
+            
+            // 适当放大显示尺寸（增加20%），提供更好的视觉效果
+            targetWidth = static_cast<int>(targetWidth * 1.2f);
+            targetHeight = static_cast<int>(targetHeight * 1.2f);
+            
+            // 再次检查是否超出边界，如果超出则回调到安全尺寸
+            if (targetWidth > maxWidth || targetHeight > maxHeight) {
+                float scale = qMin(static_cast<float>(maxWidth) / targetWidth, 
+                                 static_cast<float>(maxHeight) / targetHeight);
+                targetWidth = static_cast<int>(targetWidth * scale);
+                targetHeight = static_cast<int>(targetHeight * scale);
+            }
+            
+            // 设置最终显示尺寸，保持2:3比例
+            displaySize = QSize(targetWidth, targetHeight);
+            
+            QPixmap scaledPixmap = pixmap.scaled(displaySize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+            
+            // 创建纯净的画布
+            QPixmap canvas(scaledPixmap.width(), scaledPixmap.height());
+            canvas.fill(Qt::transparent);
+            
+            QPainter painter(&canvas);
+            painter.setRenderHint(QPainter::Antialiasing, true);
+            painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+            painter.setRenderHint(QPainter::HighQualityAntialiasing, true);
+            
+            // 🎨 纯净显示 - 无边框无阴影
+            QRect imageRect = QRect(0, 0, scaledPixmap.width(), scaledPixmap.height());
+            painter.drawPixmap(imageRect, scaledPixmap);
+            
+            // 设置艺术化漫画到专门的漫画标签
+            m_cartoonLabel->clear();
+            m_cartoonLabel->setPixmap(canvas);
+            m_cartoonLabel->setAlignment(Qt::AlignCenter);
+            m_cartoonLabel->setVisible(true);  // 显示漫画框
+            
+            // 隐藏文字框，显示漫画框
+            m_scrollArea->setVisible(false);
+            
+            // 🎭 纯净样式
+            QString artStyle = QString(
+                "QLabel {"
+                "   background: transparent;"
+                "   border: none;"
+                "   padding: 0px;"
+                "   margin: 0px;"
+                "}"
+            );
+            m_cartoonLabel->setStyleSheet(artStyle);
+            
+        }
+    } else {
+        // 🎨 艺术化的错误提示
+        m_storyTextLabel->setText("🎭 漫画作品暂时无法展示\n" + path);
+        m_storyTextLabel->setStyleSheet(
+            "QLabel { "
+            "   color: #8B4513; "
+            "   font-size: 22px; "
+            "   font-family: 'Georgia', serif; "
+            "   font-weight: bold; "
+            "   text-align: center; "
+            "   background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+            "       stop:0 rgba(255, 228, 196, 240), "
+            "       stop:0.5 rgba(255, 248, 220, 200), "
+            "       stop:1 rgba(255, 255, 240, 220)); "
+            "   border-radius: 25px; "
+            "   padding: 40px; "
+            "   border: 3px dashed rgba(139, 69, 19, 180);"
+            "   margin: 20px;"
+            "}"
+        );
+    }
+}
+
+QString StoryDisplayWindow::getCartoonPath(const QString& filename)
+{
+    QString appDir = QCoreApplication::applicationDirPath();
+    QString cartoonPath = appDir + "/assets/cartoon/" + filename;
+    
+    // 如果相对路径不存在，尝试绝对路径
+    if (!QFile::exists(cartoonPath)) {
+        cartoonPath = "/home/hamilton/snake_src_full/assets/cartoon/" + filename;
+    }
+    
+    return cartoonPath;
+}
+
+// 🎨 艺术效果配置函数 - 针对1024×1536漫画的尺寸预设
+QSize StoryDisplayWindow::getOptimalCartoonSize(const QString& sizePreset)
+{
+    // 📏 基于原始1024×1536比例(2:3)的尺寸预设
+    if (sizePreset == "tiny") {
+        return QSize(320, 480);        // 2:3 超小尺寸，适合小屏幕
+    } else if (sizePreset == "small") {
+        return QSize(400, 600);        // 2:3 小尺寸，适合细节展示
+    } else if (sizePreset == "medium") {
+        return QSize(480, 720);        // 2:3 中等尺寸，平衡效果
+    } else if (sizePreset == "large") {
+        return QSize(560, 840);        // 2:3 大尺寸，标准展示
+    } else if (sizePreset == "xlarge") {
+        return QSize(640, 960);        // 2:3 超大尺寸，震撼效果
+    } else if (sizePreset == "full") {
+        return QSize(768, 1152);       // 2:3 接近全尺寸显示
+    } else if (sizePreset == "original") {
+        return QSize(1024, 1536);      // 原始尺寸（如果空间足够）
+    } else if (sizePreset == "compact") {
+        return QSize(360, 540);        // 2:3 紧凑尺寸，节省空间
+    } else {
+        return QSize(480, 720);        // 默认中等尺寸，兼容性最佳
+    }
+}
+
+void StoryDisplayWindow::onNextCartoon()
+{
+    if (m_clickSound) {
+        m_clickSound->play();
+    }
+    
+    if (m_currentCartoonIndex < m_cartoonPaths.size() - 1) {
+        // 显示下一张漫画
+        m_currentCartoonIndex++;
+        showCartoonImage(m_cartoonPaths[m_currentCartoonIndex]);
+    } else {
+        // 已经是最后一张，完成漫画显示
+        m_isInCartoonMode = false;
+        
+        // 隐藏漫画框，显示文字框
+        m_cartoonLabel->setVisible(false);
+        m_scrollArea->setVisible(true);
+        
+        // 恢复原来的文本样式
+        m_storyTextLabel->clear();
+        m_storyTextLabel->setStyleSheet("QLabel { color: #2F2F2F; font-size: 20px; font-family: 'Georgia', serif; padding: 45px; line-height: 2.8; font-weight: bold; background: rgba(255, 255, 255, 0); }");
+        m_skipHintLabel->setText("点击任意位置继续 | 按ESC跳过");
+        
+        // 触发剧情完成信号
+        emit storyFinished();
+    }
 } 
