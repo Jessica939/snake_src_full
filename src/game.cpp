@@ -607,7 +607,7 @@ void Game::renderPoints() const
         std::string targetString = std::to_string(mLevelTargetPoints);
         mvwprintw(this->mWindows[2], 16, 8, "%s", targetString.c_str());
     } else {
-        mvwprintw(this->mWindows[2], 16, 8, "N/A");
+        mvwprintw(this->mWindows[2], 16, 8, "  ");
     }
     
     wrefresh(this->mWindows[2]);
@@ -648,9 +648,8 @@ void Game::renderLevel() const
             default:
                 typeString = "Unknown";
         }
-        mvwprintw(this->mWindows[2], 13, 10, "(%s)", typeString.c_str());
+        mvwprintw(this->mWindows[2], 12, 10, "(%s)", typeString.c_str());
     } else {
-        mvwprintw(this->mWindows[2], 12, 8, "Classic");
     }
     
     wrefresh(this->mWindows[2]);
@@ -2147,7 +2146,7 @@ void Game::displayLevelIntroduction(int level)
             if (currentLine.length() + word.length() + 1 > static_cast<size_t>(maxDisplayWidth) && !currentLine.empty()) {
                 wrappedLines.push_back(currentLine);
                 currentLine = word;
-            } 
+            }
             // 如果是第一个词或者可以加入当前行
             else {
                 if (!currentLine.empty()) {
@@ -4217,7 +4216,7 @@ void Game::runBattle() {
 
         // 如果是 AI 对战模式，获取 AI 的下一步移动方向
         if (mCurrentBattleType == BattleType::PlayerVsAI) {
-            Direction ai_dir = mPtrAI->findNextMove(*mPtrMap, *mPtrSnake, *mPtrSnake2, 
+            Direction ai_dir = mPtrAI->findNextMove(*mPtrMap, *mPtrSnake, *mPtrSnake2,
                                                    mFood, mSpecialFood, mPoison, mRandomItem,
                                                    mCurrentFoodType, mHasSpecialFood, mHasPoison, mHasRandomItem);
             mPtrSnake2->changeDirection(ai_dir);
@@ -4771,7 +4770,7 @@ void Game::displayLevelCompletion(int level)
             if (currentLine.length() + word.length() + 1 > static_cast<size_t>(maxDisplayWidth) && !currentLine.empty()) {
                 wrappedLines.push_back(currentLine);
                 currentLine = word;
-            } 
+            }
             // 如果是第一个词或者可以加入当前行
             else {
                 if (!currentLine.empty()) {
@@ -5284,7 +5283,7 @@ void Game::runLevel3Mode2()
                 if (currentLine.length() + word.length() + 1 > static_cast<size_t>(maxDisplayWidth) && !currentLine.empty()) {
                     wrappedLines.push_back(currentLine);
                     currentLine = word;
-                } 
+                }
                 // 如果是第一个词或者可以加入当前行
                 else {
                     if (!currentLine.empty()) {
@@ -5659,7 +5658,7 @@ void Game::runLevel3Mode2()
         this->renderFood();
         
         // 显示两个玩家的分数和合计分数
-        mvwprintw(this->mWindows[1], 1, 1, "P1: %d | P2: %d | Total: %d/10", 
+        mvwprintw(this->mWindows[1], 1, 1, "P1: %d | P2: %d | Total: %d/10",
                  mPoints, mPoints2, mPoints + mPoints2);
         
         // 游戏延迟
@@ -5907,9 +5906,9 @@ void Game::showShopMenu_Skin() {
         }
         
         int ch = getch();
-        if (ch == 'q' || ch == 'Q') { 
-            inShop = false; 
-            break; 
+        if (ch == 'q' || ch == 'Q') {
+            inShop = false;
+            break;
         }
         if (ch == KEY_UP) {
             selected = (selected - 1 + skins.size()) % skins.size();
@@ -6005,9 +6004,9 @@ void Game::showShopMenu_Item() {
         }
         
         int ch = getch();
-        if (ch == 'q' || ch == 'Q') { 
-            inShop = false; 
-            break; 
+        if (ch == 'q' || ch == 'Q') {
+            inShop = false;
+            break;
         }
         if (ch == KEY_UP) {
             selected = (selected - 1 + items.size()) % items.size();
@@ -6704,3 +6703,4 @@ void Game::startLevelDirectly(int level) {
         }
     }
 }
+
