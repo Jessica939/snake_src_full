@@ -2865,7 +2865,8 @@ void Game::initializeLevel4()
     this->mPtrSnake->initializeSnake(1, 1, InitialDirection::Right);
     
     // 设置终点位置（迷宫出口）
-    mEndpoint = SnakeBody(63, 11);
+    //mEndpoint = SnakeBody(93, 40);
+
     mHasEndpoint = true;
     
     // 第四关不需要创建食物，直接将食物设置在不可能到达的位置
