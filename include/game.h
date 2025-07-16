@@ -67,6 +67,7 @@ public:
     void startLevelDirectly(int level);
     void setGameMode(GameMode mode);
     bool isLevelCompleted();  // 检查关卡是否完成
+    int getCurrentLevel() const; // 获取当前关卡编号
 
     // 商店和皮肤相关
     void showShopMenu(); // 商店界面

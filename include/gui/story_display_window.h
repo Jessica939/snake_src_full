@@ -33,6 +33,7 @@ public:
     void loadStoryForLevel(int level);  // 加载指定关卡的剧情
     void showPrologue();                // 显示序章
     void showEpilogue();                // 显示尾声
+    void showVictoryStoryForLevel(int level); // 显示指定关卡的通关剧情
     void showCartoonForLevel(int level, const QString& trigger = ""); // 显示关卡漫画
 
 signals:
@@ -64,6 +65,7 @@ private:
     void startTypewriterEffect();       // 开始打字机效果
     void completeCurrentSegment();      // 完成当前段落显示
     void showNextSegment();             // 显示下一个段落
+    void showVictorySegment();          // 显示通关剧情段落
     void showSkipHint();                // 显示跳过提示
     void hideSkipHint();                // 隐藏跳过提示
     
@@ -92,9 +94,12 @@ private:
     
     // 剧情内容
     std::vector<std::string> m_storySegments;   // 所有剧情段落
+    std::vector<std::string> m_victorySegments; // 所有通关剧情段落
     QVector<QPair<int, int>> m_levelSegmentRanges; // 每个关卡的段落范围 [start, end)
+    QVector<QPair<int, int>> m_victorySegmentRanges; // 每个关卡的通关剧情段落范围 [start, end)
     int m_currentSegmentIndex;                  // 当前段落索引
     int m_currentLevel;                         // 当前关卡
+    bool m_isShowingVictoryStory;               // 是否正在显示通关剧情
     
     // 漫画相关数据
     QStringList m_cartoonPaths;                 // 当前漫画路径列表

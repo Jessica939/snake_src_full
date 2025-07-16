@@ -1618,8 +1618,8 @@ void Game::startGame()
                                             // 标记当前关卡为已完成
                         this->mLevelStatus[mCurrentLevel - 1] = LevelStatus::Completed;
                 
-                        // 显示通关后的文字叙述
-                        this->displayLevelCompletion(mCurrentLevel);
+                                // 显示通关后的文字叙述
+        // this->displayLevelCompletion(mCurrentLevel);
                 
                         // 如果不是最后一关，解锁下一关
                         if (mCurrentLevel < mMaxLevel) {
@@ -2680,9 +2680,9 @@ void Game::initializeLevel(int level)
             // 初始化第四关特殊设置
             this->initializeLevel4();
             // 显示开场介绍（除非是重试）
-            if (!mIsLevelRetry) {
-                this->displayLevelIntroduction(level);
-            }
+            // if (!mIsLevelRetry) {
+            //     this->displayLevelIntroduction(level);
+            // }
             return; // 第四关有特殊初始化，直接返回
         case 5:
             mCurrentLevelType = LevelType::Custom2;
@@ -2690,9 +2690,9 @@ void Game::initializeLevel(int level)
             // 初始化第五关特殊设置
             this->initializeLevel5();
             // 显示开场介绍（除非是重试）
-            if (!mIsLevelRetry) {
-                this->displayLevelIntroduction(level);
-            }
+            // if (!mIsLevelRetry) {
+            //     this->displayLevelIntroduction(level);
+            // }
             return; // 第五关有特殊初始化，直接返回
         default:
             mCurrentLevelType = LevelType::Normal;
@@ -2832,9 +2832,9 @@ void Game::initializeLevel(int level)
     }
     
     // 显示开场介绍（除非是重试）
-    if (!mIsLevelRetry) {
-        this->displayLevelIntroduction(level);
-    }
+    // if (!mIsLevelRetry) {
+    //     this->displayLevelIntroduction(level);
+    // }
 }
 
 // 初始化第四关特殊设置
@@ -3077,6 +3077,11 @@ bool Game::isLevelCompleted()
     
     // 其他关卡正常逻辑
     return (mPoints >= mLevelTargetPoints);
+}
+
+int Game::getCurrentLevel() const
+{
+    return mCurrentLevel;
 }
 
 void Game::runLevel()
@@ -6691,7 +6696,7 @@ void Game::startLevelDirectly(int level) {
             this->mLevelStatus[mCurrentLevel - 1] = LevelStatus::Completed;
             
             // 显示通关后的文字叙述
-            this->displayLevelCompletion(mCurrentLevel);
+            // this->displayLevelCompletion(mCurrentLevel);
             
             // 如果不是最后一关，解锁下一关
             if (mCurrentLevel < mMaxLevel) {

@@ -26,6 +26,7 @@ StoryDisplayWindow::StoryDisplayWindow(QWidget *parent)
     , m_backgroundMusic(nullptr)
     , m_currentSegmentIndex(0)
     , m_currentLevel(0)
+    , m_isShowingVictoryStory(false)
     , m_typewriterTimer(new QTimer(this))
     , m_currentCharIndex(0)
     , m_isTyping(false)
@@ -238,23 +239,30 @@ void StoryDisplayWindow::parseStorySegments()
     in.setCodec("UTF-8");
     
     m_storySegments.clear();
+    m_victorySegments.clear();
     m_levelSegmentRanges.clear();
+    m_victorySegmentRanges.clear();
     m_levelSegmentRanges.resize(6); // 0=序章, 1-5=各关卡
+    m_victorySegmentRanges.resize(6); // 0=序章, 1-5=各关卡
     
     QString allContent = in.readAll();
     file.close();
     
     QStringList lines = allContent.split('\n');
     
-    // 存储各关卡的剧情内容
+    // 存储各关卡的剧情内容和通关剧情内容
     QStringList levelContents;
+    QStringList victoryContents;
     for (int i = 0; i < 6; ++i) {
         levelContents << QString();
+        victoryContents << QString();
     }
     
     QString currentLevelContent;
+    QString currentVictoryContent;
     int currentLevel = -1;
     bool inTextBlock = false;
+    bool inVictorySection = false;
     
     for (const QString& line : lines) {
         QString trimmedLine = line.trimmed();
@@ -265,61 +273,80 @@ void StoryDisplayWindow::parseStorySegments()
             continue;
         }
         
-        // 检测序章开始
+        // 检测序章开始 - 跳过序章内容，因为Level1有类似内容
         if (trimmedLine.contains("Prologue:")) {
             if (currentLevel >= 0) {
                 levelContents[currentLevel] = currentLevelContent;
+                victoryContents[currentLevel] = currentVictoryContent;
             }
-            currentLevel = 0;
+            currentLevel = -1; // 跳过序章内容
             currentLevelContent = "";
+            currentVictoryContent = "";
             inTextBlock = false;
+            inVictorySection = false;
             continue;
         }
         
         // 检测各关卡开始
         if (trimmedLine.contains("Level 1:")) {
+            // 正常处理Level1
             if (currentLevel >= 0) {
                 levelContents[currentLevel] = currentLevelContent;
+                victoryContents[currentLevel] = currentVictoryContent;
             }
             currentLevel = 1;
             currentLevelContent = "";
+            currentVictoryContent = "";
             inTextBlock = false;
+            inVictorySection = false;
             continue;
         }
         if (trimmedLine.contains("Level 2:")) {
             if (currentLevel >= 0) {
                 levelContents[currentLevel] = currentLevelContent;
+                victoryContents[currentLevel] = currentVictoryContent;
             }
             currentLevel = 2;
             currentLevelContent = "";
+            currentVictoryContent = "";
             inTextBlock = false;
+            inVictorySection = false;
             continue;
         }
         if (trimmedLine.contains("Level 3:")) {
             if (currentLevel >= 0) {
                 levelContents[currentLevel] = currentLevelContent;
+                victoryContents[currentLevel] = currentVictoryContent;
             }
             currentLevel = 3;
             currentLevelContent = "";
+            currentVictoryContent = "";
             inTextBlock = false;
+            inVictorySection = false;
             continue;
         }
         if (trimmedLine.contains("Level 4:")) {
             if (currentLevel >= 0) {
                 levelContents[currentLevel] = currentLevelContent;
+                victoryContents[currentLevel] = currentVictoryContent;
             }
             currentLevel = 4;
             currentLevelContent = "";
+            currentVictoryContent = "";
             inTextBlock = false;
+            inVictorySection = false;
             continue;
         }
         if (trimmedLine.contains("Final Level:")) {
             if (currentLevel >= 0) {
                 levelContents[currentLevel] = currentLevelContent;
+                victoryContents[currentLevel] = currentVictoryContent;
             }
             currentLevel = 5;
             currentLevelContent = "";
+            currentVictoryContent = "";
             inTextBlock = false;
+            inVictorySection = false;
             continue;
         }
         
@@ -327,8 +354,16 @@ void StoryDisplayWindow::parseStorySegments()
         if (trimmedLine.contains("Epilogue:")) {
             if (currentLevel >= 0) {
                 levelContents[currentLevel] = currentLevelContent;
+                victoryContents[currentLevel] = currentVictoryContent;
             }
             currentLevel = -1;
+            continue;
+        }
+        
+        // 检测通关剧情开始
+        if (trimmedLine.contains("[After the level]")) {
+            inVictorySection = true;
+            inTextBlock = false;
             continue;
         }
         
@@ -346,20 +381,31 @@ void StoryDisplayWindow::parseStorySegments()
         
         // 收集文本内容
         if (currentLevel >= 0 && inTextBlock && !trimmedLine.isEmpty()) {
-            if (!currentLevelContent.isEmpty()) {
-                currentLevelContent += "\n";
+            if (inVictorySection) {
+                // 保存通关剧情内容
+                if (!currentVictoryContent.isEmpty()) {
+                    currentVictoryContent += "\n";
+                }
+                currentVictoryContent += trimmedLine;
+            } else {
+                // 保存关卡前剧情内容
+                if (!currentLevelContent.isEmpty()) {
+                    currentLevelContent += "\n";
+                }
+                currentLevelContent += trimmedLine;
             }
-            currentLevelContent += trimmedLine;
         }
     }
     
     // 保存最后一个关卡
     if (currentLevel >= 0) {
         levelContents[currentLevel] = currentLevelContent;
+        victoryContents[currentLevel] = currentVictoryContent;
     }
     
     // 将每个关卡的内容分割成段落并建立索引
     for (int level = 0; level < levelContents.size(); ++level) {
+        // 处理关卡前剧情
         if (!levelContents[level].isEmpty()) {
             int startIndex = m_storySegments.size();
             
@@ -382,21 +428,37 @@ void StoryDisplayWindow::parseStorySegments()
         } else {
             m_levelSegmentRanges[level] = qMakePair(-1, -1);
         }
+        
+        // 处理通关剧情
+        if (!victoryContents[level].isEmpty()) {
+            int startIndex = m_victorySegments.size();
+            
+            // 按段落分割（双换行分割）
+            QStringList paragraphs = victoryContents[level].split("\n\n", Qt::SkipEmptyParts);
+            if (paragraphs.isEmpty()) {
+                // 如果没有双换行，按单换行分割
+                paragraphs = victoryContents[level].split("\n", Qt::SkipEmptyParts);
+            }
+            
+            for (const QString& paragraph : paragraphs) {
+                QString cleanParagraph = paragraph.trimmed();
+                if (!cleanParagraph.isEmpty()) {
+                    m_victorySegments.push_back(cleanParagraph.toStdString());
+                }
+            }
+            
+            int endIndex = m_victorySegments.size();
+            m_victorySegmentRanges[level] = qMakePair(startIndex, endIndex);
+        } else {
+            m_victorySegmentRanges[level] = qMakePair(-1, -1);
+        }
     }
 }
 
 void StoryDisplayWindow::showPrologue()
 {
-    m_currentLevel = 0;
-    
-    // 检查序章是否存在
-    if (m_levelSegmentRanges.size() > 0 && m_levelSegmentRanges[0].first >= 0) {
-        m_currentSegmentIndex = m_levelSegmentRanges[0].first;
-        showNextSegment();
-    } else {
-        // 如果没有序章，直接完成
-        emit storyFinished();
-    }
+    // 序章内容现在合并到Level1中，直接跳到地图选择
+    emit storyFinished();
 }
 
 void StoryDisplayWindow::loadStoryForLevel(int level)
@@ -407,6 +469,7 @@ void StoryDisplayWindow::loadStoryForLevel(int level)
     }
     
     m_currentLevel = level;
+    m_isShowingVictoryStory = false;
     
     // 检查关卡剧情是否存在
     if (m_levelSegmentRanges.size() > level && m_levelSegmentRanges[level].first >= 0) {
@@ -432,6 +495,59 @@ void StoryDisplayWindow::showEpilogue()
     }
     
     showNextSegment();
+}
+
+void StoryDisplayWindow::showVictoryStoryForLevel(int level)
+{
+    if (level < 1 || level > 5) {
+        emit storyFinished();
+        return;
+    }
+    
+    m_currentLevel = level;
+    m_isShowingVictoryStory = true;
+    
+    // 检查通关剧情是否存在
+    if (m_victorySegmentRanges.size() > level && m_victorySegmentRanges[level].first >= 0) {
+        m_currentSegmentIndex = m_victorySegmentRanges[level].first;
+        showVictorySegment();
+    } else {
+        // 如果没有找到通关剧情，直接完成
+        emit storyFinished();
+    }
+}
+
+void StoryDisplayWindow::showVictorySegment()
+{
+    // 检查是否已经到达当前关卡通关剧情的结尾
+    if (m_currentLevel >= 0 && m_currentLevel < m_victorySegmentRanges.size()) {
+        QPair<int, int> range = m_victorySegmentRanges[m_currentLevel];
+        if (range.first >= 0 && m_currentSegmentIndex >= range.second) {
+            // 已经到达当前关卡通关剧情的结尾
+            emit storyFinished();
+            return;
+        }
+    }
+    
+    // 检查是否超出所有通关剧情段落
+    if (m_currentSegmentIndex >= static_cast<int>(m_victorySegments.size())) {
+        emit storyFinished();
+        return;
+    }
+    
+    m_targetText = QString::fromStdString(m_victorySegments[m_currentSegmentIndex]);
+    m_currentText.clear();
+    m_currentCharIndex = 0;
+    m_isTyping = true;
+    
+    // 清空显示
+    m_storyTextLabel->clear();
+    
+    // 开始打字机效果
+    startTypewriterEffect();
+    
+    // 显示跳过提示
+    QTimer::singleShot(SKIP_HINT_DELAY, this, &StoryDisplayWindow::showSkipHint);
 }
 
 void StoryDisplayWindow::showNextSegment()
@@ -516,7 +632,11 @@ void StoryDisplayWindow::onNextSegment()
     } else {
         hideSkipHint();
         m_currentSegmentIndex++;
-        showNextSegment();
+        if (m_isShowingVictoryStory) {
+            showVictorySegment();
+        } else {
+            showNextSegment();
+        }
     }
 }
 
@@ -599,10 +719,11 @@ void StoryDisplayWindow::hideEvent(QHideEvent *event)
 void StoryDisplayWindow::showCartoonForLevel(int level, const QString& trigger)
 {
     m_cartoonPaths.clear();
+    m_currentLevel = level; // 设置当前关卡
     
-    // 🎯 按照关卡编号配置胜利后的漫画显示
-    if (level == 0 && trigger == "prologue") {
-        // 序章漫画
+    // 🎯 按照关卡编号配置漫画显示
+    if (level == 1 && trigger == "start") {
+        // 第1关开始前 - 包含序章漫画
         m_cartoonPaths << getCartoonPath("0_0.png");
         m_cartoonPaths << getCartoonPath("0_1.png");
     }
@@ -822,7 +943,7 @@ void StoryDisplayWindow::onNextCartoon()
         m_storyTextLabel->setStyleSheet("QLabel { color: #2F2F2F; font-size: 20px; font-family: 'Georgia', serif; padding: 45px; line-height: 2.8; font-weight: bold; background: rgba(255, 255, 255, 0); }");
         m_skipHintLabel->setText("点击任意位置继续 | 按ESC跳过");
         
-        // 触发剧情完成信号
+        // 漫画播放完成，触发剧情完成信号
         emit storyFinished();
     }
 } 

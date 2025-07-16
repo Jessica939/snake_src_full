@@ -42,8 +42,10 @@ private slots:
     void onSkipToGame();                // 跳过剧情直接开始游戏
     void onLevelStoryFinished();        // 关卡剧情播放完成
     void onSkipLevelStoryToGame();      // 跳过关卡剧情直接开始游戏
+    void onVictoryStoryFinished();      // 胜利剧情播放完成
     void onVictoryCartoonFinished();    // 胜利漫画播放完成
     void onPrologueCartoonFinished();   // 序章漫画播放完成
+    void onLevel1PrologueCartoonFinished(); // Level1序章漫画播放完成
     void onLevel5CartoonFinished();     // Level5漫画播放完成
     void onShopRequested();             // 商店请求
 

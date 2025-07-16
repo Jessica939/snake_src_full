@@ -13,9 +13,24 @@ Grief and fear envelop you like a cold shroud, but amidst the silence, your pare
 This is their first lesson, and your only guide.
 Survive.
 To feel warmth again, to understand the truth, to... never be alone again.
+
 Level 1: The Eternal Trial
 [Before the level]
-(The text above serves as the intro)
+[Scene]: You are cast into the end of time, a cage called the Stasis Ruins.
+[Text]:
+The world is falling apart before your eyes.
+The warmth of the nest, the gentle kiss of parents, the melody of a lullaby... everything becomes a distant and vague echo.
+You are thrown into the end of time, a cage called the Stasis Ruins.
+Sadness and fear wrap around you like ice, but in this dead silence, your parents' last words ignite a faint spark in your mind:
+"My child, before you embark on your journey, you must learn to survive in eternal loneliness."
+This is their first teaching and your only guidepost.
+Stay alive.
+In order to feel the warmth again, in order to find out the truth, in order to... no longer be alone.
+This is your first adventure in this barren land.
+You must find enough food to survive.
+
+OBJECTIVE: Collect 100 pieces of food to learn to survive in eternal loneliness!
+
 [After the level]
 [Scene]: Mo's body is noticeably larger than before. His eyes, once filled with confusion, now hold a steady resolve. The last bit of "Light Dust" he consumes coalesces within him, blooming with a warm and resilient glow.
 [Text]:
@@ -23,34 +38,39 @@ An eternity could have passed.
 In this endless solitude, you were not consumed.
 You forged your sorrow into sustenance and your confusion into strength. Every bite was a declaration of your will to live; every inch of growth was an answer to your parents' lesson.
 You are no longer the frightened hatchling cowering in the dark. Your spirit has been tempered, as hard and unbreakable as a diamond.
-[Animation]: A small, crystal-clear shard materializes from within Mo. It emanates a steady, profound light, as if holding the weight of a thousand years of patience.
-[Item Acquired]: 【Memory Shard - The Heart of Fortitude】
-[Text]:
+
+[Item Acquired]: Memory Shard - The Heart of Fortitude
+
 This is the first gift your parents left you—the "Heart of Fortitude."
 As it appears, the stagnant space around you begins to tremble. Like a compass, the shard points you toward a new direction, toward a rift engulfed in a chaotic temporal storm.
 You understand now. The trial... has only just begun.
+
 Level 2: The Arrow of Time
 [Before the level]
-[Scene]: Mo travels through the rift and arrives in a bizarre, warped world. Countless clock hands spin wildly, and the scenery stretches and contracts at an impossible speed.
+[Scene]: You enter the "realm of flowing light" where time has become a deadly weapon.
 [Text]:
-You have stepped into the Realm of Flowing Light.
-This is a place eroded by the remnant power of The Mechanos, which has twisted time itself into a deadly weapon.
-Here, a moment's hesitation means being left behind by the torrent of time.
-Your parents' second lesson rings in your mind like an alarm:
-"Remember, time is both your enemy and your weapon. You must learn to master it, not be consumed by it."
-You take a deep breath, sinking the power of the "Heart of Fortitude" deep into your consciousness.
-You must now be swifter than time itself.
+You have entered the "realm of flowing light".
+This is the time and space eroded by the remaining power of the "Mechanical Master", turning time into the most deadly weapon.
+Here, a moment of hesitation will be left behind by the torrent of time.
+The second lesson from parents sounded at the right time, like a warning bell:
+"Remember, time is both your enemy and your weapon. You have to learn to harness it instead of being swallowed up by it."
+You take a deep breath and sink the power of "Tough Heart" into the depths of your consciousness.
+Now you have to be faster than time.
+
+OBJECTIVE: Collect 8 pieces of food within 30 seconds!
+
 [After the level]
 [Scene]: Mo perfectly snatches the final "Fruit of Time" just as the last chime sounds. The rapidly flowing world seems to slow, subdued by his will.
 [Text]:
 You succeeded.
 In this race against the clock, you learned to maintain focus and precision under extreme pressure.
 You no longer fear the fleeting moments; instead, you have come to understand their rhythm. You now grasp the cold, efficient terror of The Mechanos—and have found a way to navigate its laws.
-[Animation]: Another shard is pulled from the temporal storm. It flickers with a sharp, swift light, echoing the steady glow of the "Heart of Fortitude."
-[Item Acquired]: 【Memory Shard - The Heart of Celerity】
-[Text]:
+
+[Item Acquired]: Memory Shard - The Heart of Celerity
+
 The two shards circle you, their powers beginning to resonate.
 No longer pointing to a random rift, they now work in concert to open a new gateway—a path to the deepest corner of your heart, to the hallowed ground where memory and longing reside.
+
 Level 3: The Heart of Twin Shadows
 [Before the level]
 [Scene]: Mo arrives before a mirror-like body of water: the Pool of Memories. Its surface reflects not the sky, but a phantom image of his warm, forgotten home.
@@ -58,13 +78,15 @@ Level 3: The Heart of Twin Shadows
 Your longing has awakened a spiritual imprint sleeping here.
 A gentle yet powerful voice, the combined voice of your parents, echoes from the water:
 "We never left you, child. Feel our presence. You are never fighting alone."
-In the center of the pool, light gathers, forming a "Soul Shadow" made of pure energy. It is both a trial and a guardian.
+In the center of the pool, light gathers, forming a 'Soul Shadow' made of pure energy. It is both a trial and a guardian.
 Now, how will you face this memory?
+
 [Choice Box Appears]
 【Face the trial alone】
 Description: "You decide to face your parents' test by yourself, to listen to their wordless teachings."
 【Fight alongside an ally】
 Description: "You choose to trust the companion by your side, inviting them into this place of memory."
+
 [After the level - Text varies based on player choice]
 [If "Face the trial alone" was chosen]
 [Scene]: Mo and his mirror image, the Soul Shadow, come to a stop at opposite ends of the arena after collecting the final point of light. The shadow gently dissolves into light and flows into Mo's body.
@@ -72,21 +94,23 @@ Description: "You choose to trust the companion by your side, inviting them into
 In that wordless dance, you came to understand your parents' hearts.
 Every move the shadow made was a consequence of your own. You learned empathy, foresight, and guardianship.
 You understood that "coexistence" is not merely sharing a space, but a connection of souls. Even across worlds, love can move in perfect sync.
+
 [If "Fight alongside an ally" was chosen]
 [Scene]: Mo and his ally, "Lin," stop in the center of the arena, sharing their victory. The light-form of the Soul Shadow fades from Lin, returning them to their normal appearance.
 [Text]:
 In that seamless coordination, you felt the power of trust.
 Your parents' will acknowledged your companion, entrusting them with the duty of a guardian. You shared both risk and reward, protecting each other to claim victory.
 You understood that the bonds of family can extend into a wider trust. Entrusting your back to a friend is its own form of courage and growth.
-[Common text for both paths]
-[Animation]: Regardless of your choice, the third Memory Shard forms in the center of the pool. It shines with a warm, tight-knit glow, symbolizing connection and trust.
-[Item Acquired]: 【Memory Shard - The Heart of Bonds】
-[Text]:
-"Fortitude," "Celerity," and "Bonds."
+
+[Victory Text - Common for both paths]
+[Item Acquired]: Memory Shard - The Heart of Bonds
+
+Fortitude, Celerity, Bonds.
 The three hearts orbit you. Their combined power allows you to perceive something greater, a law more fundamental and profound—a concept The Mechanos could never comprehend: the very heartbeat of life itself.
+
 Level 4: The Melody of Life
 [Before the level]
-[Scene]: Mo enters a colossal canyon where the sound of wind, dripping water, and stone echoes combine into a magnificent symphony.
+[Scene]: You arrive at the Echoing Canyon where everything moves to an unseen rhythm.
 [Text]:
 You have arrived at the Echoing Canyon.
 Everything here moves to an unseen rhythm. The power of the three shards allows you to "hear" this cosmic symphony.
@@ -94,18 +118,20 @@ The Mechanos, on the other hand, represents absolute silence—the static that w
 Your parents' final lesson, the ultimate truth, now resonates within you:
 "The world has its own heartbeat, a rhythm the machines can never understand. Listen to it, resonate with it. That is the most fundamental power of life."
 Forget mere movement. Let your body become a note in this symphony of life.
+
 [After the level]
 [Scene]: The music concludes on a triumphant final note. Mo rests at the end of the path of light, and the entire canyon seems to hum in harmony with him.
 [Text]:
 You are no longer just following the beat; you have become a part of it.
 You have learned that the power of life lies not in conquest, but in harmonious resonance. This fluid, ever-changing, beautiful rhythm is the ultimate counter to the cold, rigid, and repetitive order of The Mechanos.
 Your very existence is now a hymn to life.
-[Animation]: The fourth and final shard is born from the resonance of the world's melody. It is iridescent, seeming to contain all the beauty and vitality of the universe.
-[Item Acquired]: 【Memory Shard - The Heart of Harmony】
-[Text]:
+
+[Item Acquired]: Memory Shard - The Heart of Harmony
+
 The four shards are finally complete!
 They unite before you, sending a pillar of light into the sky. It tears through the veil of spacetime, forging a road that leads directly to the eye of the storm.
 At the end of that road lies the core of The Mechanos: the Zero Throne.
+
 Final Level: The Core Cleansing
 [Before the boss fight]
 [Scene]: Mo travels the path of light, arriving at an immense throne made of precise gears and cold metal. At its center, the mechanical core radiates an oppressive, life-choking energy.
@@ -117,6 +143,7 @@ Your parents' legacy is now fully part of your soul. You are no longer an orphan
 The four shards form a halo of light above you. Their final words send you off as a blessing:
 "Go, child. Use everything you have learned to end the old destiny and forge a new future."
 The final battle begins now.
+
 [After the boss fight, before the final cinematic]
 [Scene]: With the final blow, the mechanical core fractures. A cacophony of screeching metal fills the air, and then... absolute silence.
 [Text]:
@@ -124,6 +151,11 @@ It is over.
 The spinning lasers die down, the cold laws collapse.
 You have answered the silence of machines with the resonance of life. You have shattered eternal stillness with a harmonious melody.
 Now, it is time for this imprisoned world to be reborn.
+You watch the new world before you, where all things are reborn and thrive.
+You can almost see the proud smiles of your parents. They are not gone; they have become every blade of grass, every gust of wind that brushes against your scales.
+The hatred has long since faded, replaced by the weight of love and responsibility.
+You are no longer an echo of the past, but the prelude to the future.
+
 Epilogue: A New Dawn
 [Final Cinematic / Comic Panels]
 [Scene]: Mo releases the reassembled, complete Core of Life. It shines like a warm sun. Wherever its light touches, the cold metal peels away and crumbles into nourishing dust. Green sprouts push through the barren ground, and dry riverbeds flow once more. A new world, vibrant and full of life, is born in the light of dawn.
@@ -132,5 +164,6 @@ You watch the new world before you, where all things are reborn and thrive.
 You can almost see the proud smiles of your parents. They are not gone; they have become every blade of grass, every gust of wind that brushes against your scales.
 The hatred has long since faded, replaced by the weight of love and responsibility.
 You are no longer an echo of the past, but the prelude to the future.
+
 [Final Shot]: Mo flicks his tail and glides away, never looking back. His serpentine form disappears into the green hills and flowing rivers, the silent guardian of the world he helped create.
 [End]

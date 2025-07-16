@@ -95,6 +95,21 @@ void CartoonDisplayWindow::showCartoonsForLevel(int level, const QString& trigge
     else if (level == 1 && trigger == "victory") {
         cartoons << getCartoonPath("1_0.png");
     }
+    else if (level == 2 && trigger == "victory") {
+        cartoons << getCartoonPath("2_0.png");
+    }
+    else if (level == 3 && trigger == "victory") {
+        cartoons << getCartoonPath("3_0.png");
+    }
+    else if (level == 4 && trigger == "pre_story") {
+        cartoons << getCartoonPath("4_0.png");
+    }
+    else if (level == 4 && trigger == "victory") {      
+        cartoons << getCartoonPath("4_1.png");
+    }
+    else if (level == 5 && trigger == "victory") {
+        cartoons << getCartoonPath("5_2.png");
+    }
     else if (level == 5 && trigger == "pre_story") {
         cartoons << getCartoonPath("5_1'.png");
     }

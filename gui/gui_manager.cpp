@@ -38,14 +38,14 @@ bool GUIManager::isExitRequested() const
     return mExitRequested;
 }
 
-bool GUIManager::isShopRequested() const
-{
-    return mShopRequested;
-}
-
 int GUIManager::getSelectedLevel() const
 {
     return mSelectedLevel;
+}
+
+bool GUIManager::isShopRequested() const
+{
+    return mShopRequested;
 }
 
 void GUIManager::syncLevelProgress()
@@ -181,22 +181,6 @@ void GUIManager::onExitRequested()
     QApplication::quit();
 }
 
-void GUIManager::onShopRequested()
-{
-    mShopRequested = true;
-    
-    // 隐藏所有窗口
-    if (mModeSelectWindow) {
-        mModeSelectWindow->hide();
-    }
-    if (mStoryLevelWindow) {
-        mStoryLevelWindow->hide();
-    }
-    
-    // 退出Qt事件循环，让main函数继续执行ncurses商店界面
-    QApplication::quit();
-}
-
 void GUIManager::onLevelSelected(int level)
 {
     mSelectedLevel = level;
@@ -240,22 +224,8 @@ void GUIManager::onBackToModeSelect()
 
 void GUIManager::onStoryFinished()
 {
-    // 序章剧情播放完成后，在同一窗口显示0_0.png漫画
-    if (mStoryDisplayWindow) {
-        // 重新连接信号，让漫画完成后跳转到关卡选择界面
-        disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished, nullptr, nullptr);
-        disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame, nullptr, nullptr);
-        
-        // 连接到序章漫画完成处理函数
-        connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished,
-                this, &GUIManager::onPrologueCartoonFinished);
-        connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame,
-                this, &GUIManager::onPrologueCartoonFinished);
-        
-        mStoryDisplayWindow->showCartoonForLevel(0, "prologue");
-    } else {
-        showStoryLevelWindow();
-    }
+    // 序章内容已经合并到Level1，直接跳转到关卡选择界面
+    showStoryLevelWindow();
 }
 
 void GUIManager::onSkipToGame()
@@ -267,7 +237,21 @@ void GUIManager::onSkipToGame()
 void GUIManager::onLevelStoryFinished()
 {
     // 根据关卡判断是否需要显示漫画
-    if (mSelectedLevel == 5 && mStoryDisplayWindow) {
+    if (mSelectedLevel == 1 && mStoryDisplayWindow) {
+        // Level1剧情完成后显示序章漫画
+        // 重新连接信号，让序章漫画完成后能正确退出
+        disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished, nullptr, nullptr);
+        disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame, nullptr, nullptr);
+        
+        // 连接到Level1序章漫画完成处理函数
+        connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished,
+                this, &GUIManager::onLevel1PrologueCartoonFinished);
+        connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame,
+                this, &GUIManager::onLevel1PrologueCartoonFinished);
+        
+        // 显示序章漫画
+        mStoryDisplayWindow->showCartoonForLevel(1, "start");
+    } else if (mSelectedLevel == 5 && mStoryDisplayWindow) {
         // 重新连接信号，让level5漫画完成后能正确退出
         disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished, nullptr, nullptr);
         disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame, nullptr, nullptr);
@@ -281,7 +265,7 @@ void GUIManager::onLevelStoryFinished()
         // level5关卡前的剧情放完后在同一窗口显示5_1'.png
         mStoryDisplayWindow->showCartoonForLevel(5, "pre_story");
     } else {
-        // 其他关卡直接开始游戏
+        // 其他关卡（Level2-4）直接开始游戏
         if (mStoryDisplayWindow) {
             mStoryDisplayWindow->hide();
         }
@@ -298,7 +282,7 @@ void GUIManager::onSkipLevelStoryToGame()
     QApplication::quit();
 }
 
-// 新增：关卡胜利后显示漫画
+// 新增：关卡胜利后显示通关剧情和漫画
 void GUIManager::showCartoonAfterLevelVictory(int level)
 {
     // 创建并配置剧情窗口
@@ -306,28 +290,46 @@ void GUIManager::showCartoonAfterLevelVictory(int level)
         mStoryDisplayWindow = std::make_unique<StoryDisplayWindow>();
     }
     
-    // 断开所有现有连接，重新连接到胜利漫画处理函数
+    // 断开所有现有连接，重新连接到胜利剧情处理函数
     disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished, nullptr, nullptr);
     disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame, nullptr, nullptr);
     
-    // 连接到专门的胜利漫画完成处理函数
+    // 连接到专门的胜利剧情完成处理函数
     connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished,
-            this, &GUIManager::onVictoryCartoonFinished);
+            this, &GUIManager::onVictoryStoryFinished);
     connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame,
-            this, &GUIManager::onVictoryCartoonFinished);
+            this, &GUIManager::onVictoryStoryFinished);
     
-    // 显示胜利漫画
-    mStoryDisplayWindow->showCartoonForLevel(level, "victory");
+    // 先显示通关剧情文字
+    mStoryDisplayWindow->showVictoryStoryForLevel(level);
     mStoryDisplayWindow->show();
+}
+
+void GUIManager::onVictoryStoryFinished()
+{
+    // 通关剧情播放完成，现在显示胜利漫画
+    if (mStoryDisplayWindow) {
+        // 重新连接信号到漫画完成处理函数
+        disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished, nullptr, nullptr);
+        disconnect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame, nullptr, nullptr);
+        
+        connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::storyFinished,
+                this, &GUIManager::onVictoryCartoonFinished);
+        connect(mStoryDisplayWindow.get(), &StoryDisplayWindow::skipToGame,
+                this, &GUIManager::onVictoryCartoonFinished);
+        
+        // 显示胜利漫画
+        mStoryDisplayWindow->showCartoonForLevel(mSelectedLevel, "victory");
+    }
 }
 
 void GUIManager::onVictoryCartoonFinished()
 {
-    // 胜利漫画播放完成，退出Qt应用返回游戏主循环
+    // 胜利漫画播放完成，回到story地图选择界面
     if (mStoryDisplayWindow) {
         mStoryDisplayWindow->hide();
     }
-    QApplication::quit();
+    showStoryLevelWindow();
 }
 
 void GUIManager::onPrologueCartoonFinished()
@@ -339,12 +341,40 @@ void GUIManager::onPrologueCartoonFinished()
     showStoryLevelWindow();
 }
 
+void GUIManager::onLevel1PrologueCartoonFinished()
+{
+    // Level1序章漫画播放完成，退出Qt应用开始游戏
+    if (mStoryDisplayWindow) {
+        mStoryDisplayWindow->hide();
+    }
+    QApplication::quit();
+}
+
 void GUIManager::onLevel5CartoonFinished()
 {
     // Level5漫画播放完成，退出Qt应用开始游戏
     if (mStoryDisplayWindow) {
         mStoryDisplayWindow->hide();
     }
+    QApplication::quit();
+}
+
+void GUIManager::onShopRequested()
+{
+    mShopRequested = true;
+    
+    // 隐藏所有窗口
+    if (mModeSelectWindow) {
+        mModeSelectWindow->hide();
+    }
+    if (mStoryLevelWindow) {
+        mStoryLevelWindow->hide();
+    }
+    if (mStoryDisplayWindow) {
+        mStoryDisplayWindow->hide();
+    }
+    
+    // 退出Qt事件循环，让main函数继续执行商店逻辑
     QApplication::quit();
 }
 

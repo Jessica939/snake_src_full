@@ -219,15 +219,16 @@ int main(int argc, char** argv)
             // 直接启动指定关卡，跳过关卡选择界面
             game.startLevelDirectly(selectedLevel);
             
-            // 检查关卡是否胜利，如果是level1胜利则显示漫画
-            if (game.isLevelCompleted() && selectedLevel == 0) { // selectedLevel 0 = level1
+            // 检查关卡是否胜利，如果胜利则显示漫画
+            if (game.isLevelCompleted()) {
+                int completedLevel = game.getCurrentLevel();
                 // 结束ncurses环境，切换到Qt环境显示胜利漫画
                 endwin();
                 
                 // 创建Qt应用显示胜利漫画
                 QApplication app(argc, argv);
                 GUIManager guiManager;
-                guiManager.showCartoonAfterLevelVictory(1); // level1胜利漫画
+                guiManager.showCartoonAfterLevelVictory(completedLevel); // 显示对应关卡的胜利漫画
                 app.exec();
                 
                 // 漫画播放完成后，结束ncurses并重新启动GUI进行关卡选择
