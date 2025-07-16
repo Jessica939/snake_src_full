@@ -395,7 +395,7 @@ bool Game::renderRestartMenu(bool isBattleMode) const
     } else {
         mvwprintw(menu, 1, 1, "Your Final Score:");
         std::string pointString = std::to_string(this->mPoints);
-        mvwprintw(menu, 2, 1, pointString.c_str());
+        mvwprintw(menu, 2, 1, "%s", pointString.c_str());
     }
 
     wattron(menu, A_STANDOUT);
@@ -2874,7 +2874,7 @@ void Game::initializeLevel4()
     
     // 设置难度
     this->mDifficulty = 1;
-    this->mDelay = this->mBaseDelay * pow(2.0, this->mDifficulty); // 将系数从1.25增加到2.0使蛇移动更慢
+    this->mDelay = this->mBaseDelay * pow(2.3, this->mDifficulty); // 将系数从2.0增加到3.0使蛇移动更慢
     this->mPoints = 0;
     
     // 启用视窗跟随功能（第四关专用）
@@ -2921,6 +2921,70 @@ void Game::controlSnakeLevel4() const
 // 运行第四关特殊逻辑
 void Game::runLevel4()
 {
+    // 播放背景音乐 (Linux系统)
+    std::string musicPath = "assets/music/level4music.mp3";
+    // 检查音乐文件是否存在
+    std::ifstream checkMusic(musicPath);
+    if (!checkMusic.good()) {
+        // 如果assets目录下没有找到，尝试根目录
+        musicPath = "level4music.mp3";
+        checkMusic.close();
+        checkMusic.open(musicPath);
+        if (!checkMusic.good()) {
+            mvwprintw(this->mWindows[0], 4, 1, "提示: 未找到音乐文件");
+            wrefresh(this->mWindows[0]);
+            musicPath = "";
+        }
+    }
+    checkMusic.close();
+    
+    if (!musicPath.empty()) {
+        // 尝试多种音乐播放器，按优先级排列
+        std::vector<std::string> players = {
+            "mpg123 -q -l 0",
+            "ffplay -nodisp -loop 0",
+            "mplayer -loop 0 -really-quiet",
+            "cvlc --play-and-exit --loop",
+            "aplay",  // 仅支持wav
+            "paplay"  // 仅支持wav
+        };
+        
+        bool musicStarted = false;
+        for (const auto& player : players) {
+            // 检查播放器是否安装
+            std::string checkCmd = "which " + player.substr(0, player.find(' ')) + " 2>/dev/null";
+            FILE* checkPlayer = popen(checkCmd.c_str(), "r");
+            bool playerInstalled = false;
+            
+            if (checkPlayer != NULL) {
+                char buffer[128];
+                if (fgets(buffer, sizeof(buffer), checkPlayer) != NULL) {
+                    playerInstalled = true;
+                }
+                pclose(checkPlayer);
+            }
+            
+            if (playerInstalled) {
+                std::string musicCmd = player + " \"" + musicPath + "\" >/dev/null 2>&1 &";
+                try {
+                    system(musicCmd.c_str());
+                    mvwprintw(this->mWindows[0], 4, 1, "音乐已启动 (使用%s)", 
+                              player.substr(0, player.find(' ')).c_str());
+                    wrefresh(this->mWindows[0]);
+                    musicStarted = true;
+                    break;
+                } catch (...) {
+                    continue; // 尝试下一个播放器
+                }
+            }
+        }
+        
+        if (!musicStarted) {
+            mvwprintw(this->mWindows[0], 4, 1, "提示: 未找到可用的音频播放器");
+            wrefresh(this->mWindows[0]);
+        }
+    }
+    
     // 更新信息面板，显示关卡提示
     mvwprintw(this->mWindows[0], 1, 1, "Level 4: Smart Path Challenge");
     mvwprintw(this->mWindows[0], 2, 1, "Press 'T' or SPACE to turn automatically");
@@ -2980,6 +3044,18 @@ void Game::runLevel4()
         std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
         
         refresh();
+    }
+    
+    // 停止背景音乐 (Linux系统) - 尝试停止各种可能的音频播放器
+    try {
+        system("pkill -f mpg123 >/dev/null 2>&1");
+        system("pkill -f ffplay >/dev/null 2>&1");
+        system("pkill -f mplayer >/dev/null 2>&1");
+        system("pkill -f vlc >/dev/null 2>&1");
+        system("pkill -f aplay >/dev/null 2>&1");
+        system("pkill -f paplay >/dev/null 2>&1");
+    } catch (...) {
+        // 忽略停止音乐时的错误
     }
 }
 

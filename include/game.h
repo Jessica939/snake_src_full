@@ -13,6 +13,9 @@
 #include <chrono>
 #include <set>
 #include <map>
+#include <fstream>   // 用于文件检查
+#include <cstdlib>   // 用于system函数
+#include <cstdio>    // 用于popen函数
 
 // 自定义模块
 #include "snake.h"
