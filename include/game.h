@@ -217,7 +217,10 @@ private:
         "maps/level4.txt", "maps/level5.txt"
     };
     // ====== 关卡3模式选择 ======
-    int mLevel3ModeChoice = 0; // 0: alone, 1: with ally
+    int mLevel3ModeChoice = 0; // 模式选择：0=镜像之舞, 1=协作模式
+    // ====== 关卡3模式一专用变量 ======
+    std::vector<SnakeBody> mLevel3Mode1Foods; // 固定食物位置列表
+    int mLevel3FoodIndex = 0; // 当前食物索引
 
     void createDefaultLevelMaps();
     void loadNextLevel();
@@ -249,8 +252,6 @@ private:
     void updateViewport(); // 更新视窗位置，让蛇居中
 
     // === 第三关模式一特殊逻辑 ===
-    std::vector<SnakeBody> mLevel3Mode1Foods; // 第三关模式一的10个固定食物位置
-    int mLevel3FoodIndex = 0; // 当前食物索引
     void initializeLevel3Mode1Foods(); // 初始化固定食物位置
     void setNextLevel3Mode1Food(); // 设置下一个固定食物
 

@@ -1596,228 +1596,6 @@ void Game::startGame()
                     playAgain = renderRestartMenu();
                     break;
                 }
-                case GameMode::Level:
-                // 关卡模式
-                this->readLeaderBoard();
-                this->renderBoards();
-        
-                // 先让用户选择一个已解锁的关卡
-                if (!this->selectLevelInLevelMode()) {
-                // 用户选择退出
-                  return;
-                }
-        
-                // 运行选择的关卡
-                while (true) {
-                // 初始化并运行当前关卡
-                    this->initializeLevel(mCurrentLevel);
-                    this->runLevel();
-            
-                    // 检查是否通过当前关卡
-                    if (this->isLevelCompleted()) {
-                                            // 标记当前关卡为已完成
-                        this->mLevelStatus[mCurrentLevel - 1] = LevelStatus::Completed;
-                
-                                // 显示通关后的文字叙述
-        // this->displayLevelCompletion(mCurrentLevel);
-                
-                        // 如果不是最后一关，解锁下一关
-                        if (mCurrentLevel < mMaxLevel) {
-                            this->unlockLevel(mCurrentLevel + 1);
-                        }
-                
-                        // 保存关卡进度
-                        this->saveLevelProgress();
-                
-                        // 显示通关信息
-                        WINDOW* levelCompleteWin;
-                        int width = this->mGameBoardWidth * 0.5;
-                        int height = 5;
-                        int startX = this->mGameBoardWidth * 0.25;
-                        int startY = this->mGameBoardHeight * 0.25 + this->mInformationHeight;
-                
-                        levelCompleteWin = newwin(height, width, startY, startX);
-                        box(levelCompleteWin, 0, 0);
-                
-                        mvwprintw(levelCompleteWin, 1, 1, "Level %d Completed!", mCurrentLevel);
-                        mvwprintw(levelCompleteWin, 2, 1, "Your Score: %d", this->mPoints);
-                
-                        // 根据是否是最后一关或第一关显示不同的提示
-                        if (mCurrentLevel == 1) {
-                            // 第一关通过自动进入第二关
-                            mvwprintw(levelCompleteWin, 3, 1, "Level %d Unlocked!", mCurrentLevel + 1);
-                            mvwprintw(levelCompleteWin, 4, 1, "Entering Level 2 automatically...");
-                            wrefresh(levelCompleteWin);
-                            
-                            // 短暂延迟后自动继续
-                            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-                        } else if (mCurrentLevel < mMaxLevel) {
-                            mvwprintw(levelCompleteWin, 3, 1, "Level %d Unlocked!", mCurrentLevel + 1);
-                            mvwprintw(levelCompleteWin, 4, 1, "Press Space to continue...");
-                            wrefresh(levelCompleteWin);
-                            
-                            // 等待用户按空格继续
-                            int key;
-                            while (true) {
-                                key = getch();
-                                if (key == ' ' || key == 10)
-                                    break;
-                                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                            }
-                        } else {
-                            mvwprintw(levelCompleteWin, 3, 1, "You completed all levels!");
-                            mvwprintw(levelCompleteWin, 4, 1, "Press Space to continue...");
-                            wrefresh(levelCompleteWin);
-                            
-                            // 等待用户按空格继续
-                            int key;
-                            while (true) {
-                                key = getch();
-                                if (key == ' ' || key == 10)
-                                    break;
-                                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                            }
-                        }
-                
-                        delwin(levelCompleteWin);
-                
-                        // 如果所有关卡都完成了，显示胜利信息
-                        if (mCurrentLevel >= mMaxLevel) {
-                            WINDOW* gameCompleteWin;
-                            gameCompleteWin = newwin(height, width, startY, startX);
-                            box(gameCompleteWin, 0, 0);
-                    
-                            mvwprintw(gameCompleteWin, 1, 1, "Congratulations!");
-                            mvwprintw(gameCompleteWin, 2, 1, "You completed all levels!");
-                            mvwprintw(gameCompleteWin, 3, 1, "Final Score: %d", this->mPoints);
-                            wrefresh(gameCompleteWin);
-                    
-                            // 等待用户按空格继续
-                            int key;
-                            while (true) {
-                                key = getch();
-                                if (key == ' ' || key == 10)
-                                    break;
-                                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                            }
-                    
-                            delwin(gameCompleteWin);
-                        }
-                
-                        // 如果是第一关通过，自动进入第二关
-                        if (mCurrentLevel == 1) {
-                            // 自动进入第二关
-                            mCurrentLevel = 2;
-                            mIsLevelRetry = false; // 重置重试标志
-                            continue;
-                        } else {
-                            // 其他关卡返回关卡选择界面
-                            if (!this->selectLevelInLevelMode()) {
-                                // 用户选择退出
-                                break;
-                            }
-                        }
-                
-                    } else {
-                        // 关卡失败，显示游戏结束信息
-                        this->updateLeaderBoard();
-                        this->writeLeaderBoard();
-                        // 游戏结束时自动保存
-                        this->saveGame();
-                        WINDOW * menu;
-                        int width = this->mGameBoardWidth * 0.5;
-                        int height = this->mGameBoardHeight * 0.5;
-                        int startX = this->mGameBoardWidth * 0.25;
-                        int startY = this->mGameBoardHeight * 0.25 + this->mInformationHeight;
-
-                        menu = newwin(height, width, startY, startX);
-                        box(menu, 0, 0);
-                        std::vector<std::string> menuItems = {"Retry Level", "Select Level", "Mode Select", "Quit"};
-
-                        int index = 0;
-                        int offset = 4;
-                        mvwprintw(menu, 1, 1, "Your Final Score:");
-                        std::string pointString = std::to_string(this->mPoints);
-                        mvwprintw(menu, 2, 1, "%s", pointString.c_str());
-                        wattron(menu, A_STANDOUT);
-                        mvwprintw(menu, 0 + offset, 1, "%s", menuItems[0].c_str());
-                        wattroff(menu, A_STANDOUT);
-                        mvwprintw(menu, 1 + offset, 1, "%s", menuItems[1].c_str());
-                        mvwprintw(menu, 2 + offset, 1, "%s", menuItems[2].c_str());
-                        mvwprintw(menu, 3 + offset, 1, "%s", menuItems[3].c_str());
-
-                        wrefresh(menu);
-
-                        int key;
-                        while (true)
-                        {
-                            key = getch();
-                            switch(key)
-                            {
-                                case 'W':
-                                case 'w':
-                                case KEY_UP:
-                                {
-                                    mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
-                                    index--;
-                                    index = (index < 0) ? static_cast<int>(menuItems.size()) - 1 : index;
-                                    wattron(menu, A_STANDOUT);
-                                    mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
-                                    wattroff(menu, A_STANDOUT);
-                                    break;
-                                }
-                                case 'S':
-                                case 's':
-                                case KEY_DOWN:
-                                {
-                                    mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
-                                    index++;
-                                    index = (index > static_cast<int>(menuItems.size()) - 1) ? 0 : index;
-                                    wattron(menu, A_STANDOUT);
-                                    mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
-                                    wattroff(menu, A_STANDOUT);
-                                    break;
-                                }
-                            }
-                            wrefresh(menu);
-                            if (key == ' ' || key == 10)
-                            {
-                                break;
-                            }
-                            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                        }
-                        delwin(menu);
-
-                        if (index == 0) {
-                            // 重新尝试当前关卡，设置重试标志
-                            mIsLevelRetry = true;
-                            continue;
-                        } else if (index == 1) {
-                            // 返回关卡选择界面，重置重试标志
-                            mIsLevelRetry = false;
-                            if (!this->selectLevelInLevelMode()) {
-                                // 用户选择退出
-                                break;
-                            }
-                        } else if (index == 2) {
-                            // 返回到模式选择，重置重试标志
-                            mIsLevelRetry = false;
-                            mReturnToModeSelect = true;
-                            break; // 先退出当前循环
-                        } else {
-                            // 退出游戏，重置重试标志
-                            mIsLevelRetry = false;
-                            break;
-                        }
-                    }
-                }
-                
-                // 检查是否需要返回到模式选择界面
-                if (mReturnToModeSelect) {
-                    playAgain = false; // 结束当前游戏模式循环
-                    break; // 退出关卡模式循环
-                }
-                    break;
                 case GameMode::Battle: {
                     if (!selectBattleType()) {
                         playAgain = false; // 如果用户从类型选择返回，则退出playAgain循环
@@ -1832,12 +1610,6 @@ void Game::startGame()
                     playAgain = renderRestartMenu(true);
                     break;
                 }
-                case GameMode::Shop: {
-                    showShopMenu();
-                    playAgain = false; // 从商店返回后不重新开始游戏
-                    break;
-                }
-
             }
             
         }
@@ -1917,12 +1689,9 @@ bool Game::selectLevel()
 
         std::vector<std::string> menuItems = {
             "Classic Mode",
-            "Level Mode",
             "Timed Mode",
             "Battle Mode",
-            "Shop",
-            "Load Game",
-            "Exit Game"
+            "Return"
         };
 
         int index = 0;
@@ -1979,40 +1748,22 @@ bool Game::selectLevel()
         }
         delwin(menu);
 
-        if (index == 6) { // Exit Game
+        if (index == 3) { // Return
+            mReturnToModeSelect = true; // 设置为true，表示应该返回到模式选择界面
             return false;
-        } else if (index == 4) { // Shop
-            showShopMenu(); // 这里调用你的商店界面函数
-            continue; // 回到主菜单
-        } else if (index == 5) { // Load Game
-            if (hasSaveFile()) {
-                if (loadGame()) {
-                    mReturnToModeSelect = false;
-                    return true; // 成功加载存档，开始游戏
-                } else {
-                    // 加载失败，显示错误信息
-                    WINDOW* errorWin = newwin(5, 40, startY + height/2, startX + width/2 - 20);
-                    box(errorWin, 0, 0);
-                    mvwprintw(errorWin, 1, 1, "Failed to load save file!");
-                    mvwprintw(errorWin, 2, 1, "Press any key to continue...");
-                    wrefresh(errorWin);
-                    getch();
-                    delwin(errorWin);
-                    continue; // 回到主菜单
-                }
-            } else {
-                // 没有存档文件，显示提示
-                WINDOW* noSaveWin = newwin(5, 40, startY + height/2, startX + width/2 - 20);
-                box(noSaveWin, 0, 0);
-                mvwprintw(noSaveWin, 1, 1, "No save file found!");
-                mvwprintw(noSaveWin, 2, 1, "Press any key to continue...");
-                wrefresh(noSaveWin);
-                getch();
-                delwin(noSaveWin);
-                continue; // 回到主菜单
-            }
         } else {
-            mCurrentMode = static_cast<GameMode>(index);
+            // 处理游戏模式选择
+            switch (index) {
+                case 0: // Classic Mode
+                    mCurrentMode = GameMode::Classic;
+                    break;
+                case 1: // Timed Mode
+                    mCurrentMode = GameMode::Timed;
+                    break;
+                case 2: // Battle Mode
+                    mCurrentMode = GameMode::Battle;
+                    break;
+            }
             mReturnToModeSelect = false;
             return true;
         }
@@ -2664,15 +2415,15 @@ void Game::initializeLevel(int level)
     switch (level) {
         case 1:
             mCurrentLevelType = LevelType::Normal;
-            mLevelTargetPoints = 100;  // 第一关目标设置为100个食物
+            mLevelTargetPoints = 1;  // 第一关目标设置为100个食物
             break;
         case 2:
             mCurrentLevelType = LevelType::Speed;
-            mLevelTargetPoints = 8;
+            mLevelTargetPoints = 1;
             break;
         case 3:
             mCurrentLevelType = LevelType::Maze;
-            mLevelTargetPoints = 8; // 只需要8个食物就能过关
+            mLevelTargetPoints = 1; // 只需要8个食物就能过关
             break;
         case 4:
             mCurrentLevelType = LevelType::Custom1;
@@ -2686,7 +2437,7 @@ void Game::initializeLevel(int level)
             return; // 第四关有特殊初始化，直接返回
         case 5:
             mCurrentLevelType = LevelType::Custom2;
-            mLevelTargetPoints = 15;
+            mLevelTargetPoints = 1;
             // 初始化第五关特殊设置
             this->initializeLevel5();
             // 显示开场介绍（除非是重试）
@@ -3329,187 +3080,6 @@ void Game::runLevel()
         if (mHasRandomItem && std::chrono::duration_cast<std::chrono::seconds>(now - mRandomItemSpawnTime).count() > mRandomItemDuration) {
             mHasRandomItem = false;
         }
-    }
-}
-
-bool Game::selectLevelInLevelMode()
-{
-    // 清除屏幕并刷新，以确保界面正确显示
-    clear();
-    refresh();
-    
-    WINDOW * menu;
-    int width = this->mGameBoardWidth * 0.6;
-    int height = this->mGameBoardHeight * 0.6;
-    int startX = this->mGameBoardWidth * 0.2;
-    int startY = this->mGameBoardHeight * 0.2 + this->mInformationHeight;
-
-    menu = newwin(height, width, startY, startX);
-    box(menu, 0, 0);
-    
-    std::vector<std::string> menuItems;
-    
-    // 添加已解锁的关卡到菜单
-    for (int i = 0; i < mMaxLevel; i++) {
-        if (mLevelStatus[i] != LevelStatus::Locked) {
-            std::string itemText = "Level " + std::to_string(i + 1);
-            
-            // // 如果关卡已完成，添加完成标记
-            // if (mLevelStatus[i] == LevelStatus::Completed) {
-            //     itemText += " (Completed)";
-            // }
-            
-            menuItems.push_back(itemText);
-        } else {
-            // 锁定的关卡显示为锁定状态
-            menuItems.push_back("Level " + std::to_string(i + 1) + " (Locked)");
-        }
-    }
-    
-    // 添加返回选项
-    menuItems.push_back("Back to Mode Selection");
-    menuItems.push_back("Quit Game");
-
-    int index = 0;
-    int offset = 3;
-    mvwprintw(menu, 1, 1, "Select Level:");
-    
-    // 渲染菜单项
-    for (size_t i = 0; i < menuItems.size(); i++) {
-        if (i == 0) {
-            wattron(menu, A_STANDOUT);
-        }
-        
-        // 如果是已锁定的关卡，显示为灰色
-        if (i < static_cast<size_t>(mMaxLevel) && mLevelStatus[i] == LevelStatus::Locked) {
-            wattron(menu, A_DIM);
-        }
-        
-        mvwprintw(menu, static_cast<int>(i) + offset, 1, "%s", menuItems[i].c_str());
-        
-        if (i < static_cast<size_t>(mMaxLevel) && mLevelStatus[i] == LevelStatus::Locked) {
-            wattroff(menu, A_DIM);
-        }
-        
-        if (i == 0) {
-            wattroff(menu, A_STANDOUT);
-        }
-    }
-
-    wrefresh(menu);
-
-    int key;
-    while (true)
-    {
-        key = getch();
-        switch(key)
-        {
-            case 'W':
-            case 'w':
-            case KEY_UP:
-            {
-                // 移除当前选项的高亮
-                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
-                    wattron(menu, A_DIM);
-                }
-                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
-                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
-                    wattroff(menu, A_DIM);
-                }
-                
-                // 选择前一个选项
-                index--;
-                index = (index < 0) ? static_cast<int>(menuItems.size()) - 1 : index;
-                
-                // 高亮新选项
-                wattron(menu, A_STANDOUT);
-                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
-                    wattron(menu, A_DIM);
-                }
-                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
-                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
-                    wattroff(menu, A_DIM);
-                }
-                wattroff(menu, A_STANDOUT);
-                break;
-            }
-            case 'S':
-            case 's':
-            case KEY_DOWN:
-            {
-                // 移除当前选项的高亮
-                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
-                    wattron(menu, A_DIM);
-                }
-                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
-                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
-                    wattroff(menu, A_DIM);
-                }
-                
-                // 选择下一个选项
-                index++;
-                index = (index > static_cast<int>(menuItems.size()) - 1) ? 0 : index;
-                
-                // 高亮新选项
-                wattron(menu, A_STANDOUT);
-                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
-                    wattron(menu, A_DIM);
-                }
-                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
-                if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
-                    wattroff(menu, A_DIM);
-                }
-                wattroff(menu, A_STANDOUT);
-                break;
-            }
-        }
-        wrefresh(menu);
-        if (key == ' ' || key == 10)
-        {
-            break;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-    delwin(menu);
-    
-    // 如果选择了返回模式选择
-    if (static_cast<size_t>(index) == menuItems.size() - 2) {
-        mReturnToModeSelect = true;
-        return false;
-    }
-    // 如果选择了退出游戏
-    else if (static_cast<size_t>(index) == menuItems.size() - 1) {
-        return false;
-    }
-    // 如果选择了一个锁定的关卡
-    else if (index >= 0 && index < mMaxLevel && mLevelStatus[index] == LevelStatus::Locked) {
-        // 显示提示信息
-        WINDOW* lockedWin;
-        int lockWidth = this->mGameBoardWidth * 0.4;
-        int lockHeight = 4;
-        int lockStartX = this->mGameBoardWidth * 0.3;
-        int lockStartY = this->mGameBoardHeight * 0.4 + this->mInformationHeight;
-        
-        lockedWin = newwin(lockHeight, lockWidth, lockStartY, lockStartX);
-        box(lockedWin, 0, 0);
-        
-        mvwprintw(lockedWin, 1, 1, "Level %d is locked!", index + 1);
-        mvwprintw(lockedWin, 2, 1, "Complete previous level first.");
-        wrefresh(lockedWin);
-        
-        // 等待用户按任意键继续
-        getch();
-        
-        delwin(lockedWin);
-        
-        // 递归调用自身，让用户重新选择关卡
-        return selectLevelInLevelMode();
-    }
-    // 选择了有效的关卡
-    else {
-        mCurrentLevel = index + 1;
-        mIsLevelRetry = false; // 首次选择关卡时，重置重试标志
-        return true;
     }
 }
 
@@ -5049,262 +4619,6 @@ void Game::displayLevelCompletion(int level)
     wrefresh(this->mWindows[1]);
 }
 
-// 实现第三关模式一：镜像之舞
-void Game::runLevel3Mode1()
-{
-    // 确保初始化时侧边栏正确显示
-    this->renderInstructionBoard();
-    this->renderDifficulty();
-    this->renderPoints();
-    this->renderLevel();
-    
-    // 初始化第三关模式一的固定食物位置
-    this->initializeLevel3Mode1Foods();
-    // 设置第一个食物
-    this->setNextLevel3Mode1Food();
-    this->mPtrSnake->senseFood(this->mFood);
-    
-    // 降低蛇的移动速度 - 将延迟增加为原来的1.5倍
-    this->mDelay = this->mBaseDelay * 1.5;
-    
-    // 设置非阻塞模式，确保游戏不会在等待输入时卡住
-    nodelay(stdscr, TRUE);
-    
-    // 添加一个准备阶段，让玩家有时间反应
-    {
-        // 渲染当前状态，让玩家看到蛇的初始位置
-        werase(this->mWindows[1]);
-        box(this->mWindows[1], 0, 0);
-        this->renderMap();
-        this->renderSnake();
-        this->renderFood();
-        
-        // 创建一个倒计时窗口
-        WINDOW* countdownWin;
-        int width = 24;
-        int height = 5;
-        int startX = (this->mGameBoardWidth - width) / 2;
-        int startY = (this->mGameBoardHeight - height) / 2 + this->mInformationHeight;
-        
-        countdownWin = newwin(height, width, startY, startX);
-        box(countdownWin, 0, 0);
-        mvwprintw(countdownWin, 0, 8, "GET READY");
-        
-        // 倒计时3秒
-        for (int i = 3; i > 0; i--) {
-            mvwprintw(countdownWin, 2, 9, "READY: %d", i);
-            wrefresh(countdownWin);
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-        }
-        
-        mvwprintw(countdownWin, 2, 10, "GO!   ");
-        wrefresh(countdownWin);
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        
-        // 删除倒计时窗口
-        delwin(countdownWin);
-    }
-    
-    // 创建影子蛇 - 玩家的镜像
-    std::unique_ptr<Snake> shadowSnake = std::make_unique<Snake>(this->mGameBoardWidth, this->mGameBoardHeight, this->mInitialSnakeLength);
-    shadowSnake->setMap(this->mPtrMap.get());
-    
-    // 获取当前蛇的位置和方向
-    int playerX = this->mPtrSnake->getSnake()[0].getX();
-    int playerY = this->mPtrSnake->getSnake()[0].getY();
-    Direction playerDir = this->mPtrSnake->getDirection();
-    
-    // 计算镜像位置 - 以游戏区域中央垂直轴为对称轴
-    int centerX = this->mGameBoardWidth / 2;
-    // 关于垂直中轴线的对称 (x坐标对称，y坐标不变)
-    int shadowX = 2 * centerX - playerX;
-    int shadowY = playerY;
-    
-    // 计算镜像方向
-    Direction shadowDir;
-    switch (playerDir) {
-        case Direction::Up:
-            shadowDir = Direction::Up; // 上下方向不变
-            break;
-        case Direction::Down:
-            shadowDir = Direction::Down; // 上下方向不变
-            break;
-        case Direction::Left:
-            shadowDir = Direction::Right; // 左右方向对称
-            break;
-        case Direction::Right:
-            shadowDir = Direction::Left; // 左右方向对称
-            break;
-    }
-    
-    // 初始化影子蛇 - 需要转换为InitialDirection枚举
-    InitialDirection shadowInitDir;
-    switch (shadowDir) {
-        case Direction::Up:
-            shadowInitDir = InitialDirection::Up;
-            break;
-        case Direction::Down:
-            shadowInitDir = InitialDirection::Down;
-            break;
-        case Direction::Left:
-            shadowInitDir = InitialDirection::Left;
-            break;
-        case Direction::Right:
-            shadowInitDir = InitialDirection::Right;
-            break;
-    }
-    shadowSnake->initializeSnake(shadowX, shadowY, shadowInitDir);
-    
-    // 游戏主循环
-    while (true)
-    {
-        // 处理玩家输入
-        this->controlSnake();
-        
-        // 清除游戏区域
-        werase(this->mWindows[1]);
-        box(this->mWindows[1], 0, 0);
-        
-        // 渲染地图
-        this->renderMap();
-        
-        // 保存食物的当前位置
-        int foodX = this->mFood.getX();
-        int foodY = this->mFood.getY();
-        
-        // 移动玩家蛇
-        bool playerEatFood = this->mPtrSnake->moveFoward();
-        bool playerCollision = this->mPtrSnake->checkCollision();
-        
-        // 获取玩家蛇的新方向
-        Direction playerNewDir = this->mPtrSnake->getDirection();
-        
-        // 计算影子蛇的镜像方向
-        Direction shadowNewDir;
-        switch (playerNewDir) {
-            case Direction::Up:
-                shadowNewDir = Direction::Up; // 上下方向不变
-                break;
-            case Direction::Down:
-                shadowNewDir = Direction::Down; // 上下方向不变
-                break;
-            case Direction::Left:
-                shadowNewDir = Direction::Right; // 左右方向对称
-                break;
-            case Direction::Right:
-                shadowNewDir = Direction::Left; // 左右方向对称
-                break;
-        }
-        
-        // 设置影子蛇的方向
-        shadowSnake->changeDirection(shadowNewDir);
-        
-        // 移动影子蛇
-        shadowSnake->moveFoward();
-        bool shadowCollision = shadowSnake->checkCollision();
-        
-        // 手动检查影子蛇是否吃到食物
-        bool shadowEatFood = false;
-        if (!playerEatFood) { // 如果玩家没有吃到食物，检查影子蛇是否吃到
-            const SnakeBody& shadowHead = shadowSnake->getSnake()[0];
-            if (shadowHead.getX() == foodX && shadowHead.getY() == foodY) {
-                shadowEatFood = true;
-            }
-        }
-        
-        // 检查玩家或影子是否碰撞
-        if (playerCollision || shadowCollision)
-        {
-            // 游戏结束
-            break;
-        }
-        
-        // 处理吃食物 - 玩家蛇或镜像蛇任一吃到食物都算
-        if (playerEatFood || shadowEatFood)
-        {
-            this->mPoints += 1;
-            // 使用固定食物列表而不是随机生成
-            this->setNextLevel3Mode1Food();
-            this->mPtrSnake->senseFood(this->mFood);
-            shadowSnake->senseFood(this->mFood);
-            
-            // 检查是否完成关卡目标
-            if (this->isLevelCompleted())
-            {
-                // 如果达到目标分数，关卡通过
-                this->renderFood();
-                this->renderDifficulty();
-                this->renderPoints();
-                this->renderLevel();
-                refresh();
-                break;
-            }
-        }
-        
-        // 渲染玩家蛇
-        this->renderSnake();
-        
-        // 渲染影子蛇 - 使用不同的符号
-        const std::vector<SnakeBody>& shadowBody = shadowSnake->getSnake();
-        for (const auto& segment : shadowBody) {
-            mvwaddch(this->mWindows[1], segment.getY(), segment.getX(), '%');
-        }
-        
-        // 渲染食物和状态信息
-        this->renderFood();
-        this->renderDifficulty();
-        this->renderPoints();
-        this->renderLevel();
-        
-        // 添加提示文字
-        mvwprintw(this->mWindows[1], 1, 1, "Mirror Dance: Watch your shadow!");
-        
-        // 游戏延迟
-        std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
-        
-        refresh();
-    }
-}
-
-// 初始化第三关模式一的10个固定食物位置
-void Game::initializeLevel3Mode1Foods()
-{
-    // 清空旧的食物列表
-    mLevel3Mode1Foods.clear();
-    mLevel3FoodIndex = 0;
-    
-
-    mLevel3Mode1Foods.push_back(SnakeBody(7, 4));
-    mLevel3Mode1Foods.push_back(SnakeBody(50, 4));
-    mLevel3Mode1Foods.push_back(SnakeBody(3, 8));
-    mLevel3Mode1Foods.push_back(SnakeBody(59, 8));
-    mLevel3Mode1Foods.push_back(SnakeBody(10, 13));
-    mLevel3Mode1Foods.push_back(SnakeBody(47, 10));
-    mLevel3Mode1Foods.push_back(SnakeBody(15, 10));
-    mLevel3Mode1Foods.push_back(SnakeBody(20, 6));
-
-    
-
-
-}
-
-// 设置下一个固定食物
-void Game::setNextLevel3Mode1Food()
-{
-    if (mLevel3Mode1Foods.empty())
-    {
-        // 如果食物列表为空，则创建随机食物作为备选
-        createRamdonFood();
-        return;
-    }
-    
-    // 设置当前索引对应的食物
-    mFood = mLevel3Mode1Foods[mLevel3FoodIndex];
-    
-    // 更新索引，循环使用食物列表
-    mLevel3FoodIndex = (mLevel3FoodIndex + 1) % mLevel3Mode1Foods.size();
-}
-
 // 实现第三关模式二：协作模式
 void Game::runLevel3Mode2()
 {
@@ -6784,5 +6098,256 @@ void Game::startLevelDirectly(int level) {
             }
         }
     }
+}
+
+// 实现第三关模式一：镜像之舞
+void Game::runLevel3Mode1()
+{
+    // 确保初始化时侧边栏正确显示
+    this->renderInstructionBoard();
+    this->renderDifficulty();
+    this->renderPoints();
+    this->renderLevel();
+    
+    // 初始化第三关模式一的固定食物位置
+    this->initializeLevel3Mode1Foods();
+    // 设置第一个食物
+    this->setNextLevel3Mode1Food();
+    this->mPtrSnake->senseFood(this->mFood);
+    
+    // 降低蛇的移动速度 - 将延迟增加为原来的1.5倍
+    this->mDelay = this->mBaseDelay * 1.5;
+    
+    // 设置非阻塞模式，确保游戏不会在等待输入时卡住
+    nodelay(stdscr, TRUE);
+    
+    // 添加一个准备阶段，让玩家有时间反应
+    {
+        // 渲染当前状态，让玩家看到蛇的初始位置
+        werase(this->mWindows[1]);
+        box(this->mWindows[1], 0, 0);
+        this->renderMap();
+        this->renderSnake();
+        this->renderFood();
+        
+        // 创建一个倒计时窗口
+        WINDOW* countdownWin;
+        int width = 24;
+        int height = 5;
+        int startX = (this->mGameBoardWidth - width) / 2;
+        int startY = (this->mGameBoardHeight - height) / 2 + this->mInformationHeight;
+        
+        countdownWin = newwin(height, width, startY, startX);
+        box(countdownWin, 0, 0);
+        mvwprintw(countdownWin, 0, 8, "GET READY");
+        
+        // 倒计时3秒
+        for (int i = 3; i > 0; i--) {
+            mvwprintw(countdownWin, 2, 9, "READY: %d", i);
+            wrefresh(countdownWin);
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+        
+        mvwprintw(countdownWin, 2, 10, "GO!   ");
+        wrefresh(countdownWin);
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        
+        // 删除倒计时窗口
+        delwin(countdownWin);
+    }
+    
+    // 创建影子蛇 - 玩家的镜像
+    std::unique_ptr<Snake> shadowSnake = std::make_unique<Snake>(this->mGameBoardWidth, this->mGameBoardHeight, this->mInitialSnakeLength);
+    shadowSnake->setMap(this->mPtrMap.get());
+    
+    // 获取当前蛇的位置和方向
+    int playerX = this->mPtrSnake->getSnake()[0].getX();
+    int playerY = this->mPtrSnake->getSnake()[0].getY();
+    Direction playerDir = this->mPtrSnake->getDirection();
+    
+    // 计算镜像位置 - 以游戏区域中央垂直轴为对称轴
+    int centerX = this->mGameBoardWidth / 2;
+    // 关于垂直中轴线的对称 (x坐标对称，y坐标不变)
+    int shadowX = 2 * centerX - playerX;
+    int shadowY = playerY;
+    
+    // 计算镜像方向
+    Direction shadowDir;
+    switch (playerDir) {
+        case Direction::Up:
+            shadowDir = Direction::Up; // 上下方向不变
+            break;
+        case Direction::Down:
+            shadowDir = Direction::Down; // 上下方向不变
+            break;
+        case Direction::Left:
+            shadowDir = Direction::Right; // 左右方向对称
+            break;
+        case Direction::Right:
+            shadowDir = Direction::Left; // 左右方向对称
+            break;
+    }
+    
+    // 初始化影子蛇 - 需要转换为InitialDirection枚举
+    InitialDirection shadowInitDir;
+    switch (shadowDir) {
+        case Direction::Up:
+            shadowInitDir = InitialDirection::Up;
+            break;
+        case Direction::Down:
+            shadowInitDir = InitialDirection::Down;
+            break;
+        case Direction::Left:
+            shadowInitDir = InitialDirection::Left;
+            break;
+        case Direction::Right:
+            shadowInitDir = InitialDirection::Right;
+            break;
+    }
+    shadowSnake->initializeSnake(shadowX, shadowY, shadowInitDir);
+    
+    // 游戏主循环
+    while (true)
+    {
+        // 处理玩家输入
+        this->controlSnake();
+        
+        // 清除游戏区域
+        werase(this->mWindows[1]);
+        box(this->mWindows[1], 0, 0);
+        
+        // 渲染地图
+        this->renderMap();
+        
+        // 保存食物的当前位置
+        int foodX = this->mFood.getX();
+        int foodY = this->mFood.getY();
+        
+        // 移动玩家蛇
+        bool playerEatFood = this->mPtrSnake->moveFoward();
+        bool playerCollision = this->mPtrSnake->checkCollision();
+        
+        // 获取玩家蛇的新方向
+        Direction playerNewDir = this->mPtrSnake->getDirection();
+        
+        // 计算影子蛇的镜像方向
+        Direction shadowNewDir;
+        switch (playerNewDir) {
+            case Direction::Up:
+                shadowNewDir = Direction::Up; // 上下方向不变
+                break;
+            case Direction::Down:
+                shadowNewDir = Direction::Down; // 上下方向不变
+                break;
+            case Direction::Left:
+                shadowNewDir = Direction::Right; // 左右方向对称
+                break;
+            case Direction::Right:
+                shadowNewDir = Direction::Left; // 左右方向对称
+                break;
+        }
+        
+        // 设置影子蛇的方向
+        shadowSnake->changeDirection(shadowNewDir);
+        
+        // 移动影子蛇
+        shadowSnake->moveFoward();
+        bool shadowCollision = shadowSnake->checkCollision();
+        
+        // 手动检查影子蛇是否吃到食物
+        bool shadowEatFood = false;
+        if (!playerEatFood) { // 如果玩家没有吃到食物，检查影子蛇是否吃到
+            const SnakeBody& shadowHead = shadowSnake->getSnake()[0];
+            if (shadowHead.getX() == foodX && shadowHead.getY() == foodY) {
+                shadowEatFood = true;
+            }
+        }
+        
+        // 检查玩家或影子是否碰撞
+        if (playerCollision || shadowCollision)
+        {
+            // 游戏结束
+            break;
+        }
+        
+        // 处理吃食物 - 玩家蛇或镜像蛇任一吃到食物都算
+        if (playerEatFood || shadowEatFood)
+        {
+            this->mPoints += 1;
+            // 使用固定食物列表而不是随机生成
+            this->setNextLevel3Mode1Food();
+            this->mPtrSnake->senseFood(this->mFood);
+            shadowSnake->senseFood(this->mFood);
+            
+            // 检查是否完成关卡目标
+            if (this->isLevelCompleted())
+            {
+                // 如果达到目标分数，关卡通过
+                this->renderFood();
+                this->renderDifficulty();
+                this->renderPoints();
+                this->renderLevel();
+                refresh();
+                break;
+            }
+        }
+        
+        // 渲染玩家蛇
+        this->renderSnake();
+        
+        // 渲染影子蛇 - 使用不同的符号
+        const std::vector<SnakeBody>& shadowBody = shadowSnake->getSnake();
+        for (const auto& segment : shadowBody) {
+            mvwaddch(this->mWindows[1], segment.getY(), segment.getX(), '%');
+        }
+        
+        // 渲染食物和状态信息
+        this->renderFood();
+        this->renderDifficulty();
+        this->renderPoints();
+        this->renderLevel();
+        
+        // 添加提示文字
+        mvwprintw(this->mWindows[1], 1, 1, "Mirror Dance: Watch your shadow!");
+        
+        // 游戏延迟
+        std::this_thread::sleep_for(std::chrono::milliseconds(this->mDelay));
+        
+        refresh();
+    }
+}
+
+// 初始化第三关模式一的10个固定食物位置
+void Game::initializeLevel3Mode1Foods()
+{
+    // 清空旧的食物列表
+    mLevel3Mode1Foods.clear();
+    mLevel3FoodIndex = 0;
+    
+    mLevel3Mode1Foods.push_back(SnakeBody(7, 4));
+    mLevel3Mode1Foods.push_back(SnakeBody(50, 4));
+    mLevel3Mode1Foods.push_back(SnakeBody(3, 8));
+    mLevel3Mode1Foods.push_back(SnakeBody(59, 8));
+    mLevel3Mode1Foods.push_back(SnakeBody(10, 13));
+    mLevel3Mode1Foods.push_back(SnakeBody(47, 10));
+    mLevel3Mode1Foods.push_back(SnakeBody(15, 10));
+    mLevel3Mode1Foods.push_back(SnakeBody(20, 6));
+}
+
+// 设置下一个固定食物
+void Game::setNextLevel3Mode1Food()
+{
+    if (mLevel3Mode1Foods.empty())
+    {
+        // 如果食物列表为空，则创建随机食物作为备选
+        createRamdonFood();
+        return;
+    }
+    
+    // 设置当前索引对应的食物
+    mFood = mLevel3Mode1Foods[mLevel3FoodIndex];
+    
+    // 更新索引，循环使用食物列表
+    mLevel3FoodIndex = (mLevel3FoodIndex + 1) % mLevel3Mode1Foods.size();
 }
 

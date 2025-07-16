@@ -82,7 +82,7 @@ void StoryDisplayWindow::setupUI()
     
     // ===== 📝 剧情文字显示区域 =====
     m_scrollArea = new QScrollArea(this);
-    m_scrollArea->setFixedSize(800, 430);  // 📍 文字框大小
+    m_scrollArea->setFixedSize(900, 480);  // 📍 文字框大小
     m_scrollArea->setStyleSheet("QScrollArea { background: rgba(255, 255, 255, 0); border: none; border-radius: 20px; }");
     m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
@@ -92,7 +92,7 @@ void StoryDisplayWindow::setupUI()
     m_storyTextLabel->setWordWrap(true);
     m_storyTextLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     m_storyTextLabel->setStyleSheet("QLabel { color: #2F2F2F; font-size: 20px; font-family: 'Georgia', serif; padding: 45px; line-height: 2.8; font-weight: bold; background: rgba(255, 255, 255, 0); }");
-    m_storyTextLabel->setMinimumSize(800, 430);  // 📍 文字区域大小
+    m_storyTextLabel->setMinimumSize(900, 480);  // 📍 文字区域大小
     m_scrollArea->setWidget(m_storyTextLabel);
     
     // ===== 🎨 漫画显示区域 =====
@@ -113,7 +113,7 @@ void StoryDisplayWindow::setupUI()
     
     // ===== 📝 文字框位置设置 =====
     m_scrollArea->setParent(this);
-    m_scrollArea->move(350, 240);  // 📍 文字框位置 (X, Y)
+    m_scrollArea->move(350, 220);  // 📍 文字框位置 (X, Y)
     
     // ===== 🎨 漫画框位置设置 =====  
     m_cartoonLabel->setParent(this);

@@ -188,27 +188,75 @@ int main(int argc, char** argv)
     if (guiResult == 1) {
         // 经典模式：进入游戏循环，允许用户选择模式并退回模式选择
         while (!exitGame) {
-        // 选择游戏模式
-        bool continueGame = game.selectLevel();
-        
-        // 如果用户选择退出，则结束游戏
-        if (!continueGame) {
-            exitGame = true;
-            continue;
-        }
-        
-        // 启动游戏
-        game.startGame();
-        
-        // 如果用户没有选择返回模式选择，则退出游戏
-        if (!game.shouldReturnToModeSelect()) {
-            exitGame = true;
-        }
-        
-        // 刷新屏幕并清除所有输入缓冲
-        clear();
-        refresh();
-        flushinp();
+            // 选择游戏模式
+            bool continueGame = game.selectLevel();
+            
+            // 如果用户选择退出，但标志表明应该返回到模式选择界面
+            if (!continueGame && game.shouldReturnToModeSelect()) {
+                // 结束ncurses环境
+                endwin();
+                
+                // 重新启动GUI进行关卡选择
+                int newGuiResult = startQtGUI(argc, argv);
+                
+                if (newGuiResult == 0) {
+                    // 用户选择退出
+                    exitGame = true;
+                    continue;
+                } else {
+                    // 用户在GUI界面做出了新的选择
+                    // 重新初始化ncurses环境
+                    initscr();
+                    noecho();
+                    keypad(stdscr, TRUE);
+                    nodelay(stdscr, TRUE);
+                    curs_set(0);
+                    
+                    // 启用颜色
+                    if (has_colors()) {
+                        start_color();
+                        init_pair(1, COLOR_CYAN, COLOR_BLACK);
+                        init_pair(2, COLOR_YELLOW, COLOR_BLACK);
+                        init_pair(3, COLOR_RED, COLOR_BLACK);
+                        init_pair(4, COLOR_RED, COLOR_BLACK);
+                        init_pair(5, COLOR_BLUE, COLOR_BLACK);
+                        init_pair(6, COLOR_GREEN, COLOR_BLACK);
+                    }
+                    
+                    if (newGuiResult == 1) {
+                        // 用户选择了经典模式，继续当前循环
+                        continue;
+                    } else if (newGuiResult > 1) {
+                        // 用户选择了剧情关卡，跳转到剧情模式
+                        exitGame = true; // 退出当前循环
+                        // 重新进入main函数，以正确的参数启动剧情模式
+                        endwin();
+                        return main(argc, argv);
+                    } else if (newGuiResult == -2) {
+                        // 用户选择了商店
+                        game.showShopMenu();
+                        continue;
+                    }
+                }
+            }
+            // 如果用户选择直接退出（不是返回模式选择）
+            else if (!continueGame) {
+                exitGame = true;
+                continue;
+            }
+            
+            // 启动游戏
+            game.startGame();
+            
+            // 如果用户没有选择返回模式选择，则退出游戏
+            if (!game.shouldReturnToModeSelect()) {
+                exitGame = true;
+            }
+            
+            // 刷新屏幕并清除所有输入缓冲
+            clear();
+            refresh();
+            flushinp();
         }
     } else {
         // 剧情模式：直接启动指定关卡
