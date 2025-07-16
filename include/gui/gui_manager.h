@@ -27,6 +27,9 @@ public:
     
     // 新增：关卡胜利后显示漫画
     void showCartoonAfterLevelVictory(int level); // 关卡胜利后显示漫画
+    
+    // 新增：商店相关
+    bool isShopRequested() const;       // 是否请求进入商店
 
 
 private slots:
@@ -42,6 +45,7 @@ private slots:
     void onVictoryCartoonFinished();    // 胜利漫画播放完成
     void onPrologueCartoonFinished();   // 序章漫画播放完成
     void onLevel5CartoonFinished();     // Level5漫画播放完成
+    void onShopRequested();             // 商店请求
 
 private:
     void showModeSelectWindow();        // 显示模式选择窗口
@@ -57,6 +61,7 @@ private:
     bool mExitRequested;                // 是否请求退出
     int mSelectedLevel;                 // 选择的关卡
     std::vector<int> mUnlockedLevels;   // 已解锁的关卡
+    bool mShopRequested;                // 是否请求进入商店
 };
 
 #endif // GUI_MANAGER_H 

@@ -46,6 +46,10 @@ int startQtGUI(int argc, char** argv)
             return 1; // 用户选择经典模式
         }
         
+        if (guiManager.isShopRequested()) {
+            return -2; // 用户选择商店模式
+        }
+        
         // 用户选择了剧情模式的某个关卡
         return guiManager.getSelectedLevel() + 1; // 返回关卡号+1（2-6代表关卡1-5）
     }
@@ -110,6 +114,43 @@ int main(int argc, char** argv)
     if (guiResult == 0) {
         // 用户选择退出
         return 0;
+    }
+    
+    // 处理商店模式
+    if (guiResult == -2) {
+        // 初始化ncurses环境
+        initscr();
+        noecho();
+        keypad(stdscr, TRUE);
+        nodelay(stdscr, TRUE);
+        curs_set(0);
+        
+        // 启用颜色
+        if (has_colors()) {
+            start_color();
+            init_pair(1, COLOR_CYAN, COLOR_BLACK);
+            init_pair(2, COLOR_YELLOW, COLOR_BLACK);
+            init_pair(3, COLOR_RED, COLOR_BLACK);
+            init_pair(4, COLOR_RED, COLOR_BLACK);
+            init_pair(5, COLOR_BLUE, COLOR_BLACK);
+            init_pair(6, COLOR_GREEN, COLOR_BLACK);
+        }
+        
+        clear();
+        refresh();
+        flushinp();
+        
+        // 创建游戏实例并进入商店
+        Game game;
+        game.loadPlayerProfile();  // 加载玩家数据
+        game.loadItemInventory();  // 加载道具数据
+        game.showShopMenu();       // 显示商店界面
+        
+        // 商店结束后，重新启动GUI进行模式选择
+        endwin();
+        
+        // 递归调用main函数重新开始
+        return main(argc, argv);
     }
     
     // 初始化ncurses环境

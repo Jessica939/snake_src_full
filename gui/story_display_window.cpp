@@ -112,11 +112,11 @@ void StoryDisplayWindow::setupUI()
     
     // ===== 📝 文字框位置设置 =====
     m_scrollArea->setParent(this);
-    m_scrollArea->move(370, 280);  // 📍 文字框位置 (X, Y)
+    m_scrollArea->move(350, 240);  // 📍 文字框位置 (X, Y)
     
     // ===== 🎨 漫画框位置设置 =====  
     m_cartoonLabel->setParent(this);
-    m_cartoonLabel->move(468, 30);  // 📍 漫画框位置 (X, Y) - 居中偏上
+    m_cartoonLabel->move(468, 10);  // 📍 漫画框位置 (X, Y) - 居中偏上
     
     // 跳过提示定位到中间偏下
     m_skipHintLabel->setParent(this);
