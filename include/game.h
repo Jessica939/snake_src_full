@@ -120,8 +120,12 @@ private:
     SnakeBody mPoison;  // 新增毒药位置
     const char mSnakeSymbol = '@';
     const char mFoodSymbol = '#';
-    const char mPoisonSymbol = 'P';  // 新增毒药符号
+    const char mPoisonSymbol = 'x';  // 毒药用x
     const char mWallSymbol = '+';
+    // 特殊食物符号不再用&，渲染时区分
+    // 尸体食物符号
+    const char mCorpseFoodSymbol = '^';
+    // 随机道具符号不再用单一符号，渲染时区分
     int mInitialSnakeLength = 3;
     bool mHasPoison = false;  // 新增是否有毒药的标志
     
@@ -129,19 +133,17 @@ private:
     FoodType mCurrentFoodType = FoodType::Normal;
     SnakeBody mSpecialFood;
     bool mHasSpecialFood = false;
-    const char mSpecialFoodSymbol = '&'; // 改为&符号，更容易识别
+    const char mSpecialFoodSymbol = '&'; // 可根据需要调整
     std::chrono::time_point<std::chrono::steady_clock> mSpecialFoodSpawnTime;
     const float mSpecialFoodDuration = 5.0f;
     
     // 尸体食物系统
     std::vector<SnakeBody> mCorpseFoods; // 存储尸体食物的位置
-    const char mCorpseFoodSymbol = 'C'; // 尸体食物符号
-    
     // 随机道具系统
     SnakeBody mRandomItem;
     bool mHasRandomItem = false;
     ItemType mCurrentRandomItemType = ItemType::Portal;
-    const char mRandomItemSymbol = '$';
+    const char mRandomItemSymbol = 'P'; // 传送门用P
     std::chrono::time_point<std::chrono::steady_clock> mRandomItemSpawnTime;
     const float mRandomItemDuration = 5.0f;
     

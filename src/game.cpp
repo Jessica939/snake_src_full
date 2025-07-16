@@ -1102,7 +1102,6 @@ void Game::renderFood() const
 void Game::renderPoison() const
 {
     if (mHasPoison) {
-        // 使用红色显示毒药
         wattron(this->mWindows[1], COLOR_PAIR(4)); // 红色
         mvwaddch(this->mWindows[1], this->mPoison.getY(), this->mPoison.getX(), this->mPoisonSymbol);
         wattroff(this->mWindows[1], COLOR_PAIR(4));
@@ -1113,9 +1112,15 @@ void Game::renderPoison() const
 void Game::renderSpecialFood() const
 {
     if (mHasSpecialFood) {
-        // 使用紫色显示特殊食物，避免与AI蛇的黄色冲突
+        char symbol = '*';
+        switch (mCurrentFoodType) {
+            case FoodType::Special1: symbol = '*'; break;
+            case FoodType::Special2: symbol = '%'; break;
+            case FoodType::Special3: symbol = '!'; break;
+            default: symbol = '*'; break;
+        }
         wattron(this->mWindows[1], COLOR_PAIR(6)); // 紫色
-        mvwaddch(this->mWindows[1], this->mSpecialFood.getY(), this->mSpecialFood.getX(), this->mSpecialFoodSymbol);
+        mvwaddch(this->mWindows[1], this->mSpecialFood.getY(), this->mSpecialFood.getX(), symbol);
         wattroff(this->mWindows[1], COLOR_PAIR(6));
         wrefresh(this->mWindows[1]);
     }
@@ -1124,9 +1129,18 @@ void Game::renderSpecialFood() const
 void Game::renderRandomItem() const
 {
     if (mHasRandomItem) {
-        // 使用青色显示随机道具
+        char symbol = '?';
+        switch (mCurrentRandomItemType) {
+            case ItemType::Portal: symbol = 'P'; break;
+            case ItemType::RandomBox: symbol = 'B'; break;
+            case ItemType::Cheat: symbol = 'C'; break;
+            case ItemType::Attack: symbol = 'A'; break;
+            case ItemType::Shield: symbol = 'S'; break;
+            case ItemType::Poison: symbol = 'x'; break;
+            default: symbol = '?'; break;
+        }
         wattron(this->mWindows[1], COLOR_PAIR(1)); // 青色
-        mvwaddch(this->mWindows[1], this->mRandomItem.getY(), this->mRandomItem.getX(), this->mRandomItemSymbol);
+        mvwaddch(this->mWindows[1], this->mRandomItem.getY(), this->mRandomItem.getX(), symbol);
         wattroff(this->mWindows[1], COLOR_PAIR(1));
         wrefresh(this->mWindows[1]);
     }
