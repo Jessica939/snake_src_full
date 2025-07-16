@@ -13,6 +13,7 @@ GUIManager::GUIManager(QObject *parent)
     , mClassicModeSelected(false)
     , mExitRequested(false)
     , mSelectedLevel(0)
+    , mShopRequested(false)
 {
     loadLevelProgress();
 }
@@ -35,6 +36,11 @@ bool GUIManager::isClassicModeSelected() const
 bool GUIManager::isExitRequested() const
 {
     return mExitRequested;
+}
+
+bool GUIManager::isShopRequested() const
+{
+    return mShopRequested;
 }
 
 int GUIManager::getSelectedLevel() const
@@ -71,6 +77,8 @@ void GUIManager::showModeSelectWindow()
                 this, &GUIManager::onClassicModeSelected);
         connect(mModeSelectWindow.get(), &ModeSelectWindow::exitGameRequested,
                 this, &GUIManager::onExitRequested);
+        connect(mModeSelectWindow.get(), &ModeSelectWindow::shopRequested,
+                this, &GUIManager::onShopRequested);
     }
     
     mModeSelectWindow->show();
@@ -170,6 +178,22 @@ void GUIManager::onExitRequested()
     }
     
     // 退出Qt事件循环
+    QApplication::quit();
+}
+
+void GUIManager::onShopRequested()
+{
+    mShopRequested = true;
+    
+    // 隐藏所有窗口
+    if (mModeSelectWindow) {
+        mModeSelectWindow->hide();
+    }
+    if (mStoryLevelWindow) {
+        mStoryLevelWindow->hide();
+    }
+    
+    // 退出Qt事件循环，让main函数继续执行ncurses商店界面
     QApplication::quit();
 }
 
