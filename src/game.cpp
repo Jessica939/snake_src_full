@@ -6288,6 +6288,12 @@ void Game::handleItemUsage(int key) {
             activateShield();
         }
     }
+    // 5键：随机盒子
+    else if (key == '5') {
+        if (getItemCount(ItemType::RandomBox) > 0) {
+            useRandomBox();
+        }
+    }
 }
 
 void Game::updateCheatMode() {
@@ -6798,5 +6804,54 @@ void Game::startLevelDirectly(int level) {
             }
         }
     }
+}
+
+void Game::useRandomBox() {
+    if (!useItem(ItemType::RandomBox)) return;
+    // 随机选择一个效果
+    int effect = std::rand() % 6;
+    std::string msg;
+    switch (effect) {
+        case 0: // 作弊模式
+            activateCheatMode();
+            msg = "RandomBox: Invincible!";
+            break;
+        case 1: // 传送门
+            usePortal();
+            msg = "RandomBox: Teleport!";
+            break;
+        case 2: // 护盾
+            activateShield();
+            msg = "RandomBox: Shield!";
+            break;
+        case 3: // 攻击（仅对战模式有效）
+            if (mCurrentMode == GameMode::Battle) {
+                useAttack();
+                msg = "RandomBox: Attack!";
+            } else {
+                addCoins(5);
+                msg = "RandomBox: +5 Coins!";
+            }
+            break;
+        case 4: // 加分
+            mPoints += 5;
+            msg = "RandomBox: +5 Points!";
+            break;
+        case 5: // 获得一个随机道具
+        {
+            int t = std::rand() % 4;
+            ItemType it = (ItemType)t; // 0-3: Portal, RandomBox, Cheat, Attack
+            addItem(it, 1);
+            msg = "RandomBox: Bonus Item!";
+            break;
+        }
+    }
+    // 弹窗显示效果
+    WINDOW* win = newwin(3, 30, mGameBoardHeight/2 + mInformationHeight, mGameBoardWidth/2 - 15);
+    box(win, 0, 0);
+    mvwprintw(win, 1, 1, "%s", msg.c_str());
+    wrefresh(win);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1200));
+    delwin(win);
 }
 
