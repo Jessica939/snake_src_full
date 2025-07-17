@@ -2367,7 +2367,7 @@ void Game::displayLevelIntroduction(int level)
         };
         std::vector<std::string> descs = {
             "You decide to face the test yourself, to listen to their wordless teachings.",
-            "You choose to trust the companion by your side, inviting them into this place of memory to work together."
+            "You choose to trust the companion, inviting them into this place of memory."
         };
         int choiceIdx = 0;
         int choiceY = height / 2 - 2;
@@ -2664,19 +2664,19 @@ void Game::initializeLevel(int level)
     switch (level) {
         case 1:
             mCurrentLevelType = LevelType::Normal;
-            mLevelTargetPoints = 100;  // 第一关目标设置为100个食物
+            mLevelTargetPoints = 2;  // 第一关目标设置为100个食物
             break;
         case 2:
             mCurrentLevelType = LevelType::Speed;
-            mLevelTargetPoints = 8;
+            mLevelTargetPoints = 5;
             break;
         case 3:
             mCurrentLevelType = LevelType::Maze;
-            mLevelTargetPoints = 8; // 只需要8个食物就能过关
+            mLevelTargetPoints = 2; // 只需要8个食物就能过关
             break;
         case 4:
             mCurrentLevelType = LevelType::Custom1;
-            mLevelTargetPoints = 12;
+            mLevelTargetPoints = 1;
             // 初始化第四关特殊设置
             this->initializeLevel4();
             // 显示开场介绍（除非是重试）
