@@ -2077,7 +2077,7 @@ void Game::displayLevelIntroduction(int level)
                 "You take a deep breath and sink the power of \"Tough Heart\" into the depths of your consciousness.",
                 "Now you have to be faster than time.",
                 "",
-                "OBJECTIVE: Collect 8 pieces of food within 30 seconds!"
+                "OBJECTIVE: Collect 5 pieces of food within 30 seconds!"
             };
             break;
         case 3:
@@ -2664,7 +2664,7 @@ void Game::initializeLevel(int level)
     switch (level) {
         case 1:
             mCurrentLevelType = LevelType::Normal;
-            mLevelTargetPoints = 2;  // 第一关目标设置为100个食物
+            mLevelTargetPoints = 100;  // 第一关目标设置为100个食物
             break;
         case 2:
             mCurrentLevelType = LevelType::Speed;
@@ -2672,7 +2672,7 @@ void Game::initializeLevel(int level)
             break;
         case 3:
             mCurrentLevelType = LevelType::Maze;
-            mLevelTargetPoints = 2; // 只需要8个食物就能过关
+            mLevelTargetPoints = 8; // 只需要8个食物就能过关
             break;
         case 4:
             mCurrentLevelType = LevelType::Custom1;
