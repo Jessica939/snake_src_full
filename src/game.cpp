@@ -230,21 +230,14 @@ void Game::renderInstructionBoard() const
     mvwprintw(this->mWindows[2], row++, 2, "Left: A");
     mvwprintw(this->mWindows[2], row++, 2, "Right: D");
     mvwprintw(this->mWindows[2], row++, 2, "Save:  F");
-    row++; // 空一行
     //lives
     if (mCurrentMode == GameMode::Classic && mPtrSnake != nullptr) {
             mvwprintw(this->mWindows[2], row++, 1, "Lives");
             mvwprintw(this->mWindows[2], row++, 2, "%d", mPtrSnake->getLives());
-            row++; // 空一行
     }
-    // Difficulty
-    mvwprintw(this->mWindows[2], row++, 1, "Difficulty");
-    mvwprintw(this->mWindows[2], row++, 2, "%d", mDifficulty);
-    row++; // 空一行
     // Level
     mvwprintw(this->mWindows[2], row++, 1, "Level");
     mvwprintw(this->mWindows[2], row++, 2, "%d", mCurrentLevel);
-    row++; // 空一行
     
     // --- 剩余时间 (仅限时模式) ---
     if (mCurrentMode == GameMode::Timed) {
@@ -254,7 +247,6 @@ void Game::renderInstructionBoard() const
     // Points
     mvwprintw(this->mWindows[2], row++, 1, "Points");
     mvwprintw(this->mWindows[2], row++, 2, "%d", mPoints);
-    row++; // 空一行
     // Items
     mvwprintw(this->mWindows[2], row++, 1, "Items:");
     for (int i = 0; i <= (int)ItemType::Poison; ++i) {
@@ -274,7 +266,6 @@ void Game::renderInstructionBoard() const
         }
         mvwprintw(this->mWindows[2], row++, 2, "%s: %d", itemName.c_str(), count);
     }
-    row++; // Items和排行榜之间再加空行
     // 最后一行显示保存提示
     wrefresh(this->mWindows[2]);
 }
@@ -613,13 +604,6 @@ void Game::renderPoints() const
     wrefresh(this->mWindows[2]);
 }
 
-void Game::renderDifficulty() const
-{
-    std::string difficultyString = std::to_string(this->mDifficulty);
-    mvwprintw(this->mWindows[2], 9, 2, "%s", difficultyString.c_str());
-    wrefresh(this->mWindows[2]);
-}
-
 void Game::renderLevel() const
 {
     // 显示当前关卡
@@ -744,7 +728,6 @@ void Game::initializeGame()
         mHasRandomItem = false;
     }
     
-    this->mDifficulty = 0;
     this->mPoints = 0;
     this->mDelay = this->mBaseDelay;
     
@@ -1485,7 +1468,6 @@ void Game::runGame()
                 this->renderSpecialFood();
                 this->renderCorpseFoods();
                 this->renderRandomItem();
-                this->renderDifficulty();
                 this->renderPoints();
                 this->renderLevel();
                 refresh();
@@ -1536,8 +1518,6 @@ void Game::runGame()
         this->renderSpecialFood();
         this->renderCorpseFoods();
         this->renderRandomItem();
-        this->renderDifficulty();
-        this->renderPoints();
         // 即使在普通模式下，也显示当前为第1关
         this->renderLevel();
 
@@ -1926,7 +1906,7 @@ bool Game::selectLevel()
         };
 
         int index = 0;
-        int offset = 3;
+        int offset = 2; // 减小偏移，使菜单更紧凑
         mvwprintw(menu, 1, 1, "Select Game Mode:");
 
         wattron(menu, A_STANDOUT);
@@ -2031,10 +2011,10 @@ void Game::displayLevelIntroduction(int level)
     
     // 创建一个窗口用于显示开场文字
     WINDOW* introWin;
-    int width = this->mGameBoardWidth * 0.8;
-    int height = this->mGameBoardHeight * 0.6;
-    int startX = this->mGameBoardWidth * 0.1;
-    int startY = this->mGameBoardHeight * 0.2 + this->mInformationHeight;
+    int width = this->mGameBoardWidth * 0.85; // 略微增大宽度
+    int height = this->mGameBoardHeight * 0.7; // 增大高度
+    int startX = this->mGameBoardWidth * 0.075; // 调整X坐标保持居中
+    int startY = this->mGameBoardHeight * 0.15 + this->mInformationHeight; // 向上移动20像素
 
     introWin = newwin(height, width, startY, startX);
     box(introWin, 0, 0);
@@ -2994,7 +2974,6 @@ void Game::runLevel4()
     
     // 确保侧边栏正确显示
     this->renderInstructionBoard();
-    this->renderDifficulty();
     this->renderPoints();
     this->renderLevel();
     
@@ -3083,7 +3062,6 @@ void Game::runLevel()
 {
     // 确保初始化时侧边栏正确显示
     this->renderInstructionBoard();
-    this->renderDifficulty();
     this->renderPoints();
     this->renderLevel();
     
@@ -3253,7 +3231,6 @@ void Game::runLevel()
                 this->renderSpecialFood();
                 this->renderCorpseFoods();
                 this->renderRandomItem();
-                this->renderDifficulty();
                 this->renderPoints();
                 this->renderLevel();
                 refresh();
@@ -3304,7 +3281,6 @@ void Game::runLevel()
         this->renderSpecialFood();
         this->renderCorpseFoods();
         this->renderRandomItem();
-        this->renderDifficulty();
         this->renderPoints();
         this->renderLevel();
         
@@ -3348,12 +3324,6 @@ bool Game::selectLevelInLevelMode()
     for (int i = 0; i < mMaxLevel; i++) {
         if (mLevelStatus[i] != LevelStatus::Locked) {
             std::string itemText = "Level " + std::to_string(i + 1);
-            
-            // // 如果关卡已完成，添加完成标记
-            // if (mLevelStatus[i] == LevelStatus::Completed) {
-            //     itemText += " (Completed)";
-            // }
-            
             menuItems.push_back(itemText);
         } else {
             // 锁定的关卡显示为锁定状态
@@ -3366,7 +3336,7 @@ bool Game::selectLevelInLevelMode()
     menuItems.push_back("Quit Game");
 
     int index = 0;
-    int offset = 3;
+    int offset = 2; // 减小偏移，使菜单更紧凑
     mvwprintw(menu, 1, 1, "Select Level:");
     
     // 渲染菜单项
@@ -3622,7 +3592,6 @@ void Game::runTimeAttack()
         this->renderPoison();
         this->renderSpecialFood();
         this->renderRandomItem();
-        this->renderDifficulty();
         this->renderPoints();
         this->renderTimer(); // 在每一帧都渲染计时器
         
@@ -4179,13 +4148,13 @@ bool Game::selectBattleType() {
 
     std::vector<std::string> menuItems = {"Player vs Player", "Player vs AI", "Back"};
     int index = 0;
-    int offset = 3;
+    int offset = 2; // 减小偏移，使菜单更紧凑
     mvwprintw(menu, 1, 1, "Select Battle Type:");
     wattron(menu, A_STANDOUT);
-    mvwprintw(menu, 0 + offset, 1, menuItems[0].c_str());
+    mvwprintw(menu, 0 + offset, 1, "%s", menuItems[0].c_str());
     wattroff(menu, A_STANDOUT);
     for (size_t i = 1; i < menuItems.size(); i++) {
-        mvwprintw(menu, i + offset, 1, menuItems[i].c_str());
+        mvwprintw(menu, static_cast<int>(i) + offset, 1, "%s", menuItems[i].c_str());
     }
     wrefresh(menu);
 
@@ -4194,17 +4163,17 @@ bool Game::selectBattleType() {
         key = getch();
         switch(key) {
             case 'W': case 'w': case KEY_UP:
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                index = (index - 1 + menuItems.size()) % menuItems.size();
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                index = (index - 1 + static_cast<int>(menuItems.size())) % static_cast<int>(menuItems.size());
                 wattron(menu, A_STANDOUT);
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                 wattroff(menu, A_STANDOUT);
                 break;
             case 'S': case 's': case KEY_DOWN:
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
-                index = (index + 1) % menuItems.size();
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
+                index = (index + 1) % static_cast<int>(menuItems.size());
                 wattron(menu, A_STANDOUT);
-                mvwprintw(menu, index + offset, 1, menuItems[index].c_str());
+                mvwprintw(menu, index + offset, 1, "%s", menuItems[index].c_str());
                 wattroff(menu, A_STANDOUT);
                 break;
         }
@@ -4743,10 +4712,10 @@ void Game::displayLevelCompletion(int level)
     
     // 创建一个窗口用于显示通关文字
     WINDOW* completeWin;
-    int width = this->mGameBoardWidth * 0.8;
-    int height = this->mGameBoardHeight * 0.7;
-    int startX = this->mGameBoardWidth * 0.1;
-    int startY = this->mGameBoardHeight * 0.15 + this->mInformationHeight;
+    int width = this->mGameBoardWidth * 0.85; // 略微增大宽度
+    int height = this->mGameBoardHeight * 0.75; // 略微增大高度
+    int startX = this->mGameBoardWidth * 0.075; // 调整X坐标保持居中
+    int startY = this->mGameBoardHeight * 0.1 + this->mInformationHeight; // 向上移动20像素
 
     completeWin = newwin(height, width, startY, startX);
     box(completeWin, 0, 0);
@@ -5049,7 +5018,6 @@ void Game::runLevel3Mode1()
 {
     // 确保初始化时侧边栏正确显示
     this->renderInstructionBoard();
-    this->renderDifficulty();
     this->renderPoints();
     this->renderLevel();
     
@@ -5228,7 +5196,6 @@ void Game::runLevel3Mode1()
             {
                 // 如果达到目标分数，关卡通过
                 this->renderFood();
-                this->renderDifficulty();
                 this->renderPoints();
                 this->renderLevel();
                 refresh();
@@ -5247,7 +5214,6 @@ void Game::runLevel3Mode1()
         
         // 渲染食物和状态信息
         this->renderFood();
-        this->renderDifficulty();
         this->renderPoints();
         this->renderLevel();
         
@@ -5305,7 +5271,6 @@ void Game::runLevel3Mode2()
 {
     // 确保初始化时侧边栏正确显示
     this->renderInstructionBoard();
-    this->renderDifficulty();
     this->renderPoints();
     this->renderLevel();
     
@@ -5318,10 +5283,10 @@ void Game::runLevel3Mode2()
         
         // 创建一个窗口用于显示开场文字
         WINDOW* introWin;
-        int width = this->mGameBoardWidth * 0.8;
-        int height = this->mGameBoardHeight * 0.6;
-        int startX = this->mGameBoardWidth * 0.1;
-        int startY = this->mGameBoardHeight * 0.2 + this->mInformationHeight;
+        int width = this->mGameBoardWidth * 0.85; // 略微增大宽度
+        int height = this->mGameBoardHeight * 0.7; // 增大高度
+        int startX = this->mGameBoardWidth * 0.075; // 调整X坐标保持居中
+        int startY = this->mGameBoardHeight * 0.15 + this->mInformationHeight; // 向上移动20像素
 
         introWin = newwin(height, width, startY, startX);
         box(introWin, 0, 0);
@@ -5572,7 +5537,6 @@ void Game::runLevel3Mode2()
     this->mPoints2 = 0; // 玩家2得分
     
     // 设置难度
-    this->mDifficulty = 0;
     this->mDelay = this->mBaseDelay * 1.25; // 稍微慢一点，方便协作
     
     // 设置非阻塞模式，确保游戏不会在等待输入时卡住
