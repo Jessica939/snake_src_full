@@ -180,9 +180,9 @@ void Game::createInformationBoard()
 void Game::renderInformationBoard() const
 {
     mvwprintw(this->mWindows[0], 1, 1, "Welcome to The Snake Game!");
-    mvwprintw(this->mWindows[0], 2, 1, "Author: Lei Mao");
-    mvwprintw(this->mWindows[0], 3, 1, "Website: https://github.com/leimao/");
-    mvwprintw(this->mWindows[0], 4, 1, "Implemented using C++ and libncurses library.");
+    mvwprintw(this->mWindows[0], 2, 1, "Author: Go Go Snakeg");
+    mvwprintw(this->mWindows[0], 3, 1, "Website: https://github.com/Jessica939/snake_src_full");
+    mvwprintw(this->mWindows[0], 4, 1, "Implemented using C++.");
     
     // 在经典模式中显示生命数
     if (mCurrentMode == GameMode::Classic && mPtrSnake != nullptr) {
