@@ -168,7 +168,6 @@ private:
     bool writeLeaderBoard();
     void renderLeaderBoard() const;
     void renderPoints() const;
-    void renderDifficulty() const;
     
     // 存档文件路径
     const std::string mSaveFilePath = "game_save.dat";
