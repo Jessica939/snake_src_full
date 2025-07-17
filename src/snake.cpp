@@ -16,7 +16,7 @@ SnakeBody::SnakeBody()
 
 Snake::Snake(int gameBoardWidth, int gameBoardHeight, int initLength)
     : mGameBoardWidth(gameBoardWidth), mGameBoardHeight(gameBoardHeight), mInitLength(initLength),
-      mPtrMap(nullptr), mFixedLength(false), mInvincible(false)
+      mPtrMap(nullptr), mFixedLength(false), mInvincible(false), mLives(3), mIsAlive(true)
 {
     this->initializeSnake();
     this->setRandomSeed();

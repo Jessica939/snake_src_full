@@ -349,6 +349,7 @@ private:
     void usePortal(); // 使用传送门
     void useAttack(); // 使用攻击道具
     void handleItemUsage(int key); // 处理道具使用
+    void useRandomBox();//使用随机盒子
     void updateCheatMode(); // 更新作弊模式状态
     void handleAcceleration(int key); // 处理长按加速
     bool isKeyPressed(int key); // 检查按键是否被按下
