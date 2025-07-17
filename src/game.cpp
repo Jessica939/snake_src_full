@@ -235,15 +235,19 @@ void Game::renderInstructionBoard() const
             mvwprintw(this->mWindows[2], row++, 1, "Lives");
             mvwprintw(this->mWindows[2], row++, 2, "%d", mPtrSnake->getLives());
     }
-    // Level
-    mvwprintw(this->mWindows[2], row++, 1, "Level");
-    mvwprintw(this->mWindows[2], row++, 2, "%d", mCurrentLevel);
+    
+    // Level - 仅在关卡模式下显示
+    if (mCurrentMode == GameMode::Level) {
+        mvwprintw(this->mWindows[2], row++, 1, "Level");
+        mvwprintw(this->mWindows[2], row++, 2, "%d", mCurrentLevel);
+    }
     
     // --- 剩余时间 (仅限时模式) ---
     if (mCurrentMode == GameMode::Timed) {
         mvwprintw(this->mWindows[2], 14, 1, "Time Left:");
         mvwprintw(this->mWindows[2], 15, 2, "%d s", mTimeRemaining);
     }
+    
     // Points
     mvwprintw(this->mWindows[2], row++, 1, "Points");
     mvwprintw(this->mWindows[2], row++, 2, "%d", mPoints);
@@ -606,8 +610,13 @@ void Game::renderPoints() const
 
 void Game::renderLevel() const
 {
+    // 只在关卡模式下显示关卡信息
+    if (mCurrentMode != GameMode::Level) {
+        return;
+    }
+    
     // 显示当前关卡
-    if (mCurrentMode == GameMode::Level && mCurrentLevel <= mMaxLevel) {
+    if (mCurrentLevel <= mMaxLevel) {
         std::string levelString = std::to_string(this->mCurrentLevel);
         mvwprintw(this->mWindows[2], 12, 2, "%s", levelString.c_str());
         
@@ -633,7 +642,6 @@ void Game::renderLevel() const
                 typeString = "Unknown";
         }
         mvwprintw(this->mWindows[2], 12, 10, "(%s)", typeString.c_str());
-    } else {
     }
     
     wrefresh(this->mWindows[2]);
@@ -1615,7 +1623,7 @@ void Game::startGame()
                         int height = 5;
                         int startX = this->mGameBoardWidth * 0.25;
                         int startY = this->mGameBoardHeight * 0.25 + this->mInformationHeight;
-                
+
                         levelCompleteWin = newwin(height, width, startY, startX);
                         box(levelCompleteWin, 0, 0);
                 
